@@ -1,0 +1,3 @@
+[submodule "pjsua"]
+	path = pjsua
+	url = git@github.com:jchavanton/pjsua.git

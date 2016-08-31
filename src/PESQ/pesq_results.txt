@@ -1,0 +1,2 @@
+REFERENCE	 DEGRADED	 PESQMOS	 MOSLQO	 SAMPLE_FREQ	 MODE
+/home/cloud/git/voip_hyppo/voice_files/reference.wav	 /home/cloud/git/voip_hyppo/voice_files/recording.wav	 3.057	 2.907	 16000	nb

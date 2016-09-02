@@ -6,11 +6,12 @@
 ```
  apt-get install build-essential
  apt-get install libcurl4-openssl-dev
+ apt-get install cmake
 ```
 ### build
 ```
- ./configure
- make
+ cd pjsua && ./configure && ./make
+ cd .. && cmake && make
 ```
 ### run
 ```

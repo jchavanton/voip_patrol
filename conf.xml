@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <config>
 	<actions>
-		<action type="register" expected_cause_code="200" username="666" password="DNV9J1xUU" registrar="voip.libon.com"/>
-		<action type="register" expected_cause_code="200" username="777" password="SMOF0qFRA" registrar="voip.libon.com"/>
-		<action type="register" expected_cause_code="403" username="555" password="SMOF0qFRA" registrar="voip.libon.com"/>
-		<action type="register" expected_cause_code="204" username="555" password="SMOF0qFRA" registrar="voip.libon.com"/>
+		<action type="register" expected_cause_code="200" username="666" password="DNV9J1xUU" registrar="voip.domain.com"/>
+		<action type="register" expected_cause_code="200" username="777" password="SMOF0qFRA" registrar="voip.domain.com"/>
+		<action type="register" expected_cause_code="403" username="555" password="SMOF0qFRA" registrar="voip.domain.com"/>
+		<action type="register" expected_cause_code="204" username="555" password="SMOF0qFRA" registrar="voip.domain.com"/>
 		<action type="wait"/>
-		<action type="call" expected_cause_code="404" caller="666@voip.libon.com" callee="555@voip.libon.com" duration=10/>
-		<action type="call" expected_cause_code="200" caller="666@voip.libon.com" callee="777@voip.libon.com" duration=10/>
+		<action type="call" expected_cause_code="404" caller="666@voip.domain.com" callee="555@voip.domain.com" duration=10/>
+		<action type="call" expected_cause_code="200" caller="666@voip.domain.com" callee="777@voip.domain.com" duration=10/>
 	</actions>
 </config>
 <!-- expected_useragent expected_reason max_delay -->

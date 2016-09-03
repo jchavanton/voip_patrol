@@ -1,6 +1,6 @@
-# VoIP Test
+# VoIP Patrol
 
-## VoIP signaling and media tester
+## VoIP signaling and media test automaton
 
 ### debian dependencies
 ```
@@ -8,26 +8,35 @@
  apt-get install libcurl4-openssl-dev
  apt-get install cmake
 ```
-### build
+### build pjsua
 ```
- cd pjsua && ./configure && ./make
- cd .. && cmake && make
+ git submodule update --init
+ cd pjsua && ./configure
+ make dep && make
+ cd ..
 ```
+
+### buil voip_patrol
+```
+ cmake CMakeLists.txt 
+ make
+```
+
 ### run
 ```
- ./voip_hyppo
+ ./voip_patrol
  -c,--conf <conf.xml> 
  -l,--log <test.log>
 ```
 ### sources
 ```
- pjsip-apps/src/samples/voip_hyppo/voip_hyppo.cpp
- pjsip-apps/src/samples/voip_hyppo/voip_hyppo.hh
+ pjsip-apps/src/samples/voip_patrol/voip_patrol.cpp
+ pjsip-apps/src/samples/voip_patrol/voip_patrol.hh
 ```
 
 #### xml parser integration
 ```
- pjsip-apps/src/samples/voip_hyppo/ezxml
+ pjsip-apps/src/samples/voip_patrol/ezxml
 ```
 
 #### congfig test plan example

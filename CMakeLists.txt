@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-project(voip_hyppo VERSION 1.0.0 LANGUAGES C CXX)
+project(voip_patrol VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -10,7 +10,7 @@ set(SRC_DIR "${ROOT_DIR}/src")
 set(PESQ_SRC_DIR "${SRC_DIR}/PESQ")
 set(CURL_SRC_DIR "${SRC_DIR}/curl")
 set(EZXML_SRC_DIR "${SRC_DIR}/ezxml")
-set(HYPPO_SRC_DIR "${SRC_DIR}/voip_hyppo")
+set(HYPPO_SRC_DIR "${SRC_DIR}/voip_patrol")
 
 set(PESQ_SRCS
 	${PESQ_SRC_DIR}/dsp.c
@@ -29,11 +29,11 @@ set(EZXML_SRCS
 include_directories("${SRC_DIR}")
 
 set(HYPPO_SRCS_CPP
-	${HYPPO_SRC_DIR}/voip_hyppo.cpp
+	${HYPPO_SRC_DIR}/voip_patrol.cpp
 )
 
 set(HYPPO_SRCS_C
-	${HYPPO_SRC_DIR}/hyppo_pesq.c
+	${HYPPO_SRC_DIR}/patrol_pesq.c
 )
 
 include_directories(${ROOT_DIR}/pjsua/pjmedia/include)
@@ -44,7 +44,7 @@ include_directories(${ROOT_DIR}/pjsua/pjlib-util/include)
 
 set(SOURCE_FILES ${HYPPO_SRCS_CPP} ${HYPPO_SRCS_C} ${CURL_SRCS} ${EZXML_SRCS} ${PESQ_SRCS})
 
-add_executable(voip_hyppo ${SOURCE_FILES})
+add_executable(voip_patrol ${SOURCE_FILES})
 
 set(CMAKE_LIBRARY_PATH
 	"${ROOT_DIR}/pjsua/pjsip/lib"
@@ -56,7 +56,7 @@ set(CMAKE_LIBRARY_PATH
 
 execute_process(COMMAND "./pjsua/config.guess" OUTPUT_VARIABLE AC_SYSTEM)
 string(STRIP ${AC_SYSTEM} AC_SYSTEM)
-target_link_libraries(voip_hyppo
+target_link_libraries(voip_patrol
 	pjsua2-${AC_SYSTEM}
 	stdc++
 	pjsua-${AC_SYSTEM}
@@ -82,4 +82,6 @@ target_link_libraries(voip_hyppo
 	m
 	opus
 	asound
+	ssl
+	crypto
 )

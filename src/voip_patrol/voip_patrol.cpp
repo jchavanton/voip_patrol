@@ -264,6 +264,7 @@ Config::~Config() {
 bool Config::wait(){
 	bool completed = false;
 	int tests_running = 0;
+	bool status_update = true;
 	while(!completed) {
 		for(std::vector<TestAccount *>::iterator it = accounts.begin(); it != accounts.end(); it++){
 			TestAccount *account = *it;
@@ -304,12 +305,14 @@ bool Config::wait(){
 						call->test->update_result();
 					}
 				}
-			//
 				tests_running++;
 			}
 		}
 		if(tests_running > 0){
-			std::cout << "waiting for tests completion active tests["<<tests_running<<"]\n";
+			if (status_update) {
+				std::cout << "waiting for tests completion active tests["<<tests_running<<"]...\n";
+				status_update = false;
+			}
 			tests_running=0;
 			pj_thread_sleep(1000);
 		} else {
@@ -498,7 +501,7 @@ void Alert::send(void) {
 		curl_slist_free_all(recipients);
 		curl_easy_cleanup(curl);
 	}
-	std::cout << "email alert sent................\n";
+	std::cout << "email alert sent...\n";
 }
 
 size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) {
@@ -550,11 +553,12 @@ int main(int argc, char **argv){
 	}
 
 	try {
-
 		ep.libCreate();
 		// Init library
 		EpConfig ep_cfg;
 		ep_cfg.logConfig.level = 4;
+		ep_cfg.logConfig.consoleLevel = 0;
+		ep_cfg.logConfig.filename = "pjsua.log";
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
 
@@ -579,9 +583,8 @@ int main(int argc, char **argv){
 		alert.alert_server_url = "smtp://gmail-smtp-in.l.google.com:25";
 		alert.send();
 
-
 		//pj_thread_sleep(60000);
-		std::cout << "hangup all calls.................." << std::endl;
+		std::cout << "hangup all calls..." << std::endl;
 		ep.hangupAllCalls();
 
 		ret = PJ_SUCCESS;
@@ -603,7 +606,7 @@ int main(int argc, char **argv){
 		std::cout << "Error Found" << std::endl;
 	}
 
-	std::cout << "exiting .................." << std::endl;
+	std::cout << "exiting !" << std::endl;
 	return ret;
 }
 

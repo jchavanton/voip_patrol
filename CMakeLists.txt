@@ -54,6 +54,8 @@ set(CMAKE_LIBRARY_PATH
 	"${ROOT_DIR}/pjsua/pjlib-util/lib"
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
 execute_process(COMMAND "./pjsua/config.guess" OUTPUT_VARIABLE AC_SYSTEM)
 string(STRIP ${AC_SYSTEM} AC_SYSTEM)
 target_link_libraries(voip_patrol
@@ -82,6 +84,14 @@ target_link_libraries(voip_patrol
 	m
 	opus
 	asound
-	ssl
-	crypto
+	-std=c++11
 )
+
+find_package(PkgConfig REQUIRED)
+pkg_search_module(OPENSSL openssl)
+if( OPENSSL_FOUND )
+	message("openssl found")
+	target_link_libraries(voip_patrol ssl crypto)
+else()
+	message("openssl not found")
+endif()

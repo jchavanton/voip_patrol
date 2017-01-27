@@ -65,11 +65,6 @@ src/
     └── voip_patrol.hh
 ```
 
-#### xml parser integration
-```
- pjsip-apps/src/samples/voip_patrol/ezxml
-```
-
 #### congfig test plan example
 ```xml
 <?xml version="1.0"?>

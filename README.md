@@ -80,8 +80,13 @@ src/
 	</actions>
 </config>
 ```
+#### PJSUA
+PJSUA : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
+http://www.pjsip.org
 
 #### PESQ
+P.862 : Perceptual evaluation of speech quality (PESQ): An objective method for end-to-end speech quality assessment of narrow-band telephone networks and speech codecs
+http://www.itu.int/rec/T-REC-P.862
 ```
 ./run_pesq +16000 voice_files/reference.wav voice_files/recording.wav
 ```

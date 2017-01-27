@@ -1,5 +1,5 @@
 /*
- * Voip Hyppo
+ * Voip Patrol
  * @author Julien Chavanton 2016
  */
 #include "voip_patrol.hh"
@@ -464,7 +464,7 @@ void Alert::prepare(void){
 	upload_data.payload_content.push_back(from);
 	std::string messageId = "Message-ID: <dcd7cb36-11db-487a-9f3a-e652a9458efd@rfcpedant.example.org>\r\n";
 	upload_data.payload_content.push_back(messageId);
-	std::string subject = "Subject: VoIP Hyppo test report (OO)\r\n";
+	std::string subject = "Subject: VoIP Patrol test report (OO)\r\n";
 	upload_data.payload_content.push_back(subject);
 	std::string content_type = "Content-type: text/html\r\n";
 	upload_data.payload_content.push_back(content_type);

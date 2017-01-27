@@ -1,5 +1,5 @@
 /*
- * Voip Hyppo
+ * Voip Patrol
  * @author Julien Chavanton 2016
  */
 #include <pjsua2.hpp>

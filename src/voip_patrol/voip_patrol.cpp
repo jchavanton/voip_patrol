@@ -20,8 +20,6 @@ TestCall::TestCall(Account &p_acc, int call_id = PJSUA_INVALID_ID) : Call(p_acc,
 	acc = (TestAccount *)&p_acc;
 	recorder_id = -1;
 	player_id = -1;
-	local_user = "";
-	remote_user = "";
 	role = -1;
 }
 void TestCall::setTest(Test *p_test) {
@@ -55,7 +53,6 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_player_id player_id;
 	char fn[] = "voice_ref_files/reference_8000.wav";
-	//sprintf(fn,"voice_files/%s_ref.wav", caller_contact);
 	const pj_str_t file_name = pj_str(fn);
 	status = pjsua_player_create(&file_name, 0, &player_id);
 	if (status != PJ_SUCCESS) {
@@ -73,13 +70,13 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	pjsua_call_info call_info;
 	pjsua_call_get_info(ci.id, &call_info);
 	int uri_prefix = 3; // sip:
-	//std::cout <<"[call]: "<< ci.remoteContact <<" "<< ci.localContact << "\n";
+	std::string remote_user("");
+	std::string local_user("");
 	std::size_t pos = ci.localUri.find("@");
 	if (ci.localUri[0] == '<')
 		uri_prefix++;
 	if (pos!=std::string::npos) {
 		local_user = ci.localUri.substr(uri_prefix, pos - uri_prefix);
-		std::cout <<"remote:["<<  pos <<"]"<< std::endl;
 	}
 	pos = ci.remoteUri.find("@");
 	uri_prefix = 3;
@@ -87,13 +84,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		uri_prefix++;
 	if (pos!=std::string::npos) {
 		remote_user = ci.remoteUri.substr(uri_prefix, pos - uri_prefix);
-		std::cout <<"remote:["<<  pos <<"]"<< ci.remoteUri.substr(uri_prefix, pos - uri_prefix) << std::endl;
 	}
-	//local_user = ci.localUri;
-	//remote_user = ci.remoteUri;
 	role = ci.role;
 	std::cout << "[call]: onCallState: "<< role <<" "<< ci.localUri <<" "<< ci.remoteUri << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
-	std::cout << "[call]: onCallState: "<< role <<" "<< local_user <<" "<< remote_user << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
+	//std::cout << "[call]: onCallState: "<< role <<" "<< local_user <<" "<< remote_user << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
 
 	if (test && (ci.state == PJSIP_INV_STATE_DISCONNECTED || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 		std::string res = "call[" + SSTR(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
@@ -474,7 +468,7 @@ void Alert::prepare(void){
 	upload_data.payload_content.push_back(from);
 	std::string messageId = "Message-ID: <dcd7cb36-11db-487a-9f3a-e652a9458efd@rfcpedant.example.org>\r\n";
 	upload_data.payload_content.push_back(messageId);
-	std::string subject = "Subject: VoIP Patrol test report (OO)\r\n";
+	std::string subject = "Subject: VoIP Patrol test report\r\n";
 	upload_data.payload_content.push_back(subject);
 	std::string content_type = "Content-type: text/html\r\n";
 	upload_data.payload_content.push_back(content_type);
@@ -492,6 +486,7 @@ void Alert::prepare(void){
 	std::string html_end = "</table></html>\n\r";
 	upload_data.payload_content.push_back(html_end);
 }
+
 void Alert::send(void) {
 	CURLcode res = CURLE_OK;
 	struct curl_slist *recipients = NULL;

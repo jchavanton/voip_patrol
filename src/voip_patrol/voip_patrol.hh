@@ -113,8 +113,6 @@ class TestCall : public Call {
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);
 		pjsua_recorder_id recorder_id;
 		pjsua_player_id player_id;
-		std::string local_user;
-		std::string remote_user;
 		int role;
 	private:
 		TestAccount *acc;

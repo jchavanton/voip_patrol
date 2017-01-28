@@ -39,7 +39,7 @@ void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
 static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_recorder_id recorder_id;
-	char rec_fn[1024] = "voice_files/recording.wav";
+	char rec_fn[1024] = "voice_ref_files/recording.wav";
 	sprintf(rec_fn,"voice_files/%s_rec.wav", caller_contact);
 	const pj_str_t rec_file_name = pj_str(rec_fn);
 	status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &recorder_id);
@@ -48,13 +48,13 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 		return status;
 	}
 	call->recorder_id = recorder_id;
-	std::cout << "[recorder] created:" << recorder_id << "\n";
+	std::cout << "[recorder] created:" << recorder_id << " fn:"<< rec_fn << "\n";
 	status = pjsua_conf_connect( pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(recorder_id) );
 }
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_player_id player_id;
-	char fn[] = "voice_files/reference_8000.wav";
+	char fn[] = "voice_ref_files/reference_8000.wav";
 	//sprintf(fn,"voice_files/%s_ref.wav", caller_contact);
 	const pj_str_t file_name = pj_str(fn);
 	status = pjsua_player_create(&file_name, 0, &player_id);
@@ -72,18 +72,28 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	CallInfo ci = getInfo();
 	pjsua_call_info call_info;
 	pjsua_call_get_info(ci.id, &call_info);
-	std::cout <<"[call]: "<< ci.remoteContact <<" "<< ci.localContact << "\n";
-	std::size_t pos = ci.localContact.find("@");
+	int uri_prefix = 3; // sip:
+	//std::cout <<"[call]: "<< ci.remoteContact <<" "<< ci.localContact << "\n";
+	std::size_t pos = ci.localUri.find("@");
+	if (ci.localUri[0] == '<')
+		uri_prefix++;
 	if (pos!=std::string::npos) {
-		local_user = ci.localContact.substr(5, pos -5);
+		local_user = ci.localUri.substr(uri_prefix, pos - uri_prefix);
+		std::cout <<"remote:["<<  pos <<"]"<< std::endl;
 	}
-	pos = ci.remoteContact.find("@");
+	pos = ci.remoteUri.find("@");
+	uri_prefix = 3;
+	if (ci.remoteUri[0] != '<')
+		uri_prefix++;
 	if (pos!=std::string::npos) {
-		remote_user = ci.remoteContact.substr(5, pos - 5);
+		remote_user = ci.remoteUri.substr(uri_prefix, pos - uri_prefix);
+		std::cout <<"remote:["<<  pos <<"]"<< ci.remoteUri.substr(uri_prefix, pos - uri_prefix) << std::endl;
 	}
+	//local_user = ci.localUri;
+	//remote_user = ci.remoteUri;
 	role = ci.role;
-
-	std::cout << "[call]: "<< role <<" "<< local_user <<" "<< remote_user << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
+	std::cout << "[call]: onCallState: "<< role <<" "<< ci.localUri <<" "<< ci.remoteUri << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
+	std::cout << "[call]: onCallState: "<< role <<" "<< local_user <<" "<< remote_user << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
 
 	if (test && (ci.state == PJSIP_INV_STATE_DISCONNECTED || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 		std::string res = "call[" + SSTR(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
@@ -191,7 +201,7 @@ Test::Test(Config *p_config){
 	setup_duration = 0;
 }
 void Test::get_mos() {
-	std::string reference = "voice_files/reference_8000.wav";
+	std::string reference = "voice_ref_files/reference_8000.wav";
 	std::string degraded = "voice_files/" + remote_user + "_rec.wav";
 	mos = pesq_process(8000, reference.c_str(), degraded.c_str());
 	std::cout <<"[call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< degraded <<"\n";

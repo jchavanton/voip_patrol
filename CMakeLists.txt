@@ -54,7 +54,7 @@ set(CMAKE_LIBRARY_PATH
 	"${ROOT_DIR}/pjsua/pjlib-util/lib"
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g")
 
 execute_process(COMMAND "./pjsua/config.guess" OUTPUT_VARIABLE AC_SYSTEM)
 string(STRIP ${AC_SYSTEM} AC_SYSTEM)

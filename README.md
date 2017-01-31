@@ -7,6 +7,8 @@
  apt-get install build-essential
  apt-get install libcurl4-openssl-dev
  apt-get install cmake
+ apt-get install pkg-config
+ apt-get install libasound2-dev
 ```
 ### build pjsua
 ```

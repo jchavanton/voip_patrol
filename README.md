@@ -2,6 +2,12 @@
 
 ## VoIP signaling and media test automaton
 
+### mac dependencies
+```
+ brew install pkg-config
+ brew install cmake
+```
+
 ### debian dependencies
 ```
  apt-get install build-essential

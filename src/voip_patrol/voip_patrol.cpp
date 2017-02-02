@@ -49,6 +49,7 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 	std::cout << "[recorder] created:" << recorder_id << " fn:"<< rec_fn << "\n";
 	status = pjsua_conf_connect( pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(recorder_id) );
 }
+
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_player_id player_id;
@@ -90,7 +91,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	//std::cout << "[call]: onCallState: "<< role <<" "<< local_user <<" "<< remote_user << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
 
 	if (test && (ci.state == PJSIP_INV_STATE_DISCONNECTED || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
-		std::string res = "call[" + SSTR(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
+		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 		test->connect_duration = call_info.connect_duration.sec;
 		test->setup_duration = call_info.total_duration.sec - call_info.connect_duration.sec;
 		test->result_cause_code = (int)ci.lastStatusCode;
@@ -156,7 +157,7 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	std::cout << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code << std::endl;
 	if(test){
-		std::string res = "registration[" + SSTR(prm.code) + "] reason["+ prm.reason + "] expiration[" + SSTR(prm.expiration) +"]";
+		std::string res = "registration[" + std::to_string(prm.code) + "] reason["+ prm.reason + "] expiration[" + std::to_string(prm.expiration) +"]";
 		test->result_cause_code = (int)prm.code;
 		test->reason = prm.reason;
 		test->completed = true;
@@ -214,7 +215,7 @@ void Test::update_result() {
 
 		// preprare result log line
 		std::string line ="start["+start_time+"] end["+end_time+"] action["+type+"]"
-			          " result["+res+"|"+SSTR(expected_cause_code)+"] cause_code["+SSTR(result_cause_code)+"]"
+			          " result["+res+"|"+std::to_string(expected_cause_code)+"] cause_code["+std::to_string(result_cause_code)+"]"
 				  " reason["+reason+"] from["+from+"] to["+to+"]";
 		config->logFile<<line<<std::endl;
 		std::cout<<LOG_COLOR_INFO<<now<<line<<LOG_COLOR_END<<std::endl;
@@ -240,11 +241,11 @@ void Test::update_result() {
 
 		std::string result = "<tr><td "+td_style+">"+start_time+"</td><td "+td_style+">"+end_time+"</td><td "+td_style+">"+type+"</td>"
                                          "<td "+td_style+">"+res+"</td>"
-                                         "<td "+td_style+">"+SSTR(expected_cause_code)+"</td>"
-                                         "<td "+td_style+"><font color="+code_color+">"+SSTR(result_cause_code)+"</font></td>"
+                                         "<td "+td_style+">"+std::to_string(expected_cause_code)+"</td>"
+                                         "<td "+td_style+"><font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
                                          "<td "+td_style+">"+reason+"</td>"
-                                         "<td "+td_style+">"+SSTR(min_mos)+"</td><td "+td_style+"><font color="+mos_color+">"+SSTR(mos)+"</font></td>"
-                                         "<td "+td_style+">"+SSTR(expected_duration)+"</td><td "+td_style+">"+SSTR(connect_duration)+"</td>"
+                                         "<td "+td_style+">"+std::to_string(min_mos)+"</td><td "+td_style+"><font color="+mos_color+">"+std::to_string(mos)+"</font></td>"
+                                         "<td "+td_style+">"+std::to_string(expected_duration)+"</td><td "+td_style+">"+std::to_string(connect_duration)+"</td>"
                                          "<td "+td_style+">"+local_user+"</td>"
                                          "<td "+td_style+">"+remote_user+"</td>"
 					 "</tr>\r\n";
@@ -294,7 +295,7 @@ bool Config::wait(){
 				pjsua_call_get_info(ci.id, &call_info);
 				std::cout <<"[wait-call]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
 				if (call->test && !call->test->completed && (ci.state == PJSIP_INV_STATE_CONFIRMED)) {
-					std::string res = "call[" + SSTR(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
+					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 					call->test->connect_duration = call_info.connect_duration.sec;
 					call->test->setup_duration = call_info.total_duration.sec - call_info.connect_duration.sec;
 					call->test->result_cause_code = (int)ci.lastStatusCode;
@@ -521,7 +522,7 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 		return 0;
 //	data = payload_text[upload_data->lines_read];
 	data = upload_data->payload_content[upload_data->lines_read].c_str();
-	std::cout<<LOG_COLOR_INFO<<SSTR(data)<<LOG_COLOR_END;
+	std::cout<<LOG_COLOR_INFO<<data<<LOG_COLOR_END;
 	if(data) {
 		size_t len = strlen(data);
 		memcpy(ptr, data, len);

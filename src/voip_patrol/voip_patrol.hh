@@ -13,8 +13,6 @@
 #include <sstream>
 #include <ctime>
 
-#define SSTR( x ) static_cast< std::ostringstream & >( ( std::ostringstream() << std::dec << x ) ).str()
-
 #define LOG_COLOR_INFO "\e[1;35m"
 #define LOG_COLOR_ERROR "\e[1;31m"
 #define LOG_COLOR_END "\e[0m\n"

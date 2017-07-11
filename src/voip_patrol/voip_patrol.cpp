@@ -20,16 +20,19 @@ TestCall::TestCall(Account &p_acc, int call_id = PJSUA_INVALID_ID) : Call(p_acc,
 	acc = (TestAccount *)&p_acc;
 	recorder_id = -1;
 	player_id = -1;
-	role = -1;
+	role = -1; // Caller 0 | callee 1
 }
+
 void TestCall::setTest(Test *p_test) {
 	test = p_test;
 }
+
 void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
 	std::cout << "[CallTsx]: " <<  ci.remoteUri << " [" << ci.stateText << "]" << std::endl;
 }
+
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
 	std::cout << "[onStreamCreated]\n";
 }
@@ -139,20 +142,24 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 void TestAccount::setTest(Test *ptest) {
 	test = ptest;
 }
+
 TestAccount::TestAccount() {
 	test=NULL;
 }
+
 TestAccount::~TestAccount() {
 	std::cout << "[Account] is being deleted: No of calls=" << calls.size() << std::endl;
 }
+
 void TestAccount::removeCall(Call *call) {
-	for (std::vector<Call *>::iterator it = calls.begin(); it != calls.end(); ++it) {
+	for (std::vector<TestCall *>::iterator it = calls.begin(); it != calls.end(); ++it) {
 		if (*it == call) {
 			calls.erase(it);
 			break;
 		}
 	}
 }
+
 void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	std::cout << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code << std::endl;
@@ -164,12 +171,14 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 		test->update_result();
 	}
 }
+
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
-	Call *call = new TestCall(*this, iprm.callId);
+	TestCall *call = new TestCall(*this, iprm.callId);
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	std::cout << "[onIncomingCall]: " <<  ci.remoteUri << " [" << ci.stateText << "]" << std::endl;
 	calls.push_back(call);
+	config->calls.push_back(call);
 	prm.statusCode = (pjsip_status_code)200;
 	call->answer(prm);
 }
@@ -195,12 +204,14 @@ Test::Test(Config *p_config){
 	expected_duration = 0;
 	setup_duration = 0;
 }
+
 void Test::get_mos() {
 	std::string reference = "voice_ref_files/reference_8000.wav";
 	std::string degraded = "voice_files/" + remote_user + "_rec.wav";
 	mos = pesq_process(8000, reference.c_str(), degraded.c_str());
 	std::cout <<"[call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< degraded <<"\n";
 }
+
 void Test::update_result() {
 		char now[20] = {'\0'};
 		bool success = false;
@@ -266,6 +277,7 @@ void Config::update_result(std::string text){
 Config::~Config() {
 	logFile.close();
 }
+
 bool Config::wait(){
 	bool completed = false;
 	int tests_running = 0;
@@ -293,7 +305,7 @@ bool Config::wait(){
 				CallInfo ci = call->getInfo();
 				pjsua_call_info call_info;
 				pjsua_call_get_info(ci.id, &call_info);
-				std::cout <<"[wait-call]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
+				std::cout <<"[wait:call-with-test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
 				if (call->test && !call->test->completed && (ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 					call->test->connect_duration = call_info.connect_duration.sec;
@@ -311,6 +323,11 @@ bool Config::wait(){
 					}
 				}
 				tests_running++;
+			} else {
+				CallInfo ci = call->getInfo();
+				pjsua_call_info call_info;
+				pjsua_call_get_info(ci.id, &call_info);
+				std::cout <<"[wait:call-with-no-test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<"]"<<std::endl;
 			}
 		}
 		if(tests_running > 0){
@@ -385,8 +402,9 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				AccountConfig acc_cfg;
 				acc_cfg.idUri = "sip:" + username + "@" + registrar;
 				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
-				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", registrar, username, 0, password) );
+				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", "sip.flowroute.com", username, 0, password) );
 				TestAccount * acc = new TestAccount();
+				acc->config = this;
 				acc->create(acc_cfg);
 				acc->setTest(test);
 				accounts.push_back(acc);
@@ -397,6 +415,7 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 					std::cerr <<" >> "<<tag<<"missing action parameters for " << action_type << std::endl;
 					continue;
 				}
+
 				std::string caller = ezxml_attr(xml_action,"caller");
 				std::string callee = ezxml_attr(xml_action,"callee");
 				std::string duration = ezxml_attr(xml_action,"duration");

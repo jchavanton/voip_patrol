@@ -91,8 +91,9 @@ class Test {
 
 class TestAccount : public Account {
 	public:
-		std::vector<Call *> calls;
+		std::vector<TestCall *> calls;
 		Test *test;
+		Config *config;
 		void setTest(Test *test);
 		TestAccount();
 		~TestAccount();

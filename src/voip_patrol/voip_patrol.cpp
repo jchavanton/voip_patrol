@@ -172,11 +172,12 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	}
 }
 
+// [onIncomingCall]: <sip:+133663170@fl.gg;isup-oli=00> [NULL]
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(*this, iprm.callId);
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
-	std::cout << "[onIncomingCall]: " <<  ci.remoteUri << " [" << ci.stateText << "]" << std::endl;
+	std::cout <<"[onIncomingCall]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"] ["<<ci.stateText<<"]"<< std::endl;
 	calls.push_back(call);
 	config->calls.push_back(call);
 	prm.statusCode = (pjsip_status_code)200;
@@ -305,7 +306,7 @@ bool Config::wait(){
 				CallInfo ci = call->getInfo();
 				pjsua_call_info call_info;
 				pjsua_call_get_info(ci.id, &call_info);
-				std::cout <<"[wait:call-with-test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
+				std::cout <<"[wait:call][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
 				if (call->test && !call->test->completed && (ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 					call->test->connect_duration = call_info.connect_duration.sec;
@@ -327,7 +328,7 @@ bool Config::wait(){
 				CallInfo ci = call->getInfo();
 				pjsua_call_info call_info;
 				pjsua_call_get_info(ci.id, &call_info);
-				std::cout <<"[wait:call-with-no-test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<"]"<<std::endl;
+				std::cout <<"[wait:call]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<"]"<<std::endl;
 			}
 		}
 		if(tests_running > 0){
@@ -389,7 +390,7 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				}
 				this->alert_email_to = ezxml_attr(xml_action,"email");
 			} else if ( action_type.compare("register") == 0 ) {
-				if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"password") || !ezxml_attr(xml_action,"registrar")) {
+				if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"realm") || !ezxml_attr(xml_action,"password") || !ezxml_attr(xml_action,"registrar")) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
 					continue;
 				}
@@ -408,7 +409,7 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				AccountConfig acc_cfg;
 				acc_cfg.idUri = "sip:" + username + "@" + registrar;
 				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
-				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", "sip.flowroute.com", username, 0, password) );
+				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", ezxml_attr(xml_action,"realm"), username, 0, password) );
 				TestAccount * acc = new TestAccount();
 				acc->config = this;
 				acc->create(acc_cfg);
@@ -449,7 +450,6 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				if (pos!=std::string::npos) {
 					test->remote_user = callee.substr(0, pos);
 				}
-				//pj_thread_sleep(2000);
 				TestCall *call = new TestCall(*acc);
 				calls.push_back(call);
 

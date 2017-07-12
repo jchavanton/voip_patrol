@@ -59,6 +59,7 @@ class Config {
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
 		void update_result(std::string text);
+		std::string alert_email_to;
 	private:
 		std::string configFileName;
 		std::string logFileName;

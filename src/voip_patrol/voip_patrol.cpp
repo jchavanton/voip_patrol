@@ -382,6 +382,12 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 			/* action */
 			if ( action_type.compare("wait") == 0 ) {
 				wait();
+			} else if ( action_type.compare("alert") == 0 ) {
+				if (!ezxml_attr(xml_action,"email")) {
+					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
+					continue;
+				}
+				this->alert_email_to = ezxml_attr(xml_action,"email");
 			} else if ( action_type.compare("register") == 0 ) {
 				if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"password") || !ezxml_attr(xml_action,"registrar")) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
@@ -482,7 +488,7 @@ Alert::Alert(Config * p_config){
 void Alert::prepare(void){
 //	std::string date = "Date: Mon, 29 Nov 2010 21:54:29 +1100\r\n";
 //	upload_data.payload_content.push_back(date);
-	std::string to = "To: <"+alert_email_to+">\r\n";
+	std::string to = "To: <"+config->alert_email_to+">\r\n";
 	upload_data.payload_content.push_back(to);
 	std::string from = "From: <"+alert_email_from+">\r\n";
 	upload_data.payload_content.push_back(from);
@@ -515,7 +521,7 @@ void Alert::send(void) {
 	if(curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, alert_server_url.c_str());
 		curl_easy_setopt(curl, CURLOPT_MAIL_FROM, alert_email_from.c_str());
-		recipients = curl_slist_append(recipients, alert_email_to.c_str());
+		recipients = curl_slist_append(recipients, config->alert_email_to.c_str());
 		curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
 		curl_easy_setopt(curl, CURLOPT_READFUNCTION, &Alert::payload_source);
 		curl_easy_setopt(curl, CURLOPT_READDATA, &upload_data);
@@ -603,7 +609,7 @@ int main(int argc, char **argv){
 
 		// send email reporting
 		Alert alert(&config);
-		alert.alert_email_to = "jchavanton+voip-patrol@gmail.com";
+		// alert.alert_email_to = "jchavanton+voip-patrol@gmail.com";
 		alert.alert_email_from = "test@voip-patrol.org";
 		alert.alert_server_url = "smtp://gmail-smtp-in.l.google.com:25";
 		alert.send();

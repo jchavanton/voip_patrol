@@ -29,6 +29,7 @@ void TestCall::setTest(Test *p_test) {
 
 void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
+	std::cout <<"onCallTsxState:id[" << getId() <<"]" << std::endl;
 	CallInfo ci = getInfo();
 	std::cout << "[CallTsx]: " <<  ci.remoteUri << " [" << ci.stateText << "]" << std::endl;
 }
@@ -70,9 +71,10 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 
 void TestCall::onCallState(OnCallStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
+
+	std::cout <<"onCallState:id[" << getId() <<"]" << std::endl;
 	CallInfo ci = getInfo();
-	pjsua_call_info call_info;
-	pjsua_call_get_info(ci.id, &call_info);
+
 	int uri_prefix = 3; // sip:
 	std::string remote_user("");
 	std::string local_user("");
@@ -91,16 +93,16 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	}
 	role = ci.role;
 	std::cout << "[call]: onCallState: "<< role <<" "<< ci.localUri <<" "<< ci.remoteUri << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
-	//std::cout << "[call]: onCallState: "<< role <<" "<< local_user <<" "<< remote_user << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
 
+	if (test) test->call_id = getId();
 	if (test && (ci.state == PJSIP_INV_STATE_DISCONNECTED || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
-		test->connect_duration = call_info.connect_duration.sec;
-		test->setup_duration = call_info.total_duration.sec - call_info.connect_duration.sec;
+		test->connect_duration = ci.connectDuration.sec;
+		test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
 		test->result_cause_code = (int)ci.lastStatusCode;
 		test->reason = ci.lastReason;
-		if(ci.state == PJSIP_INV_STATE_DISCONNECTED || call_info.connect_duration.sec >= test->expected_duration){
-			std::cout << "[call] state completed duration: "<< call_info.connect_duration.sec << " >= " << test->expected_duration << std::endl;
+		if(ci.state == PJSIP_INV_STATE_DISCONNECTED || (test->hangup_duration && ci.connectDuration.sec >= test->hangup_duration) ){
+			std::cout << "[call] state completed duration: "<< ci.connectDuration.sec << " >= " << test->hangup_duration << std::endl;
 			if(!test->completed) {
 				test->completed = true;
 				if(role == 0 && test->min_mos > 0) {
@@ -110,6 +112,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			}
 			if(ci.state == PJSIP_INV_STATE_CONFIRMED){
 				CallOpParam prm(true);
+				std::cout << "hangup : call in PJSIP_INV_STATE_CONFIRMED" << std::endl;
 				hangup(prm);
 			}
 		}
@@ -130,9 +133,6 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			pjsua_recorder_destroy(recorder_id);
 			recorder_id = -1;
 		}
-//		acc->removeCall(this);
-//		/* Delete the call */
-//		delete this;
 	}
 }
 /* declaration TestCall */
@@ -145,6 +145,10 @@ void TestAccount::setTest(Test *ptest) {
 
 TestAccount::TestAccount() {
 	test=NULL;
+	config=NULL;
+	hangup_duration=0;
+	max_duration=0;
+	accept_label="-";
 }
 
 TestAccount::~TestAccount() {
@@ -175,9 +179,22 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 // [onIncomingCall]: <sip:+133663170@fl.gg;isup-oli=00> [NULL]
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(*this, iprm.callId);
+
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
-	std::cout <<"[onIncomingCall]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"] ["<<ci.stateText<<"]"<< std::endl;
+	std::cout <<"[onIncomingCall]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]"<< std::endl;
+	std::cout <<config<< std::endl;
+	if (!call->test) {
+		std::cout<<"[onIncomingCall] max call duration["<< hangup_duration <<"]"<<std::endl;
+		call->test = new Test(config);
+		call->test->hangup_duration = hangup_duration;
+		call->test->max_duration = max_duration;
+		call->test->expected_cause_code = 200;
+		call->test->local_user = ci.localUri;
+		call->test->remote_user = ci.remoteUri;
+		call->test->type = "accept";
+		call->test->label = accept_label;
+	}
 	calls.push_back(call);
 	config->calls.push_back(call);
 	prm.statusCode = (pjsip_status_code)200;
@@ -204,6 +221,10 @@ Test::Test(Config *p_config){
 	connect_duration = 0;
 	expected_duration = 0;
 	setup_duration = 0;
+	max_duration = 0;
+	hangup_duration = 0;
+	call_id = 0;
+	label = "-";
 }
 
 void Test::get_mos() {
@@ -219,7 +240,11 @@ void Test::update_result() {
 		get_time_string(now);
 		end_time = now;
 		std::string res = "FAILED";
-		if(expected_cause_code == result_cause_code && mos >= min_mos) {
+		if (expected_duration && expected_duration != connect_duration) {
+			success=false;
+		} else if (max_duration && max_duration < connect_duration) {
+			success=false;
+		} else if(expected_cause_code == result_cause_code && mos >= min_mos) {
 			res = "SUCCESS";
 			success=true;
 		}
@@ -236,11 +261,14 @@ void Test::update_result() {
 		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:4px;border-width:1px;'";
 		std::string td_hd_style = "style='border-color:#98B4E5;background-color: #EEF2F5;border-style:solid;padding:4px;border-width:1px;'";
 		if (config->testResults.size() == 0){
-			std::string headers = "<tr><td "+td_hd_style+">start</td><td "+td_hd_style+">end</td>"
+			std::string headers = "<tr>"
+				              "<td "+td_hd_style+">label</td>"
+				              "<td "+td_hd_style+">start</td><td "+td_hd_style+">end</td>"
 				              "<td "+td_hd_style+">type</td><td "+td_hd_style+">result</td>"
 				              "<td "+td_hd_style+">expected cause code</td><td "+td_hd_style+">result cause code</td><td "+td_hd_style+">reason</td>"
 				              "<td "+td_hd_style+">expected mos</td><td "+td_hd_style+">mos</td>"
-				              "<td "+td_hd_style+">expected duration</td><td "+td_hd_style+">duration</td>"
+				              "<td "+td_hd_style+">expected duration</td><td "+td_hd_style+">maximum duration</td>"
+				              "<td "+td_hd_style+">hangup duration</td><td "+td_hd_style+">duration</td>"
 					      "<td "+td_hd_style+">from</td><td "+td_hd_style+">to</td>\r\n";
 			config->testResults.push_back(headers);
 		}
@@ -251,13 +279,18 @@ void Test::update_result() {
 		if (mos < min_mos)
 			mos_color = "red";
 
-		std::string result = "<tr><td "+td_style+">"+start_time+"</td><td "+td_style+">"+end_time+"</td><td "+td_style+">"+type+"</td>"
+		type = type +"["+std::to_string(call_id)+"]";
+		std::cout << "label["<< label  <<"]\n";
+		std::string result = "<tr>"
+					 "<td "+td_style+">"+label+"</td>"
+			                 "<td "+td_style+">"+start_time+"</td><td "+td_style+">"+end_time+"</td><td "+td_style+">"+type+"</td>"
                                          "<td "+td_style+">"+res+"</td>"
                                          "<td "+td_style+">"+std::to_string(expected_cause_code)+"</td>"
                                          "<td "+td_style+"><font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
                                          "<td "+td_style+">"+reason+"</td>"
                                          "<td "+td_style+">"+std::to_string(min_mos)+"</td><td "+td_style+"><font color="+mos_color+">"+std::to_string(mos)+"</font></td>"
-                                         "<td "+td_style+">"+std::to_string(expected_duration)+"</td><td "+td_style+">"+std::to_string(connect_duration)+"</td>"
+                                         "<td "+td_style+">"+std::to_string(expected_duration)+"</td><td "+td_style+">"+std::to_string(max_duration)+"</td>"
+					 "<td "+td_style+">"+std::to_string(hangup_duration)+"</td><td "+td_style+">"+std::to_string(connect_duration)+"</td>"
                                          "<td "+td_style+">"+local_user+"</td>"
                                          "<td "+td_style+">"+remote_user+"</td>"
 					 "</tr>\r\n";
@@ -302,20 +335,20 @@ bool Config::wait(){
 				delete call->test;
 				call->test = NULL;
 			} else if (call->test) {
-				// check duration
 				CallInfo ci = call->getInfo();
-				pjsua_call_info call_info;
-				pjsua_call_get_info(ci.id, &call_info);
-				std::cout <<"[wait:call][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
-				if (call->test && !call->test->completed && (ci.state == PJSIP_INV_STATE_CONFIRMED)) {
+				std::cout <<"[wait:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<ci.connectDuration.sec<<">="<<call->test->expected_duration<<"]"<<std::endl;
+				if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
-					call->test->connect_duration = call_info.connect_duration.sec;
-					call->test->setup_duration = call_info.total_duration.sec - call_info.connect_duration.sec;
+					call->test->connect_duration = ci.connectDuration.sec;
+					call->test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
 					call->test->result_cause_code = (int)ci.lastStatusCode;
 					call->test->reason = ci.lastReason;
-					if(call_info.connect_duration.sec >= call->test->expected_duration){
-						CallOpParam prm(true);
-						call->hangup(prm);
+					if(call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
+						if(ci.state == PJSIP_INV_STATE_CONFIRMED) {
+							CallOpParam prm(true);
+							std::cout << "hangup : call in PJSIP_INV_STATE_CONFIRMED" << std::endl;
+							call->hangup(prm);
+						}
 						call->test->completed = true;
 						if(call->role == 0 && call->test->min_mos > 0) {
 							call->test->get_mos();
@@ -324,11 +357,6 @@ bool Config::wait(){
 					}
 				}
 				tests_running++;
-			} else {
-				CallInfo ci = call->getInfo();
-				pjsua_call_info call_info;
-				pjsua_call_get_info(ci.id, &call_info);
-				std::cout <<"[wait:call]["<<(ci.role==0?"CALLER":"CALLEE")<<"]: "<<ci.remoteUri<<" ["<<ci.stateText<<"|"<<ci.state<<"] duration["<<call_info.connect_duration.sec<<"]"<<std::endl;
 			}
 		}
 		if(tests_running > 0){
@@ -404,8 +432,9 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
 				test->from = username;
 				test->type = action_type;
+
 				std::cout <<" >> "<<tag<< "sip:" + username + "@" + registrar  << std::endl;
-				// register account begin
+				// register account
 				AccountConfig acc_cfg;
 				acc_cfg.idUri = "sip:" + username + "@" + registrar;
 				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
@@ -415,17 +444,46 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				acc->create(acc_cfg);
 				acc->setTest(test);
 				accounts.push_back(acc);
-				//pj_thread_sleep(2000);
-				// register account end
+			} else if ( action_type.compare("accept") == 0 ) {
+				if (!ezxml_attr(xml_action,"callee") ) {
+					std::cerr <<" >> "<<tag<<"missing action parameters for " << action_type << std::endl;
+					continue;
+				}
+				TestAccount * acc = NULL;
+				std::string callee = ezxml_attr(xml_action,"callee");
+				for (std::vector<TestAccount *>::iterator it = accounts.begin() ; it != accounts.end(); ++it) {
+					AccountInfo acc_inf = (*it)->getInfo();
+					std::cout << "[accept]["<<acc_inf.uri<<"]<>["<<callee<<"]"<<std::endl;
+					if( acc_inf.uri.compare(4,callee.length(),callee) == 0 ){
+						acc = *it;
+						std::cout << "found callee account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]"<< std::endl;
+					}
+				}
+				if (!acc) {
+					std::cout << "account not found: " << callee << std::endl;
+					continue;
+				}
+				if (ezxml_attr(xml_action,"hangup")){
+					acc->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
+				} else {
+					acc->hangup_duration = 0;
+				}
+				if (ezxml_attr(xml_action,"max_duration")){
+					acc->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
+				} else {
+					acc->max_duration = 0;
+				}
+				if (ezxml_attr(xml_action,"label")){
+					acc->accept_label = ezxml_attr(xml_action,"label");
+				}
 			} else if ( action_type.compare("call") == 0 ) {
-				if (!ezxml_attr(xml_action,"caller") || !ezxml_attr(xml_action,"callee") || !ezxml_attr(xml_action,"duration") ) {
+				if (!ezxml_attr(xml_action,"caller") || !ezxml_attr(xml_action,"callee") ) {
 					std::cerr <<" >> "<<tag<<"missing action parameters for " << action_type << std::endl;
 					continue;
 				}
 
 				std::string caller = ezxml_attr(xml_action,"caller");
 				std::string callee = ezxml_attr(xml_action,"callee");
-				std::string duration = ezxml_attr(xml_action,"duration");
 
 				std::cerr <<" >> "<<tag<<"action parameters found : " << action_type << std::endl;
 				// make call begin
@@ -458,6 +516,15 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				}
 				if (ezxml_attr(xml_action,"duration")){
 					test->expected_duration = atoi(ezxml_attr(xml_action,"duration"));
+				}
+				if (ezxml_attr(xml_action,"max_duration")){
+					test->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
+				}
+				if ( ezxml_attr(xml_action,"hangup") ) {
+					test->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
+				}
+				if (ezxml_attr(xml_action,"label")){
+					test->label = ezxml_attr(xml_action,"label");
 				}
 				call->test = test;
 				test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
@@ -607,6 +674,8 @@ int main(int argc, char **argv){
 		config.process(conf_fn, log_fn);
 		config.wait();
 
+		std::cout << "checking alerts..." << std::endl;
+
 		// send email reporting
 		Alert alert(&config);
 		// alert.alert_email_to = "jchavanton+voip-patrol@gmail.com";
@@ -620,7 +689,7 @@ int main(int argc, char **argv){
 
 		ret = PJ_SUCCESS;
 	} catch (Error & err) {
-		// std::cout << "Exception: " << err.info() << std::endl;
+		std::cout << "Exception: " << err.info() << std::endl;
 		ret = 1;
 	}
 

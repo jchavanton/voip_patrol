@@ -81,11 +81,16 @@ class Test {
 		float mos;
 		std::string reason;
 		int connect_duration;
+		int hangup_duration;
 		int setup_duration;
 		int expected_duration;
+		int max_duration;
 		void get_mos();
 		std::string local_user;
 		std::string remote_user;
+		std::string call_direction;
+		std::string label;
+		int call_id;
 	private:
 		Config *config;
 };
@@ -101,6 +106,9 @@ class TestAccount : public Account {
 		void removeCall(Call *call);
 		virtual void onRegState(OnRegStateParam &prm);
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
+		int hangup_duration;
+		int max_duration;
+		std::string accept_label;
 };
 
 class TestCall : public Call {

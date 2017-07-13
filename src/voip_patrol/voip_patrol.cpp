@@ -316,11 +316,11 @@ bool Config::wait(){
 	bool completed = false;
 	int tests_running = 0;
 	bool status_update = true;
-	while(!completed) {
-		for(std::vector<TestAccount *>::iterator it = accounts.begin(); it != accounts.end(); it++){
+	while (!completed) {
+		for (std::vector<TestAccount *>::iterator it = accounts.begin(); it != accounts.end(); it++){
 			TestAccount *account = *it;
 			AccountInfo acc_inf = account->getInfo();
-			if(account->test && account->test->completed){
+			if (account->test && account->test->completed){
 				std::cout << "delete account test["<<account->test<<"]\n";
 				delete account->test;
 				account->test = NULL;
@@ -330,7 +330,7 @@ bool Config::wait(){
 		}
 		for(std::vector<TestCall *>::iterator it = calls.begin(); it != calls.end(); it++){
 			TestCall *call = *it;
-			if(call->test && call->test->completed){
+			if (call->test && call->test->completed){
 				std::cout << "delete call test["<<call->test<<"]\n";
 				delete call->test;
 				call->test = NULL;
@@ -422,9 +422,32 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
 					continue;
 				}
-				Test *test = new Test(this);
-
 				std::string username = ezxml_attr(xml_action,"username");
+				TestAccount * acc = NULL;
+				for (std::vector<TestAccount *>::iterator it = accounts.begin() ; it != accounts.end(); ++it) {
+					AccountInfo acc_inf = (*it)->getInfo();
+					std::cout << "[register]["<<acc_inf.uri<<"]<>["<<username<<"]"<<std::endl;
+					if( acc_inf.uri.compare(4,username.length(),username) == 0 ){
+						acc = *it;
+						std::cout << "found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"] active["<<acc_inf.regIsActive<<"]"<< std::endl;
+						break;
+					}
+				}
+				if (acc) {
+					AccountInfo acc_inf = acc->getInfo();
+					std::cout << "found: " << username <<" [unregistering]"<< std::endl;
+					acc->setRegistration(false);
+					while (acc_inf.regIsActive) {
+						pj_thread_sleep(500);
+						acc_inf = acc->getInfo();
+					}
+					std::cout << "found: " << username <<" [unregistered]"<< std::endl;
+				} else {
+					acc = new TestAccount();
+					accounts.push_back(acc);
+				}
+
+				Test *test = new Test(this);
 				test->local_user = username;
 				test->remote_user = username;
 				std::string password = ezxml_attr(xml_action,"password");
@@ -439,11 +462,11 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				acc_cfg.idUri = "sip:" + username + "@" + registrar;
 				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", ezxml_attr(xml_action,"realm"), username, 0, password) );
-				TestAccount * acc = new TestAccount();
+
 				acc->config = this;
 				acc->create(acc_cfg);
 				acc->setTest(test);
-				accounts.push_back(acc);
+
 			} else if ( action_type.compare("accept") == 0 ) {
 				if (!ezxml_attr(xml_action,"callee") ) {
 					std::cerr <<" >> "<<tag<<"missing action parameters for " << action_type << std::endl;

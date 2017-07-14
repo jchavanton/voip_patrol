@@ -159,7 +159,7 @@ TestAccount::~TestAccount() {
 }
 
 void TestAccount::removeCall(Call *call) {
-	for (std::vector<TestCall *>::iterator it = calls.begin(); it != calls.end(); ++it) {
+	for (auto it = calls.begin(); it != calls.end(); ++it) {
 		if (*it == call) {
 			calls.erase(it);
 			break;
@@ -322,8 +322,7 @@ bool Config::wait(){
 	int tests_running = 0;
 	bool status_update = true;
 	while (!completed) {
-		for (std::vector<TestAccount *>::iterator it = accounts.begin(); it != accounts.end(); it++){
-			TestAccount *account = *it;
+		for (auto & account : accounts) {
 			AccountInfo acc_inf = account->getInfo();
 			if (account->test && account->test->completed){
 				std::cout << "delete account test["<<account->test<<"]\n";
@@ -333,8 +332,7 @@ bool Config::wait(){
 				tests_running++;
 			}
 		}
-		for(std::vector<TestCall *>::iterator it = calls.begin(); it != calls.end(); it++){
-			TestCall *call = *it;
+		for (auto & call : calls) {
 			if (call->test && call->test->completed){
 				std::cout << "delete call test["<<call->test<<"]\n";
 				delete call->test;
@@ -404,9 +402,9 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 		update_result("loading tests...");
 	}
 
-	for(xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next){
+	for (xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next){
 		std::cout <<tag<< xml_actions->name << std::endl;
-		for(xml_action = ezxml_child(xml_actions, "action"); xml_action; xml_action=xml_action->next){
+		for (xml_action = ezxml_child(xml_actions, "action"); xml_action; xml_action=xml_action->next){
 			if (!ezxml_attr(xml_action,"type")) {
 				std::cerr <<" >> "<<tag<<"invalid action !\n";
 				continue;
@@ -431,11 +429,12 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				}
 				std::string username = ezxml_attr(xml_action,"username");
 				TestAccount * acc = NULL;
-				for (std::vector<TestAccount *>::iterator it = accounts.begin() ; it != accounts.end(); ++it) {
-					AccountInfo acc_inf = (*it)->getInfo();
+
+
+				for (auto & acc : accounts) {
+					AccountInfo acc_inf = acc->getInfo();
 					std::cout << "[register]["<<acc_inf.uri<<"]<>["<<username<<"]"<<std::endl;
 					if( acc_inf.uri.compare(4,username.length(),username) == 0 ){
-						acc = *it;
 						std::cout << "found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"] active["<<acc_inf.regIsActive<<"]"<< std::endl;
 						break;
 					}
@@ -488,11 +487,10 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				}
 				TestAccount * acc = NULL;
 				std::string callee = ezxml_attr(xml_action,"callee");
-				for (std::vector<TestAccount *>::iterator it = accounts.begin() ; it != accounts.end(); ++it) {
-					AccountInfo acc_inf = (*it)->getInfo();
+				for (auto & acc : accounts) {
+					AccountInfo acc_inf = acc->getInfo();
 					std::cout << "[accept]["<<acc_inf.uri<<"]<>["<<callee<<"]"<<std::endl;
 					if( acc_inf.uri.compare(4,callee.length(),callee) == 0 ){
-						acc = *it;
 						std::cout << "found callee account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]"<< std::endl;
 					}
 				}
@@ -525,10 +523,9 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				std::cerr <<" >> "<<tag<<"action parameters found : " << action_type << std::endl;
 				// make call begin
 				TestAccount * acc = NULL;
-				for (std::vector<TestAccount *>::iterator it = accounts.begin() ; it != accounts.end(); ++it) {
-					AccountInfo acc_inf = (*it)->getInfo();
+				for (auto & acc : accounts) {
+					AccountInfo acc_inf = acc->getInfo();
 					if( acc_inf.uri.compare(4,string::npos,caller) == 0 ){
-						acc = *it;
 						std::cout << "found caller account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]"<< std::endl;
 					}
 				}
@@ -611,8 +608,8 @@ void Alert::prepare(void){
                                        "border-style:solid;border-width:1px;text-align:center;'";
 	std::string html_start = "<html><table "+tb_style+">";
 	upload_data.payload_content.push_back(html_start);
-	for(std::vector<string>::iterator it = config->testResults.begin();  it != config->testResults.end() ; ++it){
-		upload_data.payload_content.push_back(*it);
+	for (auto & testResult : config->testResults) {
+		upload_data.payload_content.push_back(testResult);
 	}
 	std::string html_end = "</table></html>\n\r";
 	upload_data.payload_content.push_back(html_end);

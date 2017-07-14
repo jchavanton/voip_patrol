@@ -12,6 +12,7 @@
 #include "patrol_pesq.h"
 #include <sstream>
 #include <ctime>
+#include "log.h"
 
 #define LOG_COLOR_INFO "\e[1;35m"
 #define LOG_COLOR_ERROR "\e[1;31m"
@@ -49,6 +50,7 @@ class Config {
 	public:
 		Config();
 		~Config();
+		void log(std::string message);
 		bool process(std::string ConfigFileName, std::string logFileName);
 		bool wait();
 		std::vector<TestAccount *> accounts;

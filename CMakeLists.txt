@@ -42,6 +42,8 @@ include_directories(${ROOT_DIR}/pjsua/pjlib/include)
 include_directories(${ROOT_DIR}/pjsua/pjnath/include)
 include_directories(${ROOT_DIR}/pjsua/pjlib-util/include)
 
+include_directories(${ROOT_DIR}/include)
+
 set(SOURCE_FILES ${HYPPO_SRCS_CPP} ${HYPPO_SRCS_C} ${CURL_SRCS} ${EZXML_SRCS} ${PESQ_SRCS})
 
 add_executable(voip_patrol ${SOURCE_FILES})
@@ -82,7 +84,6 @@ target_link_libraries(voip_patrol
 	pthread
 	curl
 	m
-	opus
 	asound
 	-std=c++11
 )

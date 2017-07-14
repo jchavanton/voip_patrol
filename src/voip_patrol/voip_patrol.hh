@@ -60,6 +60,10 @@ class Config {
 		ezxml_t xml_test;
 		void update_result(std::string text);
 		std::string alert_email_to;
+		std::string alert_email_from;
+		std::string alert_server_url;
+		TransportId transport_id_udp;
+		TransportId transport_id_tcp;
 	private:
 		std::string configFileName;
 		std::string logFileName;
@@ -89,6 +93,7 @@ class Test {
 		std::string local_user;
 		std::string remote_user;
 		std::string call_direction;
+		std::string sip_call_id;
 		std::string label;
 		int call_id;
 	private:

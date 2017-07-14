@@ -94,7 +94,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	role = ci.role;
 	std::cout << "[call]: onCallState: "<< role <<" "<< ci.localUri <<" "<< ci.remoteUri << " [" << ci.stateText <<"|"<< ci.state << "]" << std::endl;
 
-	if (test) test->call_id = getId();
+	if (test) {
+		test->call_id = getId();
+		test->sip_call_id = ci.callIdString;
+	}
 	if (test && (ci.state == PJSIP_INV_STATE_DISCONNECTED || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 		test->connect_duration = ci.connectDuration.sec;
@@ -182,7 +185,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
-	std::cout <<"[onIncomingCall]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]"<< std::endl;
+	std::cout <<"[onIncomingCall]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]call-id["<<ci.callIdString<<"]"<< std::endl;
 	std::cout <<config<< std::endl;
 	if (!call->test) {
 		std::cout<<"[onIncomingCall] max call duration["<< hangup_duration <<"]"<<std::endl;
@@ -194,6 +197,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->remote_user = ci.remoteUri;
 		call->test->type = "accept";
 		call->test->label = accept_label;
+		call->test->sip_call_id = ci.callIdString;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -224,6 +228,7 @@ Test::Test(Config *p_config){
 	max_duration = 0;
 	hangup_duration = 0;
 	call_id = 0;
+	sip_call_id = "";
 	label = "-";
 }
 
@@ -245,7 +250,7 @@ void Test::update_result() {
 		} else if (max_duration && max_duration < connect_duration) {
 			success=false;
 		} else if(expected_cause_code == result_cause_code && mos >= min_mos) {
-			res = "SUCCESS";
+			res = "SUCCEED";
 			success=true;
 		}
 		completed = true;
@@ -279,7 +284,7 @@ void Test::update_result() {
 		if (mos < min_mos)
 			mos_color = "red";
 
-		type = type +"["+std::to_string(call_id)+"]";
+		type = type +"["+std::to_string(call_id)+"]<br>"+sip_call_id;
 		std::cout << "label["<< label  <<"]\n";
 		std::string result = "<tr>"
 					 "<td "+td_style+">"+label+"</td>"
@@ -301,8 +306,8 @@ void Test::update_result() {
 
 /* declaration Config */
 Config::Config(){
-
 }
+
 void Config::update_result(std::string text){
 	char now[20] = {'\0'};
 	get_time_string(now);
@@ -417,6 +422,8 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 					continue;
 				}
 				this->alert_email_to = ezxml_attr(xml_action,"email");
+				if (ezxml_attr(xml_action,"email_from")) this->alert_email_from = ezxml_attr(xml_action,"email_from");
+				if (ezxml_attr(xml_action,"smtp_host")) this->alert_server_url = ezxml_attr(xml_action,"smtp_host");
 			} else if ( action_type.compare("register") == 0 ) {
 				if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"realm") || !ezxml_attr(xml_action,"password") || !ezxml_attr(xml_action,"registrar")) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
@@ -461,6 +468,13 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				AccountConfig acc_cfg;
 				acc_cfg.idUri = "sip:" + username + "@" + registrar;
 				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
+				acc_cfg.sipConfig.transportId = transport_id_udp;
+				if (ezxml_attr(xml_action,"transport")) {
+					std::string transport = ezxml_attr(xml_action,"transport");
+					if (transport.compare("tcp") == 0) {
+						acc_cfg.sipConfig.transportId = transport_id_tcp;
+					}
+				}
 				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", ezxml_attr(xml_action,"realm"), username, 0, password) );
 
 				acc->config = this;
@@ -578,9 +592,10 @@ Alert::Alert(Config * p_config){
 void Alert::prepare(void){
 //	std::string date = "Date: Mon, 29 Nov 2010 21:54:29 +1100\r\n";
 //	upload_data.payload_content.push_back(date);
+	alert_server_url = config->alert_server_url;
 	std::string to = "To: <"+config->alert_email_to+">\r\n";
 	upload_data.payload_content.push_back(to);
-	std::string from = "From: <"+alert_email_from+">\r\n";
+	std::string from = "From: <"+config->alert_email_from+">\r\n";
 	upload_data.payload_content.push_back(from);
 	std::string messageId = "Message-ID: <dcd7cb36-11db-487a-9f3a-e652a9458efd@rfcpedant.example.org>\r\n";
 	upload_data.payload_content.push_back(messageId);
@@ -607,6 +622,8 @@ void Alert::send(void) {
 	CURLcode res = CURLE_OK;
 	struct curl_slist *recipients = NULL;
 	upload_data.lines_read = 0;
+	if (config->alert_server_url.empty() || config->alert_email_to.empty() || config->alert_email_from.empty())
+		return;
 	prepare();
 	if(curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, alert_server_url.c_str());
@@ -689,7 +706,9 @@ int main(int argc, char **argv){
 		// Transport
 		TransportConfig tcfg;
 		tcfg.port = 5061;
-		ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
+		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+
 
 		// load config and execute test
 		pjsua_set_null_snd_dev();
@@ -701,12 +720,8 @@ int main(int argc, char **argv){
 
 		// send email reporting
 		Alert alert(&config);
-		// alert.alert_email_to = "jchavanton+voip-patrol@gmail.com";
-		alert.alert_email_from = "test@voip-patrol.org";
-		alert.alert_server_url = "smtp://gmail-smtp-in.l.google.com:25";
 		alert.send();
 
-		//pj_thread_sleep(60000);
 		std::cout << "hangup all calls..." << std::endl;
 		ep.hangupAllCalls();
 

@@ -1,13 +1,25 @@
 <?xml version="1.0"?>
 <config>
 	<actions>
-		<action type="register" expected_cause_code="200" username="username" password="password" registrar="sip.domain.com"/>
-		<action type="register" expected_cause_code="200" username="777" password="password" registrar="voip.domain.com"/>
-		<action type="register" expected_cause_code="403" username="555" password="password" registrar="voip.domain.com"/>
-		<action type="register" expected_cause_code="204" username="555" password="password" registrar="voip.domain.com"/>
+		<!-- 
+		<action type="alert" email="your_email@gmail.com" email_from="test@voip-patrol.org" smtp_host="smtp://gmail-smtp-in.l.google.com:25"/>
+		-->
+		<action type="register" expected_cause_code="200" username="33663170" password="???????????" realm="sip.domain.com" registrar="111.75.65.193"/>
 		<action type="wait"/>
-		<action type="call" expected_cause_code="200" caller="username@sip.domain.com" callee="+1514xxxxxxx@sip.domain.com" mos="3" duration="30"/>
-		<action type="call" expected_cause_code="200" caller="666@voip.domain.com" callee="777@voip.domain.com" duration=10/>
+		<action type="accept" label="my_label_-1" callee="33663170" hangup="2"/>
+		<action type="call" label="my_label_-1" expected_cause_code="200" caller="33663170@111.75.65.193" callee="12062092868@111.75.65.194" max_duration="4"/>
+		<action type="wait"/>
+		<action type="accept" label="my_label_-1" callee="33663170" max_duration="4"/>
+		<action type="call" label="my_label_-1" expected_cause_code="200" caller="33663170@111.75.65.193" callee="12062092868@111.75.65.194" hangup="2"/>
+
+		<action type="wait"/>
+		<action type="register" expected_cause_code="200" username="33663170" password="M4C6JA9gzpzz" realm="sip.domain.com" registrar="111.75.65.194"/>
+		<action type="wait"/>
+		<action type="accept" label="my_label_-2" callee="33663170" hangup="2"/>
+		<action type="call" label="my_label_-2" expected_cause_code="200" caller="33663170@111.75.65.194" callee="12062092868@111.75.65.194" max_duration="4"/>
+		<action type="wait"/>
+		<action type="accept" label="my_label_-2" callee="33663170" max_duration="4"/>
+		<action type="call" label="my_label_-2" expected_cause_code="200" caller="33663170@111.75.65.194" callee="12062092868@111.75.65.194" hangup="2"/>
+
 	</actions>
 </config>
-<!-- expected_useragent expected_reason max_delay -->

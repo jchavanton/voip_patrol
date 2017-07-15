@@ -67,6 +67,13 @@
  callee="12062092868@111.75.65.194"
  max_duration="4"/>
 ```
+`alert` send an email with the test results
+```xml
+<action type="alert"
+ email="your_email@gmail.com"
+ email_from="test@voip-patrol.org"
+ smtp_host="smtp://gmail-smtp-in.l.google.com:25"/>
+```
 
 ### sources
 ```

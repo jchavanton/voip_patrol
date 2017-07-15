@@ -285,7 +285,6 @@ void Test::update_result() {
 			mos_color = "red";
 
 		type = type +"["+std::to_string(call_id)+"]<br>"+sip_call_id;
-		LOG(logINFO) << "label["<< label  <<"]\n";
 		std::string result = "<tr>"
 					 "<td "+td_style+">"+label+"</td>"
 			                 "<td "+td_style+">"+start_time+"</td><td "+td_style+">"+end_time+"</td><td "+td_style+">"+type+"</td>"
@@ -329,8 +328,6 @@ bool Config::wait(){
 		for (auto & account : accounts) {
 			AccountInfo acc_inf = account->getInfo();
 			if (account->test && account->test->completed){
-				//LOG(logINFO) << "delete account test["<<account->test<<"]\n";
-				// log( std::string("delete account test[") + account->test.str());
 				delete account->test;
 				account->test = NULL;
 			} else if (account->test) {
@@ -434,12 +431,11 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				}
 				std::string username = ezxml_attr(xml_action,"username");
 				TestAccount * acc = NULL;
-
-
-				for (auto & acc : accounts) {
-					AccountInfo acc_inf = acc->getInfo();
+				for (auto & account : accounts) {
+					AccountInfo acc_inf = account->getInfo();
 					LOG(logINFO) << "[register]["<<acc_inf.uri<<"]<>["<<username<<"]";
 					if( acc_inf.uri.compare(4,username.length(),username) == 0 ){
+						acc = account;
 						LOG(logINFO) << "found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"] active["<<acc_inf.regIsActive<<"]";
 						break;
 					}
@@ -492,10 +488,11 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				}
 				TestAccount * acc = NULL;
 				std::string callee = ezxml_attr(xml_action,"callee");
-				for (auto & acc : accounts) {
-					AccountInfo acc_inf = acc->getInfo();
+				for (auto & account : accounts) {
+					AccountInfo acc_inf = account->getInfo();
 					LOG(logINFO) << "[accept]["<<acc_inf.uri<<"]<>["<<callee<<"]";
 					if( acc_inf.uri.compare(4,callee.length(),callee) == 0 ){
+						acc = account;
 						LOG(logINFO) << "found callee account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
 					}
 				}
@@ -528,9 +525,10 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				LOG(logINFO) <<" >> "<<tag<<"action parameters found : " << action_type ;
 				// make call begin
 				TestAccount * acc = NULL;
-				for (auto & acc : accounts) {
-					AccountInfo acc_inf = acc->getInfo();
+				for (auto & account : accounts) {
+					AccountInfo acc_inf = account->getInfo();
 					if( acc_inf.uri.compare(4,string::npos,caller) == 0 ){
+						acc = account;
 						LOG(logINFO) << "found caller account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
 					}
 				}

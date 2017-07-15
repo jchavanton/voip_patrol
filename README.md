@@ -47,7 +47,7 @@
  realm="sip.domain.com" 
  registrar="1.1.1.1"/>
 ```
-`wait` await for the tests in progress to complete
+`wait` wait for the tests in progress to complete
 ```xml
 <action type="wait"/>
 ```

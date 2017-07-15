@@ -36,6 +36,38 @@
  -c,--conf <conf.xml> 
  -l,--log <test.log>
 ```
+
+### scenario actions
+`register` create a test account `account1` and will register to `1.1.1.1`
+```xml
+<action type="register"
+ expected_cause_code="200"
+ username="account1"
+ password="password"
+ realm="sip.domain.com" 
+ registrar="1.1.1.1"/>
+```
+`wait` await for the tests in progress to complete
+```xml
+<action type="wait"/>
+```
+`accept` when receiving an inbound call on the specified registered callee, create a test with the specified parameters  
+```xml
+<action type="accept"
+ label="my_label_-1"
+ callee="33663170"
+ hangup="2"/>
+```
+`call` make a call using the specified callee and create a test with the specified parameters
+```xml
+<action type="call"
+ label="my_label_-1"
+ expected_cause_code="200"
+ caller="33663170@111.75.65.193"
+ callee="12062092868@111.75.65.194"
+ max_duration="4"/>
+```
+
 ### sources
 ```
 src/
@@ -71,23 +103,15 @@ src/
     ├── patrol_pesq.h
     ├── voip_patrol.cpp
     └── voip_patrol.hh
+include/
+└── log.h
 ```
 
-#### congfig test plan example
-```xml
-<?xml version="1.0"?>
-<config>
-	<actions>
-		<action type="register" expected_cause_code="200" username="666" password="DNV9J1xUU" registrar="sip.server.net"/>
-		<action type="register" expected_cause_code="200" username="777" password="SMOF0qFRA" registrar="sip.server.net"/>
-		<action type="register" expected_cause_code="403" username="555" password="SMOF0qFRA" registrar="sip.server.net"/>
-		<action type="register" expected_cause_code="204" username="555" password="SMOF0qFRA" registrar="sip.server.net"/>
-		<action type="wait"/>
-		<action type="call" expected_cause_code="404" caller="666@sip.server.net" callee="555@sip.server.net" duration=10/>
-		<action type="call" expected_cause_code="200" caller="666@sip.server.net" callee="777@sip.server.net" duration=10/>
-	</actions>
-</config>
-```
+
+
+
+
+
 #### PJSUA
 PJSUA : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
 http://www.pjsip.org

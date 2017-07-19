@@ -52,7 +52,7 @@ class Config {
 		~Config();
 		void log(std::string message);
 		bool process(std::string ConfigFileName, std::string logFileName);
-		bool wait();
+		bool wait(bool complete_all);
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;
@@ -61,6 +61,7 @@ class Config {
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
 		void update_result(std::string text);
+		void removeCall(TestCall *call);
 		std::string alert_email_to;
 		std::string alert_email_from;
 		std::string alert_server_url;
@@ -70,6 +71,22 @@ class Config {
 		std::string configFileName;
 		std::string logFileName;
 };
+
+typedef enum call_wait_state {
+	INV_STATE_NULL,        // Before INVITE is sent or received
+	INV_STATE_CALLING,     // After INVITE is sent
+	INV_STATE_INCOMING,    // After INVITE is received.
+	INV_STATE_EARLY,       // After response with To tag.
+	INV_STATE_CONNECTING,  // After 2xx is sent/received.
+	INV_STATE_CONFIRMED,   // After ACK is sent/received.
+	INV_STATE_DISCONNECTED
+} call_wait_state_t;
+
+typedef enum test_run_state {
+	VPT_RUN,              // test is running
+	VPT_RUN_WAIT,         // test is running and will block execution when command wait is used
+	VPT_DONE              // test is completed
+} test_state_t;
 
 class Test {
 	public:
@@ -97,6 +114,8 @@ class Test {
 		std::string call_direction;
 		std::string sip_call_id;
 		std::string label;
+		call_wait_state_t wait_state;
+		test_state_t state;
 		int call_id;
 	private:
 		Config *config;

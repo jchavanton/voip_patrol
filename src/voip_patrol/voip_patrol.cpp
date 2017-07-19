@@ -31,10 +31,12 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
 	LOG(logDEBUG) <<"[CallTsx]["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	//pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
+	//test->transport = pjsip_data->tp_info.transport->type_name;
 }
 
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
-	LOG(logINFO) << "[onStreamCreated]\n";
+	LOG(logINFO) << "[onStreamCreated]";
 }
 
 static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
@@ -71,7 +73,7 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 void TestCall::onCallState(OnCallStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 
-	LOG(logINFO) << "TestCall::onCallState";
+	LOG(logDEBUG) << "TestCall::onCallState";
 	CallInfo ci = getInfo();
 
 	int uri_prefix = 3; // sip:
@@ -93,7 +95,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	role = ci.role;
 
 	if (test) {
-		if (test->wait_state && (int)test->wait_state <= (int)ci.state ) {
+		if (test->state != VPT_DONE && test->wait_state && (int)test->wait_state <= (int)ci.state ) {
 			test->state = VPT_RUN;
 			LOG(logDEBUG) <<"[test-wait-return]";
 		}
@@ -142,7 +144,6 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 }
 /* declaration TestCall */
 
-
 /* declaration TestAccount */
 void TestAccount::setTest(Test *ptest) {
 	test = ptest;
@@ -164,6 +165,8 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	LOG(logINFO) << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code ;
 	if(test){
+		pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
+		test->transport = pjsip_data->tp_info.transport->type_name;
 		std::string res = "registration[" + std::to_string(prm.code) + "] reason["+ prm.reason + "] expiration[" + std::to_string(prm.expiration) +"]";
 		test->result_cause_code = (int)prm.code;
 		test->reason = prm.reason;
@@ -174,6 +177,10 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(*this, iprm.callId);
 
+	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
+	//LOG(logINFO)<<"srcAddress["<< iprm.rdata.srcAddress <<"]"<< pjsip_data->tp_info.transport->type_name;
+	//LOG(logINFO)<<"info["<< iprm.rdata.info <<"]";
+	//LOG(logINFO)<<"wholeMsg["<< iprm.rdata.wholeMsg <<"]";
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	LOG(logINFO) <<"[onIncomingCall]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
@@ -188,6 +195,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->type = "accept";
 		call->test->label = accept_label;
 		call->test->sip_call_id = ci.callIdString;
+		call->test->transport = pjsip_data->tp_info.transport->type_name;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -247,25 +255,24 @@ void Test::update_result() {
 			success=true;
 		}
 
-		// preprare result log line
-		std::string line ="start["+start_time+"] end["+end_time+"] action["+type+"]"
-			          " result["+res+"|"+std::to_string(expected_cause_code)+"] cause_code["+std::to_string(result_cause_code)+"]"
-				  " reason["+reason+"] from["+from+"] to["+to+"]";
+		std::string line ="label["+label+"]start["+start_time+"]end["+end_time+"]action["+type+"("+std::to_string(call_id)+")]callid["+sip_call_id+"]"
+			          "result["+res+"|"+std::to_string(expected_cause_code)+"]cause_code["+std::to_string(result_cause_code)+"]"
+				  "reason["+reason+"]from["+from+"]to["+to+"]";
 		config->logFile<<line;
-		LOG(logINFO)<<LOG_COLOR_INFO<<now<<line<<LOG_COLOR_END;
+		LOG(logINFO)<<"["<<now<<"]"<<line;
 
 		// prepare HTML report
-		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:4px;border-width:1px;'";
-		std::string td_hd_style = "style='border-color:#98B4E5;background-color: #EEF2F5;border-style:solid;padding:4px;border-width:1px;'";
+		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:3px;border-width:1px;'";
+		std::string td_hd_style = "style='border-color:#98B4E5;background-color: #EEF2F5;border-style:solid;padding:3px;border-width:1px;'";
+		std::string td_small_style="style='padding:1px;width:50%;border-style:solid;border-spacing:0px;border-width:1px;border-color:#98B4E5;text-align:center;font-size:8pt'";
 		if (config->testResults.size() == 0){
 			std::string headers = "<tr>"
 				              "<td "+td_hd_style+">label</td>"
 				              "<td "+td_hd_style+">start</td><td "+td_hd_style+">end</td>"
 				              "<td "+td_hd_style+">type</td><td "+td_hd_style+">result</td>"
-				              "<td "+td_hd_style+">expected cause code</td><td "+td_hd_style+">result cause code</td><td "+td_hd_style+">reason</td>"
-				              "<td "+td_hd_style+">expected mos</td><td "+td_hd_style+">mos</td>"
-				              "<td "+td_hd_style+">expected duration</td><td "+td_hd_style+">maximum duration</td>"
-				              "<td "+td_hd_style+">hangup duration</td><td "+td_hd_style+">duration</td>"
+				              "<td "+td_hd_style+">cause code</td><td "+td_hd_style+">reason</td>"
+				              "<td "+td_hd_style+">mos</td>"
+				              "<td "+td_hd_style+">duration</td>"
 					      "<td "+td_hd_style+">from</td><td "+td_hd_style+">to</td>\r\n";
 			config->testResults.push_back(headers);
 		}
@@ -276,17 +283,21 @@ void Test::update_result() {
 		if (mos < min_mos)
 			mos_color = "red";
 
-		type = type +"["+std::to_string(call_id)+"]<br>"+sip_call_id;
+		std::string html_duration_table = "<table><tr><td>expected</td><td>max</td><td>hangup</td><td>connect</td></tr><tr>"
+                                                  "<td "+td_small_style+">"+std::to_string(expected_duration)+"</td>"
+						  "<td "+td_small_style+">"+std::to_string(max_duration)+"</td>"
+						  "<td "+td_small_style+">"+std::to_string(hangup_duration)+"</td>"
+						  "<td "+td_small_style+">"+std::to_string(connect_duration)+"</td></tr></table>";
+		type = type +"["+std::to_string(call_id)+"]["+transport+"]<br>"+sip_call_id;
 		std::string result = "<tr>"
 					 "<td "+td_style+">"+label+"</td>"
 			                 "<td "+td_style+">"+start_time+"</td><td "+td_style+">"+end_time+"</td><td "+td_style+">"+type+"</td>"
                                          "<td "+td_style+">"+res+"</td>"
-                                         "<td "+td_style+">"+std::to_string(expected_cause_code)+"</td>"
-                                         "<td "+td_style+"><font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
+                                         "<td "+td_style+">"+std::to_string(expected_cause_code)+"|<font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
                                          "<td "+td_style+">"+reason+"</td>"
-                                         "<td "+td_style+">"+std::to_string(min_mos)+"</td><td "+td_style+"><font color="+mos_color+">"+std::to_string(mos)+"</font></td>"
-                                         "<td "+td_style+">"+std::to_string(expected_duration)+"</td><td "+td_style+">"+std::to_string(max_duration)+"</td>"
-					 "<td "+td_style+">"+std::to_string(hangup_duration)+"</td><td "+td_style+">"+std::to_string(connect_duration)+"</td>"
+                                         "<td "+td_style+">"+std::to_string(min_mos)+">=<font color="+mos_color+">"+std::to_string(mos)+"</font></td>"
+					 "<td "+td_style+">"+html_duration_table+"</td>"
+//                                        "<td "+td_style+">"+std::to_string(expected_duration)+"|"+std::to_string(max_duration)+"|"+std::to_string(hangup_duration)+"|"+std::to_string(connect_duration)+"</td>"
                                          "<td "+td_style+">"+local_user+"</td>"
                                          "<td "+td_style+">"+remote_user+"</td>"
 					 "</tr>\r\n";
@@ -342,7 +353,7 @@ bool Config::wait(bool complete_all){
 				LOG(logINFO) << "delete call test["<<call->test<<"]";
 				delete call->test;
 				call->test = NULL;
-				removeCall(call);
+				//removeCall(call);
 			} else if (call->test) {
 				LOG(logINFO) <<"[wait:call]id["<<call->getId()<<"]test-state["<<call->test->state<<"]";
 				CallInfo ci = call->getInfo();
@@ -420,6 +431,8 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 			/* action */
 			if ( action_type.compare("wait") == 0 ) {
 				wait(false);
+			} else if ( action_type.compare("wait-complete") == 0 ) {
+				wait(true);
 			} else if ( action_type.compare("alert") == 0 ) {
 				if (!ezxml_attr(xml_action,"email")) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
@@ -580,7 +593,7 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				prm.opt.videoCount = 0;
 				LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 				LOG(logINFO) << "calling :" +callee;
-				call->makeCall("sip:"+callee+";transport=udp", prm);
+				call->makeCall("sip:"+callee, prm);
 			} else {
 				std::cerr <<" >> "<<tag<<"unknown action !\n";
 			}
@@ -713,7 +726,7 @@ int main(int argc, char **argv){
 		EpConfig ep_cfg;
 		ep_cfg.uaConfig.maxCalls = 32;
 		ep_cfg.logConfig.level = 5;
-		ep_cfg.logConfig.consoleLevel = 5;
+		ep_cfg.logConfig.consoleLevel = 0;
 		ep_cfg.logConfig.filename = "pjsua.log";
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;

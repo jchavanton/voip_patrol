@@ -115,6 +115,7 @@ class Test {
 		std::string sip_call_id;
 		std::string label;
 		std::string transport;
+		std::string peer_socket;
 		call_wait_state_t wait_state;
 		test_state_t state;
 		int call_id;

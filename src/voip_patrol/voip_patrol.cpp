@@ -31,8 +31,6 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
 	LOG(logDEBUG) <<"[CallTsx]["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
-	//pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
-	//test->transport = pjsip_data->tp_info.transport->type_name;
 }
 
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
@@ -95,6 +93,12 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	role = ci.role;
 
 	if (test) {
+		pjsip_tx_data *pjsip_data = (pjsip_tx_data *) prm.e.body.txMsg.tdata.pjTxData;
+		if (pjsip_data) {
+			test->transport = pjsip_data->tp_info.transport->type_name;
+			test->peer_socket = pjsip_data->tp_info.dst_name;
+		       	test->peer_socket = test->peer_socket +":"+ std::to_string(pjsip_data->tp_info.dst_port);
+		}
 		if (test->state != VPT_DONE && test->wait_state && (int)test->wait_state <= (int)ci.state ) {
 			test->state = VPT_RUN;
 			LOG(logDEBUG) <<"[test-wait-return]";
@@ -196,6 +200,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->label = accept_label;
 		call->test->sip_call_id = ci.callIdString;
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
+		call->test->peer_socket = iprm.rdata.srcAddress;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -261,6 +266,7 @@ void Test::update_result() {
 		config->logFile<<line;
 		LOG(logINFO)<<"["<<now<<"]"<<line;
 
+
 		// prepare HTML report
 		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:3px;border-width:1px;'";
 		std::string td_hd_style = "style='border-color:#98B4E5;background-color: #EEF2F5;border-style:solid;padding:3px;border-width:1px;'";
@@ -268,7 +274,7 @@ void Test::update_result() {
 		if (config->testResults.size() == 0){
 			std::string headers = "<tr>"
 				              "<td "+td_hd_style+">label</td>"
-				              "<td "+td_hd_style+">start</td><td "+td_hd_style+">end</td>"
+				              "<td "+td_hd_style+">start/end</td>"
 				              "<td "+td_hd_style+">type</td><td "+td_hd_style+">result</td>"
 				              "<td "+td_hd_style+">cause code</td><td "+td_hd_style+">reason</td>"
 				              "<td "+td_hd_style+">mos</td>"
@@ -282,22 +288,23 @@ void Test::update_result() {
 			code_color = "red";
 		if (mos < min_mos)
 			mos_color = "red";
+		if (!success)
+			res = "<font color='red'>"+res+"</font>";
 
 		std::string html_duration_table = "<table><tr><td>expected</td><td>max</td><td>hangup</td><td>connect</td></tr><tr>"
                                                   "<td "+td_small_style+">"+std::to_string(expected_duration)+"</td>"
 						  "<td "+td_small_style+">"+std::to_string(max_duration)+"</td>"
 						  "<td "+td_small_style+">"+std::to_string(hangup_duration)+"</td>"
 						  "<td "+td_small_style+">"+std::to_string(connect_duration)+"</td></tr></table>";
-		type = type +"["+std::to_string(call_id)+"]["+transport+"]<br>"+sip_call_id;
+		type = type +"["+std::to_string(call_id)+"]transport["+transport+"]<br>peer socket["+peer_socket+"]<br>"+sip_call_id;
 		std::string result = "<tr>"
 					 "<td "+td_style+">"+label+"</td>"
-			                 "<td "+td_style+">"+start_time+"</td><td "+td_style+">"+end_time+"</td><td "+td_style+">"+type+"</td>"
+			                 "<td "+td_style+">"+start_time+"<br>"+end_time+"</td><td "+td_style+">"+type+"</td>"
                                          "<td "+td_style+">"+res+"</td>"
                                          "<td "+td_style+">"+std::to_string(expected_cause_code)+"|<font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
                                          "<td "+td_style+">"+reason+"</td>"
                                          "<td "+td_style+">"+std::to_string(min_mos)+">=<font color="+mos_color+">"+std::to_string(mos)+"</font></td>"
 					 "<td "+td_style+">"+html_duration_table+"</td>"
-//                                        "<td "+td_style+">"+std::to_string(expected_duration)+"|"+std::to_string(max_duration)+"|"+std::to_string(hangup_duration)+"|"+std::to_string(connect_duration)+"</td>"
                                          "<td "+td_style+">"+local_user+"</td>"
                                          "<td "+td_style+">"+remote_user+"</td>"
 					 "</tr>\r\n";

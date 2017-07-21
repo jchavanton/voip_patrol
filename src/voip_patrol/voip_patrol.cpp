@@ -49,7 +49,7 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 		return status;
 	}
 	call->recorder_id = recorder_id;
-	LOG(logINFO) << "[recorder] created:" << recorder_id << " fn:"<< rec_fn << "\n";
+	LOG(logINFO) << "[recorder] created:" << recorder_id << " fn:"<< rec_fn;
 	status = pjsua_conf_connect( pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(recorder_id) );
 }
 
@@ -64,7 +64,7 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 		return status;
 	}
 	call->player_id = player_id;
-	LOG(logINFO) << "[player] created:" << player_id << "\n";
+	LOG(logINFO) << "[player] created:" << player_id;
 	status = pjsua_conf_connect( pjsua_player_get_conf_port(player_id), pjsua_call_get_conf_port(call_id) );
 }
 
@@ -201,6 +201,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->sip_call_id = ci.callIdString;
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
 		call->test->peer_socket = iprm.rdata.srcAddress;
+		call->test->state = VPT_RUN;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -345,7 +346,6 @@ bool Config::wait(bool complete_all){
 	int tests_running = 0;
 	bool status_update = true;
 	while (!completed) {
-		LOG(logINFO) << "waiting...";
 		for (auto & account : accounts) {
 			AccountInfo acc_inf = account->getInfo();
 			if (account->test && account->test->state == VPT_DONE){
@@ -362,9 +362,9 @@ bool Config::wait(bool complete_all){
 				call->test = NULL;
 				//removeCall(call);
 			} else if (call->test) {
-				LOG(logINFO) <<"[wait:call]id["<<call->getId()<<"]test-state["<<call->test->state<<"]";
 				CallInfo ci = call->getInfo();
-				LOG(logINFO) <<"[wait:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["<<ci.callIdString<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["<<ci.connectDuration.sec<<">="<<call->test->hangup_duration<<"]";
+				if (status_update)
+					LOG(logINFO) <<"[wait:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["<<ci.callIdString<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["<<ci.connectDuration.sec<<">="<<call->test->hangup_duration<<"]";
 				if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 					call->test->connect_duration = ci.connectDuration.sec;
@@ -389,11 +389,11 @@ bool Config::wait(bool complete_all){
 		}
 		if(tests_running > 0){
 			if (status_update) {
-				LOG(logINFO) << "waiting for tests completion active tests["<<tests_running<<"]...";
+				LOG(logINFO) <<LOG_COLOR_ERROR<<">>>> action[wait] active tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
 				status_update = false;
 			}
 			tests_running=0;
-			pj_thread_sleep(1000);
+			pj_thread_sleep(100);
 		} else {
 			completed = true;
 			LOG(logINFO) << "action[wait] completed";
@@ -679,7 +679,7 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 		return 0;
 //	data = payload_text[upload_data->lines_read];
 	data = upload_data->payload_content[upload_data->lines_read].c_str();
-	LOG(logINFO)<<LOG_COLOR_INFO<<data<<LOG_COLOR_END;
+//	LOG(logINFO)<<LOG_COLOR_INFO<<data<<LOG_COLOR_END;
 	if(data) {
 		size_t len = strlen(data);
 		memcpy(ptr, data, len);

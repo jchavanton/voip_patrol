@@ -73,12 +73,12 @@ class Config {
 };
 
 typedef enum call_wait_state {
-	INV_STATE_NULL,        // Before INVITE is sent or received
-	INV_STATE_CALLING,     // After INVITE is sent
-	INV_STATE_INCOMING,    // After INVITE is received.
-	INV_STATE_EARLY,       // After response with To tag.
-	INV_STATE_CONNECTING,  // After 2xx is sent/received.
-	INV_STATE_CONFIRMED,   // After ACK is sent/received.
+	INV_STATE_NULL,        //0 Before INVITE is sent or received
+	INV_STATE_CALLING,     //1 After INVITE is sent
+	INV_STATE_INCOMING,    //2 After INVITE is received.
+	INV_STATE_EARLY,       //3 After response with To tag.
+	INV_STATE_CONNECTING,  //4 After 2xx is sent/received.
+	INV_STATE_CONFIRMED,   //5 After ACK is sent/received.
 	INV_STATE_DISCONNECTED
 } call_wait_state_t;
 

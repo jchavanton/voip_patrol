@@ -2,7 +2,8 @@
 
 ## VoIP signaling and media test automaton
 
-### mac dependencies
+### mac dependencies 
+(mac is not supported ! cmake is currently missing portaudio lib detection and linking)
 ```
  brew install pkg-config
  brew install cmake
@@ -20,7 +21,7 @@
 ```
  git submodule update --init
  cd pjsua && ./configure
- make dep && make
+ make dep && make && make install
  cd ..
 ```
 

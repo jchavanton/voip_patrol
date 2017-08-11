@@ -2,6 +2,8 @@
 
 ## VoIP signaling and media test automaton
 
+### current stable release v0.1
+
 ### mac dependencies 
 (mac is not supported ! cmake is currently missing portaudio lib detection and linking)
 ```

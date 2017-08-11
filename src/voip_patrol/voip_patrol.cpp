@@ -168,9 +168,11 @@ TestAccount::~TestAccount() {
 void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	LOG(logINFO) << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code ;
-	if(test){
-		pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
-		test->transport = pjsip_data->tp_info.transport->type_name;
+	if (test) {
+		if ( prm.code != 408) {
+			pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
+			test->transport = pjsip_data->tp_info.transport->type_name;
+		}
 		std::string res = "registration[" + std::to_string(prm.code) + "] reason["+ prm.reason + "] expiration[" + std::to_string(prm.expiration) +"]";
 		test->result_cause_code = (int)prm.code;
 		test->reason = prm.reason;
@@ -467,8 +469,8 @@ bool Config::process(std::string p_configFileName, std::string p_logFileName) {
 				if (acc) {
 					AccountInfo acc_inf = acc->getInfo();
 					LOG(logINFO) << "found: " << username <<" [unregistering]";
-					acc->setRegistration(false);
 					while (acc_inf.regIsActive) {
+						acc->setRegistration(false);
 						pj_thread_sleep(500);
 						acc_inf = acc->getInfo();
 					}

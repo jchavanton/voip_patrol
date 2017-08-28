@@ -4,20 +4,14 @@
 
 ### current stable release v0.1
 
-### mac dependencies 
-(mac is not supported ! cmake is currently missing portaudio lib detection and linking)
+### Linux Alpine dependencies
 ```
- brew install pkg-config
- brew install cmake
+apk update
+apk add git cmake g++ cmake make openssl-dev curl-dev alsa-lib-dev
 ```
-
-### debian dependencies
+### Linux Debian dependencies
 ```
- apt-get install build-essential
- apt-get install libcurl4-openssl-dev
- apt-get install cmake
- apt-get install pkg-config
- apt-get install libasound2-dev
+ apt-get install build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev
 ```
 ### build pjsua
 ```
@@ -26,7 +20,6 @@
  make dep && make && make install
  cd ..
 ```
-
 ### buil voip_patrol
 ```
  cmake CMakeLists.txt 
@@ -78,49 +71,7 @@
  smtp_host="smtp://gmail-smtp-in.l.google.com:25"/>
 ```
 
-### sources
-```
-src/
-├── curl
-│   ├── email.c
-│   └── email.h
-├── ezxml
-│   ├── changelog.txt
-│   ├── ezxml.c
-│   ├── ezxml.h
-│   ├── ezxml.html
-│   ├── ezxml.txt
-│   └── license.txt
-├── PESQ
-│   ├── dsp.c
-│   ├── dsp.h
-│   ├── dsp.o
-│   ├── Makefile
-│   ├── pesqdsp.c
-│   ├── pesqdsp.o
-│   ├── pesq.h
-│   ├── pesqio.c
-│   ├── pesqio.o
-│   ├── pesqmain.c
-│   ├── pesqmain.o
-│   ├── pesqmod.c
-│   ├── pesqmod.o
-│   ├── pesqpar.h
-│   ├── pesq_results.txt
-│   └── run_pesq
-└── voip_patrol
-    ├── patrol_pesq.c
-    ├── patrol_pesq.h
-    ├── voip_patrol.cpp
-    └── voip_patrol.hh
-include/
-└── log.h
-```
-
-
-
-
-
+## Dependencies 
 
 #### PJSUA
 PJSUA : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA

@@ -15,10 +15,11 @@ apk add git cmake g++ cmake make openssl-dev curl-dev alsa-lib-dev
 ```
 ### build pjsua
 ```
- git submodule update --init
- cd pjsua && ./configure
- make dep && make && make install
- cd ..
+git clone https://github.com/jchavanton/voip_patrol.git
+cd voip_patrol && git submodule update --init
+cd pjsua && ./configure
+make dep && make && make install
+cd ..
 ```
 ### buil voip_patrol
 ```

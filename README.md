@@ -2,7 +2,7 @@
 
 ## VoIP signaling and media test automaton
 
-### current stable release v0.1
+### current stable release v0.2
 
 ### Linux Alpine dependencies
 ```
@@ -30,8 +30,9 @@ cd ..
 ### run
 ```
  ./voip_patrol
- -c,--conf <conf.xml> 
- -l,--log <test.log>
+ -c,--conf conf.xml 
+ -l,--log <logfilename> 
+ -o,--output results.json
 ```
 
 ### scenario actions

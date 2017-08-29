@@ -372,7 +372,8 @@ void Config::update_result(std::string text){
 }
 
 Config::~Config() {
-	jsonResultFile << "}\n";
+	if (json_result_count)
+		jsonResultFile << "}\n";
 	jsonResultFile.close();
 }
 

@@ -2,8 +2,6 @@
 
 ## VoIP signaling and media test automaton
 
-### current stable release v0.2
-
 ### Linux Alpine dependencies
 ```
 apk update

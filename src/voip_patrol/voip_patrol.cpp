@@ -247,6 +247,17 @@ void Test::get_mos() {
 	LOG(logINFO) <<"[call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< degraded;
 }
 
+void jsonify(std::string *str) {
+	size_t index = 0;
+	while (true) {
+		index = str->find("\"", index);
+		if (index == std::string::npos) break;
+		std::cout << str->substr(index)  << std::endl;
+		str->replace(index, 1, "\\\"");
+		index += 2;
+	}
+}
+
 void Test::update_result() {
 		char now[20] = {'\0'};
 		bool success = false;
@@ -263,12 +274,42 @@ void Test::update_result() {
 			success=true;
 		}
 
-		std::string line ="label["+label+"]start["+start_time+"]end["+end_time+"]action["+type+"("+std::to_string(call_id)+")]callid["+sip_call_id+"]"
-			          "result["+res+"|"+std::to_string(expected_cause_code)+"]cause_code["+std::to_string(result_cause_code)+"]"
-				  "reason["+reason+"]from["+from+"]to["+to+"]";
-		config->logFile<<line;
-		LOG(logINFO)<<"["<<now<<"]"<<line;
+		// JSON report
+		string jsonFrom = local_user;
+		jsonify(&jsonFrom);
+		string jsonTo = remote_user;
+		jsonify(&jsonTo);
+		string jsonCallid = sip_call_id;
+		jsonify(&jsonCallid);
+		string jsonReason = reason;
+		jsonify(&jsonReason);
 
+		config->json_result_count++;
+		if (config->json_result_count ==1)
+			config->jsonResultFile << "{\n";
+		else
+			config->jsonResultFile << ", ";
+		std::string result_line_json = "\""+std::to_string(config->json_result_count)+"\": {"
+							"\"label\": \""+label+"\", "
+							"\"start\": \""+start_time+"\", "
+							"\"end\": \""+end_time+"\", "
+							"\"action\": \""+type+"\", "
+							"\"from\": \""+jsonFrom+"\", "
+							"\"to\": \""+jsonTo+"\", "
+							"\"result\": \""+res+"\", "
+							"\"expected_cause_code\": "+std::to_string(expected_cause_code)+", "
+							"\"cause_code\": "+std::to_string(result_cause_code)+", "
+							"\"reason\": \""+jsonReason+"\", "
+							"\"callid\": \""+jsonCallid+"\", "
+							"\"transport\": \""+transport+"\", "
+							"\"peer_socket\": \""+peer_socket+"\", "
+							"\"duration\": "+std::to_string(connect_duration)+", "
+							"\"expected_duration\": "+std::to_string(expected_duration)+", "
+							"\"max_duration\": "+std::to_string(max_duration)+", "
+							"\"hangup_duration\": "+std::to_string(hangup_duration) +" "
+						"}\n";
+		config->jsonResultFile << result_line_json;
+		LOG(logINFO)<<"["<<now<<"]" << result_line_json;
 
 		// prepare HTML report
 		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:3px;border-width:1px;'";
@@ -318,6 +359,7 @@ void Test::update_result() {
 
 /* declaration Config */
 Config::Config() {
+	json_result_count = 0;
 }
 
 void Config::log(std::string message) {
@@ -327,10 +369,11 @@ void Config::log(std::string message) {
 void Config::update_result(std::string text){
 	char now[20] = {'\0'};
 	get_time_string(now);
-	logFile<<now<<": "<<text<<"\n";
 }
+
 Config::~Config() {
-	logFile.close();
+	jsonResultFile << "}\n";
+	jsonResultFile.close();
 }
 
 void Config::removeCall(TestCall *call) {
@@ -404,20 +447,20 @@ bool Config::wait(bool complete_all){
 	}
 }
 
-bool Config::process(std::string p_configFileName, std::string p_logFileName) {
+bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
 	const char* tag = "[loading xml config] ";
 	// config loader
 	ezxml_t xml_actions, xml_action;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
-	logFileName = p_logFileName;
+	jsonResultFileName = p_jsonResultFileName;
 
-	logFile.open (logFileName.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
-	if(logFile.is_open()) {
+	jsonResultFile.open (jsonResultFileName.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
+	if(jsonResultFile.is_open()) {
 		LOG(logINFO) << "open log file:" << configFileName << "\n";
 	} else {
-		std::cerr <<tag<< "[error] test can not open log file :" << logFileName ;
+		std::cerr <<tag<< "[error] test can not open log file :" << jsonResultFileName ;
 		return false;
 	}
 
@@ -699,13 +742,13 @@ int main(int argc, char **argv){
 	Config config;
 	std::string conf_fn = "conf.xml";
 	std::string log_fn = "";
-	std::string log_test_fn = "test_results.log";
+	std::string log_test_fn = "results.json";
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
-			std::cout <<"\n"<< argv[0] <<"\n -c,--conf <conf.xml> \n -l,--log <"<<log_fn<<"> \n -o,--output <"<<log_test_fn<<">\n" ;
+			std::cout <<"\n"<< argv[0] <<"\n -c,--conf conf.xml \n -l,--log <logfilename> \n -o,--output "<<log_test_fn<<"\n" ;
 			return 0;
 		} else if( (arg == "-c") || (arg == "--conf") ) {
 			if (i + 1 < argc) {

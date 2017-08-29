@@ -51,12 +51,12 @@ class Config {
 		Config();
 		~Config();
 		void log(std::string message);
-		bool process(std::string ConfigFileName, std::string logFileName);
+		bool process(std::string ConfigFileName, std::string jsonResultFile);
 		bool wait(bool complete_all);
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;
-		std::fstream logFile;
+		std::fstream jsonResultFile;
 		std::vector<std::string> testResults;
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
@@ -67,9 +67,10 @@ class Config {
 		std::string alert_server_url;
 		TransportId transport_id_udp;
 		TransportId transport_id_tcp;
+		int json_result_count;
 	private:
 		std::string configFileName;
-		std::string logFileName;
+		std::string jsonResultFileName;
 };
 
 typedef enum call_wait_state {
@@ -119,6 +120,7 @@ class Test {
 		call_wait_state_t wait_state;
 		test_state_t state;
 		int call_id;
+
 	private:
 		Config *config;
 };

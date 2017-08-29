@@ -13,6 +13,7 @@
 #include <sstream>
 #include <ctime>
 #include "log.h"
+#include "version.h"
 
 #define LOG_COLOR_INFO "\e[1;35m"
 #define LOG_COLOR_ERROR "\e[1;31m"

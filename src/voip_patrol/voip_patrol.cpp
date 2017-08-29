@@ -748,7 +748,10 @@ int main(int argc, char **argv){
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
-			std::cout <<"\n"<< argv[0] <<"\n -c,--conf conf.xml \n -l,--log <logfilename> \n -o,--output "<<log_test_fn<<"\n" ;
+			std::cout <<"\n"<< argv[0] <<"\n -v, --version \n -c,--conf conf.xml \n -l,--log <logfilename> \n -o,--output "<<log_test_fn<<"\n" ;
+			return 0;
+		} else if( (arg == "-v") || (arg == "--version") ) {
+			std::cout <<"version: voip_patrol "<<VERSION<<std::endl;
 			return 0;
 		} else if( (arg == "-c") || (arg == "--conf") ) {
 			if (i + 1 < argc) {
@@ -770,7 +773,12 @@ int main(int argc, char **argv){
 		FILE* log_fd = fopen(log_fn.c_str(), "w");
 		Output2FILE::Stream() = log_fd;
 	}
-	std::cout << "\n* * * * * * *\n\nexecuting configuration: "<<conf_fn<<"\nlog file: "<<log_fn<<"\noutput file: "<<log_test_fn<<"\n\n* * * * * * *\n";
+	std::cout << "\n* * * * * * *\n "
+		"voip_patrol version: "<<VERSION<<"\n"
+		"configuration: "<<conf_fn<<"\n"
+		"log file: "<<log_fn<<"\n"
+		"output file: "<<log_test_fn<<"\n"
+		"* * * * * * *\n";
 
 	try {
 		ep.libCreate();

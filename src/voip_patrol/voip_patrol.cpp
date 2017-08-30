@@ -169,7 +169,7 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	LOG(logINFO) << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code ;
 	if (test) {
-		if ( prm.code != 408) {
+		if ( prm.code != 408 && prm.code != PJSIP_SC_SERVICE_UNAVAILABLE) {
 			pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
 			test->transport = pjsip_data->tp_info.transport->type_name;
 		}
@@ -459,7 +459,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 
 	jsonResultFile.open (jsonResultFileName.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
 	if(jsonResultFile.is_open()) {
-		LOG(logINFO) << "open log file:" << configFileName << "\n";
+		LOG(logINFO) << "JSON result file:" << jsonResultFileName << "\n";
 	} else {
 		std::cerr <<tag<< "[error] test can not open log file :" << jsonResultFileName ;
 		return false;
@@ -739,6 +739,12 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 
 int main(int argc, char **argv){
 	int ret = 0;
+
+	// pjsip_cfg_t *pjsip_config = pjsip_cfg();
+	// pjsip_config->tsx.t1 = 250;
+	// pjsip_config->tsx.t2 = 250;
+	// pjsip_config->tsx.t4 = 1000;
+
 	Endpoint ep;
 	Config config;
 	std::string conf_fn = "conf.xml";
@@ -801,10 +807,10 @@ int main(int argc, char **argv){
 		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
 		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
 
-
 		// load config and execute test
 		pjsua_set_null_snd_dev();
 		ep.libStart();
+
 		config.process(conf_fn, log_test_fn);
 
 		LOG(logINFO) << "wait complete all...";

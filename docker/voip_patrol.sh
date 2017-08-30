@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# IMAGE=gliderlabs/alpine:3.6
 DIR_PREFIX="/tmp/voip_patrol"
 SCENARIO_FILE="1.xml"
 RESULT_JSON_FILE="result.json"
@@ -11,11 +10,11 @@ mkdir -p ${DIR_PREFIX}/scenarios
 cp ${SCENARIO_FILE} ${DIR_PREFIX}/scenarios
 docker stop voip_patrol
 docker rm voip_patrol
-# docker pull $IMAGE
+docker pull $IMAGE
 
 docker run -d \
 	--name=voip_patrol \
 	-v ${DIR_PREFIX}:/vp \
 	$IMAGE \
 	./voip_patrol/voip_patrol -c /vp/scenarios/1.xml -l /vp/logs/voip_patrol.log -o /vp/logs/result.json
-#	/bin/sh -c "while true; do sleep 2; echo date; done"
+#	/bin/sh -c "tail -f /dev/null"

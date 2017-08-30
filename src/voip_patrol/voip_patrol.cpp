@@ -169,7 +169,7 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	LOG(logINFO) << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code ;
 	if (test) {
-		if ( prm.code != 408) {
+		if ( prm.code != 408 && prm.code != PJSIP_SC_SERVICE_UNAVAILABLE) {
 			pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
 			test->transport = pjsip_data->tp_info.transport->type_name;
 		}
@@ -459,7 +459,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 
 	jsonResultFile.open (jsonResultFileName.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
 	if(jsonResultFile.is_open()) {
-		LOG(logINFO) << "open log file:" << configFileName << "\n";
+		LOG(logINFO) << "JSON result file:" << jsonResultFileName << "\n";
 	} else {
 		std::cerr <<tag<< "[error] test can not open log file :" << jsonResultFileName ;
 		return false;

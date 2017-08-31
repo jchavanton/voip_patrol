@@ -527,6 +527,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				Test *test = new Test(this);
 				test->local_user = username;
 				test->remote_user = username;
+				if (ezxml_attr(xml_action,"label")){
+					test->label = ezxml_attr(xml_action,"label");
+				}
 				std::string password = ezxml_attr(xml_action,"password");
 				std::string registrar = ezxml_attr(xml_action,"registrar");
 				test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));

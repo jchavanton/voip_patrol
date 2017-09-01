@@ -169,7 +169,7 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	LOG(logINFO) << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code ;
 	if (test) {
-		if ( prm.code != 408 && prm.code != PJSIP_SC_SERVICE_UNAVAILABLE) {
+		if ( prm.rdata.pjRxData && prm.code != 408 && prm.code != PJSIP_SC_SERVICE_UNAVAILABLE) {
 			pjsip_rx_data *pjsip_data = (pjsip_rx_data *) prm.rdata.pjRxData;
 			test->transport = pjsip_data->tp_info.transport->type_name;
 		}

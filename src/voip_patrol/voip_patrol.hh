@@ -110,6 +110,7 @@ class Test {
 		int setup_duration;
 		int expected_duration;
 		int max_duration;
+		int max_calling_duration;
 		void get_mos();
 		std::string local_user;
 		std::string remote_user;

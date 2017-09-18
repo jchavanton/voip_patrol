@@ -409,21 +409,32 @@ bool Config::wait(bool complete_all){
 				//removeCall(call);
 			} else if (call->test) {
 				CallInfo ci = call->getInfo();
-				if (status_update)
-					LOG(logINFO) <<"[wait:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["<<ci.callIdString<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["<<ci.connectDuration.sec<<">="<<call->test->hangup_duration<<"]";
-				if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
+				if (status_update) {
+					LOG(logINFO) <<"[wait:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+				  		     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.connectDuration.sec <<">="<<call->test->hangup_duration<<"]";
+				}
+				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY)  {
+					if (call->test->max_calling_duration && call->test->max_calling_duration <= ci.totalDuration.sec) {
+						LOG(logINFO) <<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+				  		     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.totalDuration.sec <<">="<<call->test->max_calling_duration<<"]";
+						CallOpParam prm(true);
+						call->hangup(prm);
+					}
+				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 					call->test->connect_duration = ci.connectDuration.sec;
 					call->test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
 					call->test->result_cause_code = (int)ci.lastStatusCode;
 					call->test->reason = ci.lastReason;
-					if(call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
-						if(ci.state == PJSIP_INV_STATE_CONFIRMED) {
+					if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
+						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 							CallOpParam prm(true);
 							LOG(logINFO) << "hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
 							call->hangup(prm);
 						}
-						if(call->role == 0 && call->test->min_mos > 0) {
+						if (call->role == 0 && call->test->min_mos > 0) {
 							call->test->get_mos();
 						}
 						call->test->update_result();
@@ -433,7 +444,7 @@ bool Config::wait(bool complete_all){
 					tests_running++;
 			}
 		}
-		if(tests_running > 0){
+		if (tests_running > 0) {
 			if (status_update) {
 				LOG(logINFO) <<LOG_COLOR_ERROR<<">>>> action[wait] active tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
 				status_update = false;
@@ -631,6 +642,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				}
 				if (ezxml_attr(xml_action,"max_duration")){
 					test->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
+				}
+				if (ezxml_attr(xml_action,"max_calling_duration")){
+					test->max_calling_duration = atoi(ezxml_attr(xml_action,"max_calling_duration"));
 				}
 				if ( ezxml_attr(xml_action,"hangup") ) {
 					test->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));

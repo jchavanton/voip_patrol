@@ -732,6 +732,7 @@ void Alert::send(void) {
 		curl_easy_setopt(curl, CURLOPT_READFUNCTION, &Alert::payload_source);
 		curl_easy_setopt(curl, CURLOPT_READDATA, &upload_data);
 		curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 		res = curl_easy_perform(curl);
 		if(res != CURLE_OK)
 		std::cerr << "curl_easy_perform() failed: "  << curl_easy_strerror(res) << alert_server_url <<"\n";

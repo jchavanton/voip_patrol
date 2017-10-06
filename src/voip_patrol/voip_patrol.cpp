@@ -581,7 +581,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					}
 				}
 				if (!acc) {
-					LOG(logINFO) << "account not found: " << callee ;
+					LOG(logINFO) << "account not found: " << callee;
 					continue;
 				}
 				if (ezxml_attr(xml_action,"hangup")){
@@ -617,8 +617,19 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					}
 				}
 				if (!acc) {
-					LOG(logINFO) << "caller not found: " << caller ;
-					continue;
+					LOG(logINFO) << "caller not found[" << caller << "] creating new account.";
+					acc = new TestAccount();
+					AccountConfig acc_cfg;
+					acc_cfg.idUri = "sip:" + caller;
+					acc_cfg.sipConfig.transportId = transport_id_udp;
+					if (ezxml_attr(xml_action,"transport")) {
+						std::string transport = ezxml_attr(xml_action,"transport");
+						if (transport.compare("tcp") == 0) {
+							acc_cfg.sipConfig.transportId = transport_id_tcp;
+						}
+					}
+					acc->config = this;
+					acc->create(acc_cfg);
 				}
 				Test *test = new Test(this);
 				std::size_t pos = caller.find("@");

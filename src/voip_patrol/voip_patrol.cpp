@@ -628,6 +628,16 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 							acc_cfg.sipConfig.transportId = transport_id_tcp;
 						}
 					}
+					if (ezxml_attr(xml_action,"realm")) {
+						if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"password")) {
+							LOG(logERROR) << "[config] realm specify but not username / password";
+							continue;
+						}
+						std::string username = ezxml_attr(xml_action,"username");
+						std::string password = ezxml_attr(xml_action,"password");
+						std::string realm = ezxml_attr(xml_action,"realm");
+						acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
+					}
 					acc->config = this;
 					acc->create(acc_cfg);
 				}

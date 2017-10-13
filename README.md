@@ -43,10 +43,16 @@ cd ..
  realm="sip.domain.com" 
  registrar="1.1.1.1"/>
 ```
-`wait` wait for the tests in progress to complete
+`wait` wait for the tests in progress to complete or until they reach their wait_until state
 ```xml
 <action type="wait"/>
 ```
+
+`wait-complete` wait for tests in progress to complete
+```xml
+<action type="wait-complete"/>
+```
+
 `accept` when receiving an inbound call on the specified registered callee, create a test with the specified parameters  
 ```xml
 <action type="accept"
@@ -56,13 +62,14 @@ cd ..
 ```
 `call` make a call using the specified callee and create a test with the specified parameters
 ```xml
-<action type="call"
- label="my_label_-1"
- expected_cause_code="200"
- caller="33663170@111.75.65.193"
- callee="12062092868@111.75.65.194"
- max_duration="4"/>
+<action type="call" label="call_with_creds" wait_until="3" expected_cause_code="200"        
+        callee="+12061234567@2.2.2.2"                                   
+        caller="68595971@1.1.1.1"                                       
+        username="68595971" password="xxxxxx" realm="sip.domain.com"
+        max_duration="4" hangup="10"                                         
+/>                                                                           
 ```
+
 `alert` send an email with the test results
 ```xml
 <action type="alert"

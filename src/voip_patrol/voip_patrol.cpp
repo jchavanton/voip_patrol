@@ -505,6 +505,12 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				this->alert_email_to = ezxml_attr(xml_action,"email");
 				if (ezxml_attr(xml_action,"email_from")) this->alert_email_from = ezxml_attr(xml_action,"email_from");
 				if (ezxml_attr(xml_action,"smtp_host")) this->alert_server_url = ezxml_attr(xml_action,"smtp_host");
+			} else if ( action_type.compare("sleep") == 0 ) {
+					int duration = atoi(ezxml_attr(xml_action,"ms"));
+					while (duration > 0) {
+						pj_thread_sleep(500);
+						duration -= 500;
+					}
 			} else if ( action_type.compare("register") == 0 ) {
 				if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"realm") || !ezxml_attr(xml_action,"password") || !ezxml_attr(xml_action,"registrar")) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !";
@@ -550,6 +556,12 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				LOG(logINFO) <<" >> "<<tag<< "sip:" + username + "@" + registrar  ;
 				// register account
 				AccountConfig acc_cfg;
+
+				SipHeader sh;
+				sh.hName = "User-Agent";
+				sh.hValue = "<voip_patrol>";
+				acc_cfg.regConfig.headers.push_back(sh);
+
 				acc_cfg.idUri = "sip:" + username + "@" + registrar;
 				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 				acc_cfg.sipConfig.transportId = transport_id_udp;

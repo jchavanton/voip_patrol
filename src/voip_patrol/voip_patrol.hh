@@ -68,6 +68,7 @@ class Config {
 		std::string alert_server_url;
 		TransportId transport_id_udp;
 		TransportId transport_id_tcp;
+		TransportId transport_id_tls;
 		int json_result_count;
 	private:
 		std::string configFileName;

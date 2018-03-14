@@ -85,6 +85,7 @@ target_link_libraries(voip_patrol
 	curl
 	m
 	asound
+	ssl
 	-std=c++11
 )
 

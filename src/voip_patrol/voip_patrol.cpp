@@ -562,14 +562,22 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				sh.hValue = "<voip_patrol>";
 				acc_cfg.regConfig.headers.push_back(sh);
 
-				acc_cfg.idUri = "sip:" + username + "@" + registrar;
-				acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 				acc_cfg.sipConfig.transportId = transport_id_udp;
 				if (ezxml_attr(xml_action,"transport")) {
 					std::string transport = ezxml_attr(xml_action,"transport");
 					if (transport.compare("tcp") == 0) {
 						acc_cfg.sipConfig.transportId = transport_id_tcp;
 					}
+					if (transport.compare("tls") == 0) {
+						acc_cfg.sipConfig.transportId = transport_id_tls;
+					}
+				}
+				if (acc_cfg.sipConfig.transportId == transport_id_tls) {
+					acc_cfg.idUri = "sips:" + username + "@" + registrar;
+					acc_cfg.regConfig.registrarUri = "sips:" + registrar;
+				} else {
+					acc_cfg.idUri = "sip:" + username + "@" + registrar;
+					acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 				}
 				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", ezxml_attr(xml_action,"realm"), username, 0, password) );
 				// acc->setTransport();
@@ -632,14 +640,23 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					LOG(logINFO) << "caller not found[" << caller << "] creating new account.";
 					acc = new TestAccount();
 					AccountConfig acc_cfg;
-					acc_cfg.idUri = "sip:" + caller;
+
 					acc_cfg.sipConfig.transportId = transport_id_udp;
 					if (ezxml_attr(xml_action,"transport")) {
 						std::string transport = ezxml_attr(xml_action,"transport");
 						if (transport.compare("tcp") == 0) {
 							acc_cfg.sipConfig.transportId = transport_id_tcp;
 						}
+						if (transport.compare("tls") == 0) {
+							acc_cfg.sipConfig.transportId = transport_id_tls;
+						}
 					}
+					if (acc_cfg.sipConfig.transportId == transport_id_tls) {
+						acc_cfg.idUri = "sips:" + caller;
+					} else {
+						acc_cfg.idUri = "sip:" + caller;
+					}
+
 					if (ezxml_attr(xml_action,"realm")) {
 						if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"password")) {
 							LOG(logERROR) << "[config] realm specify but not username / password";
@@ -854,8 +871,11 @@ int main(int argc, char **argv){
 
 		// Transport
 		TransportConfig tcfg;
-		tcfg.port = 5061;
+		tcfg.port = 5060;
 		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
+		tcfg.port = 5061;
+		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
+		tcfg.port = 5060;
 		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
 
 		// load config and execute test

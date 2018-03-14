@@ -9,7 +9,11 @@ apk add git cmake g++ cmake make openssl-dev curl-dev alsa-lib-dev
 ```
 ### Linux Debian dependencies
 ```
- apt-get install build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev
+apt-get install build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev
+```
+TLS
+```
+apt-get install libssl-dev
 ```
 ### build pjsua
 ```

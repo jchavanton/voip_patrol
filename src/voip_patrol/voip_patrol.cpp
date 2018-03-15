@@ -826,12 +826,13 @@ int main(int argc, char **argv){
 	std::string conf_fn = "conf.xml";
 	std::string log_fn = "";
 	std::string log_test_fn = "results.json";
+	int port = 5070;
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
-			std::cout <<"\n"<< argv[0] <<"\n -v, --version \n -c,--conf conf.xml \n -l,--log <logfilename> \n -o,--output "<<log_test_fn<<"\n" ;
+			std::cout <<"\n"<< argv[0] <<"\n -v, --port \n, --version \n -c,--conf conf.xml \n -l,--log <logfilename> \n -o,--output "<<log_test_fn<<"\n" ;
 			return 0;
 		} else if( (arg == "-v") || (arg == "--version") ) {
 			std::cout <<"version: voip_patrol "<<VERSION<<std::endl;
@@ -843,6 +844,10 @@ int main(int argc, char **argv){
 		} else if( (arg == "-l") || (arg == "--log")) {
 			if (i + 1 < argc) {
 				log_fn = argv[++i];
+			}
+		} else if( (arg == "-p") || (arg == "--port")) {
+			if (i + 1 < argc) {
+				port = atoi(argv[++i]);
 			}
 		} else if( (arg == "-o") || (arg == "--output")) {
 			if (i + 1 < argc) {
@@ -879,9 +884,9 @@ int main(int argc, char **argv){
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
 		// TCP and UDP transports
-		tcfg.port = 5060;
+		tcfg.port = port;
 		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
-		tcfg.port = 5060;
+		tcfg.port = port;
 		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
 	} catch (Error & err) {
 		LOG(logINFO) << "Exception: " << err.info() ;
@@ -890,7 +895,7 @@ int main(int argc, char **argv){
 
 	try {
 		// TLS transport
-		tcfg.port = 5061;
+		tcfg.port = port+1;
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
 	} catch (Error & err) {
 		config.transport_id_tls = -1;

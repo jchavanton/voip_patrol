@@ -569,6 +569,10 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 						acc_cfg.sipConfig.transportId = transport_id_tcp;
 					}
 					if (transport.compare("tls") == 0) {
+						if (transport_id_tls == -1) {
+							std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
+							continue;
+						}
 						acc_cfg.sipConfig.transportId = transport_id_tls;
 					}
 				}
@@ -648,6 +652,10 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 							acc_cfg.sipConfig.transportId = transport_id_tcp;
 						}
 						if (transport.compare("tls") == 0) {
+							if (transport_id_tls == -1) {
+								std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
+								continue;
+							}
 							acc_cfg.sipConfig.transportId = transport_id_tls;
 						}
 					}
@@ -855,6 +863,7 @@ int main(int argc, char **argv){
 		"output file: "<<log_test_fn<<"\n"
 		"* * * * * * *\n";
 
+	TransportConfig tcfg;
 	try {
 		ep.libCreate();
 		// Init library
@@ -869,15 +878,26 @@ int main(int argc, char **argv){
 		ep.libInit( ep_cfg );
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
-		// Transport
-		TransportConfig tcfg;
+		// TCP and UDP transports
 		tcfg.port = 5060;
 		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
-		tcfg.port = 5061;
-		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
 		tcfg.port = 5060;
 		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+	} catch (Error & err) {
+		LOG(logINFO) << "Exception: " << err.info() ;
+		return 1;
+	}
 
+	try {
+		// TLS transport
+		tcfg.port = 5061;
+		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
+	} catch (Error & err) {
+		config.transport_id_tls = -1;
+		LOG(logINFO) << "Exception: TLS not supported, see README. " << err.info() ;
+	}
+
+	try {
 		// load config and execute test
 		pjsua_set_null_snd_dev();
 		ep.libStart();
@@ -897,10 +917,11 @@ int main(int argc, char **argv){
 		ep.hangupAllCalls();
 
 		ret = PJ_SUCCESS;
-	} catch (Error & err) {
+	} catch (Error &err) {
 		LOG(logINFO) << "Exception: " << err.info() ;
 		ret = 1;
 	}
+
 
 	try {
 		ep.libDestroy();

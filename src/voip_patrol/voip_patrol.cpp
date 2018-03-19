@@ -459,6 +459,21 @@ bool Config::wait(bool complete_all){
 	}
 }
 
+TestAccount* Config::findAccount(std::string account_name) {
+	for (auto & account : accounts) {
+		AccountInfo acc_inf = account->getInfo();
+		int proto_length = 4; // "sip:"
+		if (acc_inf.uri.compare(0, 4, "sips") == 0)
+			proto_length = 5;
+		LOG(logINFO) << "[searching account]["<< proto_length << "]["<<acc_inf.uri<<"]<>["<<account_name<<"]";
+		if (acc_inf.uri.compare(proto_length, account_name.length(), account_name) == 0) {
+			LOG(logINFO) << "found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
+			return account;
+		}
+	}
+	return NULL;
+}
+
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
 	const char* tag = "[loading xml config] ";
 	// config loader
@@ -517,16 +532,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					continue;
 				}
 				std::string username = ezxml_attr(xml_action,"username");
-				TestAccount * acc = NULL;
-				for (auto & account : accounts) {
-					AccountInfo acc_inf = account->getInfo();
-					LOG(logINFO) << "[register]["<<acc_inf.uri<<"]<>["<<username<<"]";
-					if( acc_inf.uri.compare(4,username.length(),username) == 0 ){
-						acc = account;
-						LOG(logINFO) << "found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"] active["<<acc_inf.regIsActive<<"]";
-						break;
-					}
-				}
+				TestAccount *acc = findAccount(username);
 				if (acc) {
 					AccountInfo acc_inf = acc->getInfo();
 					LOG(logINFO) << "found: " << username <<" [unregistering]";
@@ -590,23 +596,37 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				acc->setTest(test);
 
 			} else if ( action_type.compare("accept") == 0 ) {
-				if (!ezxml_attr(xml_action,"callee") ) {
-					std::cerr <<" >> "<<tag<<"missing action parameters for " << action_type ;
+				if (!ezxml_attr(xml_action,"account")) {
+					std::cerr <<" >> "<<tag<<"missing action parameters 'account' for: " << action_type ;
 					continue;
 				}
-				TestAccount * acc = NULL;
-				std::string callee = ezxml_attr(xml_action,"callee");
-				for (auto & account : accounts) {
-					AccountInfo acc_inf = account->getInfo();
-					LOG(logINFO) << "[accept]["<<acc_inf.uri<<"]<>["<<callee<<"]";
-					if( acc_inf.uri.compare(4,callee.length(),callee) == 0 ){
-						acc = account;
-						LOG(logINFO) << "found callee account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
-					}
-				}
+				std::string account_name = ezxml_attr(xml_action,"account");
+				TestAccount *acc = findAccount(account_name);
 				if (!acc) {
-					LOG(logINFO) << "account not found: " << callee;
-					continue;
+					LOG(logINFO) << "account not found: " << account_name << " creating";
+					acc = new TestAccount();
+					AccountConfig acc_cfg;
+					acc_cfg.sipConfig.transportId = transport_id_udp;
+					if (ezxml_attr(xml_action,"transport")) {
+						std::string transport = ezxml_attr(xml_action,"transport");
+						if (transport.compare("tcp") == 0) {
+							acc_cfg.sipConfig.transportId = transport_id_tcp;
+						}
+						if (transport.compare("tls") == 0) {
+							if (transport_id_tls == -1) {
+								std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
+								continue;
+							}
+							acc_cfg.sipConfig.transportId = transport_id_tls;
+						}
+					}
+					if (acc_cfg.sipConfig.transportId == transport_id_tls) {
+						acc_cfg.idUri = "sips:" + account_name;
+					} else {
+						acc_cfg.idUri = "sip:" + account_name;
+					}
+					acc->config = this;
+					acc->create(acc_cfg);
 				}
 				if (ezxml_attr(xml_action,"hangup")){
 					acc->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
@@ -632,14 +652,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 
 				LOG(logINFO) <<" >> "<<tag<<"action parameters found : " << action_type ;
 				// make call begin
-				TestAccount * acc = NULL;
-				for (auto & account : accounts) {
-					AccountInfo acc_inf = account->getInfo();
-					if( acc_inf.uri.compare(4,string::npos,caller) == 0 ){
-						acc = account;
-						LOG(logINFO) << "found caller account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
-					}
-				}
+				TestAccount *acc = findAccount(caller);
 				if (!acc) {
 					LOG(logINFO) << "caller not found[" << caller << "] creating new account.";
 					acc = new TestAccount();
@@ -876,7 +889,8 @@ int main(int argc, char **argv){
 		ep_cfg.uaConfig.maxCalls = 32;
 		ep_cfg.logConfig.level = 5;
 		ep_cfg.logConfig.consoleLevel = 0;
-		ep_cfg.logConfig.filename = "pjsua.log";
+		std::string pj_log_fn =  "pjsua_" + std::to_string(port) + ".log";
+		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
 
@@ -896,6 +910,12 @@ int main(int argc, char **argv){
 	try {
 		// TLS transport
 		tcfg.port = port+1;
+		// Optional, set CA/certificate/private key files.
+		// tcfg.tlsConfig.CaListFile = "certificate.pem";
+		// tcfg.tlsConfig.certFile = "cert.pem";
+		// tcfg.tlsConfig.privKeyFile = "key.pem";
+		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
+		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
 	} catch (Error & err) {
 		config.transport_id_tls = -1;

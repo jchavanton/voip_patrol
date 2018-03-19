@@ -54,6 +54,7 @@ class Config {
 		void log(std::string message);
 		bool process(std::string ConfigFileName, std::string jsonResultFile);
 		bool wait(bool complete_all);
+		TestAccount * findAccount(std::string);
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;

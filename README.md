@@ -57,11 +57,11 @@ cd ..
 <action type="wait-complete"/>
 ```
 
-`accept` when receiving an inbound call on the specified registered callee, create a test with the specified parameters  
+`accept` when receiving an inbound call on the specified account, create a test with the specified parameters  
 ```xml
 <action type="accept"
  label="my_label_-1"
- callee="33663170"
+ account="33663170"
  hangup="2"/>
 ```
 `call` make a call using the specified callee and create a test with the specified parameters

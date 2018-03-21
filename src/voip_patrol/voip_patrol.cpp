@@ -533,7 +533,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				}
 				std::string username = ezxml_attr(xml_action,"username");
 				TestAccount *acc = findAccount(username);
+				int found = 0;
 				if (acc) {
+					found = 1;
 					AccountInfo acc_inf = acc->getInfo();
 					LOG(logINFO) << "found: " << username <<" [unregistering]";
 					while (acc_inf.regIsActive) {
@@ -590,9 +592,13 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 				}
 				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", ezxml_attr(xml_action,"realm"), username, 0, password) );
-				// acc->setTransport();
-				acc->config = this;
-				acc->create(acc_cfg);
+				if (!found) {
+					// acc->setTransport();
+					acc->config = this;
+					acc->create(acc_cfg);
+				} else {
+					acc->modify(acc_cfg);
+				}
 				acc->setTest(test);
 
 			} else if ( action_type.compare("accept") == 0 ) {

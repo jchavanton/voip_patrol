@@ -863,35 +863,54 @@ int main(int argc, char **argv){
 	std::string log_fn = "";
 	std::string log_test_fn = "results.json";
 	int port = 5070;
+	int log_level_console = 2;
+	int log_level_file = 2;
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
-			std::cout <<"\n"<< argv[0] <<"\n -v, --port \n, --version \n -c,--conf conf.xml \n -l,--log <logfilename> \n -o,--output "<<log_test_fn<<"\n" ;
+			std::cout <<"\n"<< argv[0] <<"                                \n"\
+            " -v --vesion                       voip_patrol version       \n"\
+            " --log-level-file <0-10>           file log level            \n"\
+            " --log-level-console <0-10>        console log level         \n"\
+            " -p --port <5060>                  local port                \n"\
+            " -c,--conf <conf.xml>              XML scenario file         \n"\
+            " -l,--log <logfilename>            voip_patrol log file name \n"\
+            " -o,--output <result.json>         json result file name     \n"\
+			"                                                             \n";
 			return 0;
-		} else if( (arg == "-v") || (arg == "--version") ) {
+		} else if ( (arg == "-v") || (arg == "--version") ) {
 			std::cout <<"version: voip_patrol "<<VERSION<<std::endl;
 			return 0;
-		} else if( (arg == "-c") || (arg == "--conf") ) {
+		} else if ( (arg == "-c") || (arg == "--conf") ) {
 			if (i + 1 < argc) {
 				conf_fn = argv[++i];
 			}
-		} else if( (arg == "-l") || (arg == "--log")) {
+		} else if ( (arg == "--log-level-file") ) {
+			if (i + 1 < argc) {
+				log_level_file = atoi(argv[++i]);
+			}
+		} else if ( (arg == "--log-level-console") ) {
+			if (i + 1 < argc) {
+				log_level_console = atoi(argv[++i]);
+			}
+		} else if ( (arg == "-l") || (arg == "--log")) {
 			if (i + 1 < argc) {
 				log_fn = argv[++i];
 			}
-		} else if( (arg == "-p") || (arg == "--port")) {
+		} else if ( (arg == "-p") || (arg == "--port")) {
 			if (i + 1 < argc) {
 				port = atoi(argv[++i]);
 			}
-		} else if( (arg == "-o") || (arg == "--output")) {
+		} else if ( (arg == "-o") || (arg == "--output")) {
 			if (i + 1 < argc) {
 				log_test_fn = argv[++i];
 			}
 		}
 	}
 
+	FILELog::ReportingLevel() = (TLogLevel)log_level_console;
 	if ( log_fn.length() > 0 ) {
 		FILELog::ReportingLevel() = logDEBUG3;
 		FILE* log_fd = fopen(log_fn.c_str(), "w");
@@ -909,8 +928,8 @@ int main(int argc, char **argv){
 		ep.libCreate();
 		EpConfig ep_cfg;
 		ep_cfg.uaConfig.maxCalls = 1000;
-		ep_cfg.logConfig.level = 10;
-		ep_cfg.logConfig.consoleLevel = 0;
+		ep_cfg.logConfig.level = log_level_file;
+		ep_cfg.logConfig.consoleLevel = log_level_console;
 		std::string pj_log_fn =  "pjsua_" + std::to_string(port) + ".log";
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller

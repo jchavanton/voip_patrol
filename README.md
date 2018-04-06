@@ -19,6 +19,7 @@ apt-get install libssl-dev
 ```
 git clone https://github.com/jchavanton/voip_patrol.git
 cd voip_patrol && git submodule update --init
+cp include/config_site.h  pjsua/pjlib/include/pj/config_site.h # increase the max amount of account and calls
 cd pjsua && ./configure
 make dep && make && make install
 cd ..

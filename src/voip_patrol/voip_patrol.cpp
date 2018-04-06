@@ -41,7 +41,8 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_recorder_id recorder_id;
 	char rec_fn[1024] = "voice_ref_files/recording.wav";
-	sprintf(rec_fn,"voice_files/%s_rec.wav", caller_contact);
+	CallInfo ci = call->getInfo();
+	sprintf(rec_fn,"voice_files/%s_%s_rec.wav", ci.callIdString.c_str(), caller_contact);
 	const pj_str_t rec_file_name = pj_str(rec_fn);
 	status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &recorder_id);
 	if (status != PJ_SUCCESS) {
@@ -132,15 +133,16 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	// Create player and recorder
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 		stream_to_call(this, ci.id, remote_user.c_str());
-		record_call(this, ci.id, remote_user.c_str());
+		if (test->recording)
+			record_call(this, ci.id, remote_user.c_str());
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
 		LOG(logINFO) << "[Call disconnected]";
-		if(player_id != -1) {
+		if (player_id != -1) {
 			pjsua_player_destroy(player_id);
 			player_id = -1;
 		}
-		if(recorder_id != -1){
+		if (recorder_id != -1){
 			pjsua_recorder_destroy(recorder_id);
 			recorder_id = -1;
 		}
@@ -215,7 +217,6 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 /* declaration Test */
 Test::Test(Config *p_config){
 	char now[20] = {'\0'};
-	bool success = false;
 	get_time_string(now);
 	from="";
 	to="";
@@ -237,6 +238,8 @@ Test::Test(Config *p_config){
 	call_id = 0;
 	sip_call_id = "";
 	label = "-";
+	recording = false;
+	playing = false;
 	LOG(logINFO)<<LOG_COLOR_INFO<<"New test created !"<<LOG_COLOR_END;
 }
 
@@ -740,7 +743,18 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				prm.opt.videoCount = 0;
 				LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 				LOG(logINFO) << "calling :" +callee;
+
+				if ( ezxml_attr(xml_action,"recording") ) {
+						test->recording = true;
+				}
 				call->makeCall("sip:"+callee, prm);
+				if ( ezxml_attr(xml_action,"repeat") ) {
+					int repeat = (call_wait_state_t)atoi(ezxml_attr(xml_action,"repeat"));
+					while (repeat > 0) {
+						call->makeCall("sip:"+callee, prm);
+						repeat--;
+					}
+				}
 			} else {
 				std::cerr <<" >> "<<tag<<"unknown action !\n";
 			}
@@ -835,10 +849,13 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 int main(int argc, char **argv){
 	int ret = 0;
 
-	// pjsip_cfg_t *pjsip_config = pjsip_cfg();
+	pjsip_cfg_t *pjsip_config = pjsip_cfg();
+	std::cout <<"pjsip_config->tsx.t1 :" << pjsip_config->tsx.t1 <<"\n";
 	// pjsip_config->tsx.t1 = 250;
 	// pjsip_config->tsx.t2 = 250;
 	// pjsip_config->tsx.t4 = 1000;
+
+	pjsip_cfg()->endpt.disable_secure_dlg_check = 1;
 
 	Endpoint ep;
 	Config config;
@@ -890,10 +907,9 @@ int main(int argc, char **argv){
 	TransportConfig tcfg;
 	try {
 		ep.libCreate();
-		// Init library
 		EpConfig ep_cfg;
-		ep_cfg.uaConfig.maxCalls = 32;
-		ep_cfg.logConfig.level = 5;
+		ep_cfg.uaConfig.maxCalls = 1000;
+		ep_cfg.logConfig.level = 10;
 		ep_cfg.logConfig.consoleLevel = 0;
 		std::string pj_log_fn =  "pjsua_" + std::to_string(port) + ".log";
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
@@ -917,9 +933,9 @@ int main(int argc, char **argv){
 		// TLS transport
 		tcfg.port = port+1;
 		// Optional, set CA/certificate/private key files.
-		// tcfg.tlsConfig.CaListFile = "certificate.pem";
-		// tcfg.tlsConfig.certFile = "cert.pem";
-		// tcfg.tlsConfig.privKeyFile = "key.pem";
+		tcfg.tlsConfig.CaListFile = "certificate.pem";
+		tcfg.tlsConfig.certFile = "cert.pem";
+		tcfg.tlsConfig.privKeyFile = "key.pem";
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);

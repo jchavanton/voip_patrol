@@ -150,6 +150,7 @@ class TestAccount : public Account {
 class TestCall : public Call {
 	public:
 		TestCall(Account &acc, int call_id);
+		~TestCall();
 		Test *test;
 		void setTest(Test *test);
 		virtual void onCallTsxState(OnCallTsxStateParam &prm);

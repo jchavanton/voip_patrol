@@ -23,6 +23,13 @@ TestCall::TestCall(Account &p_acc, int call_id = PJSUA_INVALID_ID) : Call(p_acc,
 	role = -1; // Caller 0 | callee 1
 }
 
+TestCall::~TestCall() {
+	if (test) {
+		LOG(logINFO) << "delete call test["<<test<<"]";
+		delete test;
+	}
+}
+
 void TestCall::setTest(Test *p_test) {
 	test = p_test;
 }
@@ -34,7 +41,7 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 }
 
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
-	LOG(logINFO) << "[onStreamCreated]";
+	LOG(logDEBUG) << "[onStreamCreated]";
 }
 
 static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
@@ -65,7 +72,7 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 		return status;
 	}
 	call->player_id = player_id;
-	LOG(logINFO) << "[player] created:" << player_id;
+	LOG(logDEBUG) << "[player] created:" << player_id;
 	status = pjsua_conf_connect( pjsua_player_get_conf_port(player_id), pjsua_call_get_conf_port(call_id) );
 }
 
@@ -98,7 +105,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		if (pjsip_data) {
 			test->transport = pjsip_data->tp_info.transport->type_name;
 			test->peer_socket = pjsip_data->tp_info.dst_name;
-		       	test->peer_socket = test->peer_socket +":"+ std::to_string(pjsip_data->tp_info.dst_port);
+			test->peer_socket = test->peer_socket +":"+ std::to_string(pjsip_data->tp_info.dst_port);
 		}
 		if (test->state != VPT_DONE && test->wait_state && (int)test->wait_state <= (int)ci.state ) {
 			test->state = VPT_RUN;
@@ -115,18 +122,19 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
 		test->result_cause_code = (int)ci.lastStatusCode;
 		test->reason = ci.lastReason;
-		if(ci.state == PJSIP_INV_STATE_DISCONNECTED || (test->hangup_duration && ci.connectDuration.sec >= test->hangup_duration) ){
+		if (ci.state == PJSIP_INV_STATE_DISCONNECTED || (test->hangup_duration && ci.connectDuration.sec >= test->hangup_duration) ){
 			LOG(logINFO) << "[call] state completed duration: "<< ci.connectDuration.sec << " >= " << test->hangup_duration ;
-			if(test->state != VPT_DONE) {
-				if(role == 0 && test->min_mos > 0) {
+			if (test->state != VPT_DONE) {
+				if (role == 0 && test->min_mos > 0) {
 					test->get_mos();
 				}
 				test->update_result();
 			}
-			if(ci.state == PJSIP_INV_STATE_CONFIRMED){
+			if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 				CallOpParam prm(true);
 				LOG(logINFO) << "hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
 				hangup(prm);
+				LOG(logINFO) << "hangup ok";
 			}
 		}
 	}
@@ -406,9 +414,9 @@ bool Config::wait(bool complete_all){
 		}
 		for (auto & call : calls) {
 			if (call->test && call->test->state == VPT_DONE){
-				LOG(logINFO) << "delete call test["<<call->test<<"]";
-				delete call->test;
-				call->test = NULL;
+				//LOG(logINFO) << "delete call test["<<call->test<<"]";
+				//delete call->test;
+				//call->test = NULL;
 				//removeCall(call);
 			} else if (call->test) {
 				CallInfo ci = call->getInfo();
@@ -540,13 +548,13 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				if (acc) {
 					found = 1;
 					AccountInfo acc_inf = acc->getInfo();
-					LOG(logINFO) << "found: " << username <<" [unregistering]";
-					while (acc_inf.regIsActive) {
-						acc->setRegistration(false);
-						pj_thread_sleep(500);
-						acc_inf = acc->getInfo();
-					}
-					LOG(logINFO) << "found: " << username <<" [unregistered]";
+					//LOG(logINFO) << "found: " << username <<" [unregistering]";
+					//while (acc_inf.regIsActive) {
+					//	acc->setRegistration(false);
+					//	pj_thread_sleep(500);
+					//	acc_inf = acc->getInfo();
+					//}
+					LOG(logINFO) << "found: " << username <<" [not unregistered]";
 				} else {
 					acc = new TestAccount();
 					accounts.push_back(acc);
@@ -700,61 +708,63 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					acc->config = this;
 					acc->create(acc_cfg);
 				}
-				Test *test = new Test(this);
-				std::size_t pos = caller.find("@");
-				if (pos!=std::string::npos) {
-					test->local_user = caller.substr(0, pos);
-				}
-				pos = callee.find("@");
-				if (pos!=std::string::npos) {
-					test->remote_user = callee.substr(0, pos);
-				}
-				TestCall *call = new TestCall(*acc);
-				calls.push_back(call);
-				if (ezxml_attr(xml_action,"wait_until")){
-					test->wait_state = (call_wait_state_t)atoi(ezxml_attr(xml_action,"wait_until"));
-				}
-				if (ezxml_attr(xml_action,"mos")){
-					test->min_mos = atof(ezxml_attr(xml_action,"mos"));
-				}
-				if (ezxml_attr(xml_action,"duration")){
-					test->expected_duration = atoi(ezxml_attr(xml_action,"duration"));
-				}
-				if (ezxml_attr(xml_action,"max_duration")){
-					test->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
-				}
-				if (ezxml_attr(xml_action,"max_calling_duration")){
-					test->max_calling_duration = atoi(ezxml_attr(xml_action,"max_calling_duration"));
-				}
-				if ( ezxml_attr(xml_action,"hangup") ) {
-					test->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
-				}
-				if (ezxml_attr(xml_action,"label")){
-					test->label = ezxml_attr(xml_action,"label");
-				}
-				call->test = test;
-				test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
-				test->from = caller;
-				test->to = callee;
-				test->type = action_type;
-				acc->calls.push_back(call);
-				CallOpParam prm(true);
-				prm.opt.audioCount = 1;
-				prm.opt.videoCount = 0;
-				LOG(logINFO) << "call->test:" << test << " " << call->test->type;
-				LOG(logINFO) << "calling :" +callee;
 
-				if ( ezxml_attr(xml_action,"recording") ) {
-						test->recording = true;
-				}
-				call->makeCall("sip:"+callee, prm);
+				int repeat = 0;
 				if ( ezxml_attr(xml_action,"repeat") ) {
-					int repeat = (call_wait_state_t)atoi(ezxml_attr(xml_action,"repeat"));
-					while (repeat > 0) {
-						call->makeCall("sip:"+callee, prm);
-						repeat--;
-					}
+					repeat = (call_wait_state_t)atoi(ezxml_attr(xml_action,"repeat"));
 				}
+				do {
+					Test *test = new Test(this);
+					std::size_t pos = caller.find("@");
+					if (pos!=std::string::npos) {
+						test->local_user = caller.substr(0, pos);
+					}
+					pos = callee.find("@");
+					if (pos!=std::string::npos) {
+						test->remote_user = callee.substr(0, pos);
+					}
+
+					TestCall *call = new TestCall(*acc);
+					calls.push_back(call);
+					if (ezxml_attr(xml_action,"wait_until")){
+						test->wait_state = (call_wait_state_t)atoi(ezxml_attr(xml_action,"wait_until"));
+					}
+					if (ezxml_attr(xml_action,"mos")){
+						test->min_mos = atof(ezxml_attr(xml_action,"mos"));
+					}
+					if (ezxml_attr(xml_action,"duration")){
+						test->expected_duration = atoi(ezxml_attr(xml_action,"duration"));
+					}
+					if ( ezxml_attr(xml_action,"recording") ) {
+							test->recording = true;
+					}
+					if (ezxml_attr(xml_action,"max_duration")){
+						test->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
+					}
+					if (ezxml_attr(xml_action,"max_calling_duration")){
+						test->max_calling_duration = atoi(ezxml_attr(xml_action,"max_calling_duration"));
+					}
+					if ( ezxml_attr(xml_action,"hangup") ) {
+						test->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
+					}
+					if (ezxml_attr(xml_action,"label")){
+						test->label = ezxml_attr(xml_action,"label");
+					}
+					call->test = test;
+					test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
+					test->from = caller;
+					test->to = callee;
+					test->type = action_type;
+					acc->calls.push_back(call);
+					CallOpParam prm(true);
+					prm.opt.audioCount = 1;
+					prm.opt.videoCount = 0;
+					LOG(logINFO) << "call->test:" << test << " " << call->test->type;
+					LOG(logINFO) << "calling :" +callee;
+					call->makeCall("sip:"+callee, prm);
+					repeat--;
+				} while (repeat >= 0);
+
 			} else {
 				std::cerr <<" >> "<<tag<<"unknown action !\n";
 			}
@@ -864,7 +874,7 @@ int main(int argc, char **argv){
 	std::string log_test_fn = "results.json";
 	int port = 5070;
 	int log_level_console = 2;
-	int log_level_file = 2;
+	int log_level_file = 10;
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {

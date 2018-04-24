@@ -32,10 +32,14 @@ cd ..
 
 ### run
 ```
- ./voip_patrol
- -c,--conf conf.xml 
- -l,--log <logfilename> 
- -o,--output results.json
+./voip_patrol
+  -v --vesion                       voip_patrol version
+  --log-level-file <0-10>           file log level
+  --log-level-console <0-10>        console log level
+  -p --port <5060>                  local port
+  -c,--conf <conf.xml>              XML scenario file
+  -l,--log <logfilename>            voip_patrol log file name
+  -o,--output <result.json>         json result file name
 ```
 
 ### scenario actions

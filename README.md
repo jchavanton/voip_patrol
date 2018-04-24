@@ -42,11 +42,13 @@ cd ..
 `register` create a test account `account1` and will register to `1.1.1.1`
 ```xml
 <action type="register"
- expected_cause_code="200"
- username="account1"
- password="password"
- realm="sip.domain.com" 
- registrar="1.1.1.1"/>
+   expected_cause_code="200"
+   transport="udp"
+   username="account1"
+   password="password"
+   realm="sip.domain.com"
+   registrar="1.1.1.1"
+/>
 ```
 `wait` wait for the tests in progress to complete or until they reach their wait_until state
 ```xml
@@ -58,29 +60,39 @@ cd ..
 <action type="wait-complete"/>
 ```
 
-`accept` when receiving an inbound call on the specified account, create a test with the specified parameters  
+`accept` when receiving an inbound call on the specified account, create a test with the specified parameters
 ```xml
 <action type="accept"
- label="my_label_-1"
- account="33663170"
- hangup="2"/>
+   label="my_label_-1"
+   account="63633170"
+   hangup="2"
+   max_duration="10"
+   wait_until="2"
+/>
 ```
 `call` make a call using the specified callee and create a test with the specified parameters
 ```xml
-<action type="call" label="call_with_creds" wait_until="3" expected_cause_code="200"        
-        callee="+12061234567@2.2.2.2"                                   
-        caller="68595971@1.1.1.1"                                       
-        username="68595971" password="xxxxxx" realm="sip.domain.com"
-        max_duration="4" hangup="10"                                         
-/>                                                                           
+<action type="call"
+   label="call_with_creds"
+   wait_until="3"
+   expected_cause_code="200"
+   callee="+12061234567@2.2.2.2"
+   caller="68595971@1.1.1.1"
+   username="68595971"
+   password="xxxxxx"
+   realm="sip.domain.com"
+   max_duration="4"
+   hangup="10"
+/>
 ```
 
 `alert` send an email with the test results
 ```xml
 <action type="alert"
- email="your_email@gmail.com"
- email_from="test@voip-patrol.org"
- smtp_host="smtp://gmail-smtp-in.l.google.com:25"/>
+   email="your_email@gmail.com"
+   email_from="test@voip-patrol.org"
+   smtp_host="smtp://gmail-smtp-in.l.google.com:25"
+/>
 ```
 
 ## Dependencies 

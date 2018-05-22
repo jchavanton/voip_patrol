@@ -156,6 +156,7 @@ class TestCall : public Call {
 		virtual void onCallTsxState(OnCallTsxStateParam &prm);
 		virtual void onCallState(OnCallStateParam &prm);
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);
+		virtual void onStreamDestroyed(OnStreamDestroyedParam &prm);
 		pjsua_recorder_id recorder_id;
 		pjsua_player_id player_id;
 		int role;

@@ -105,6 +105,9 @@ cd ..
 PJSUA : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
 http://www.pjsip.org
 
+#### PJSUA2
+http://www.pjsip.org/docs/book-latest/PJSUA2Doc.pdf
+
 #### PESQ
 P.862 : Perceptual evaluation of speech quality (PESQ): An objective method for end-to-end speech quality assessment of narrow-band telephone networks and speech codecs
 http://www.itu.int/rec/T-REC-P.862

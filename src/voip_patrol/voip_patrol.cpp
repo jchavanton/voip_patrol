@@ -40,8 +40,26 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	LOG(logDEBUG) <<"[CallTsx]["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
 }
 
+void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
+	LOG(logDEBUG) << "[onStreamDestroyed] idx["<<prm.streamIdx<<"]";
+	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
+	pjmedia_stream_info *pj_stream_info;
+	try {
+		StreamStat const &stats = getStreamStat(prm.streamIdx);
+		RtcpStat rtcp = stats.rtcp;
+		RtcpStreamStat rxStat = rtcp.rxStat;
+		RtcpStreamStat txStat = rtcp.txStat;
+		LOG(logINFO) << __FUNCTION__ << ": RTCP pkt_rx:"<<rxStat.pkt<<" pkt_tx:"<<txStat.pkt<<std::endl;
+	} catch (pj::Error e)  {
+			LOG(logERROR) << "error :" << e.status << std::endl;
+	}
+}
+
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
-	LOG(logDEBUG) << "[onStreamCreated]";
+	LOG(logDEBUG) << __FUNCTION__ << " idx["<<prm.streamIdx<<"]\n";
+	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
+	pjmedia_stream_info *pj_stream_info;
+	pjmedia_stream_get_info(pj_stream, pj_stream_info);
 }
 
 static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
@@ -194,12 +212,10 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(*this, iprm.callId);
 
 	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
-	//LOG(logINFO)<<"srcAddress["<< iprm.rdata.srcAddress <<"]"<< pjsip_data->tp_info.transport->type_name;
-	//LOG(logINFO)<<"info["<< iprm.rdata.info <<"]";
-	//LOG(logINFO)<<"wholeMsg["<< iprm.rdata.wholeMsg <<"]";
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
-	LOG(logINFO) <<"[onIncomingCall]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
+	AccountInfo acc_inf = getInfo();
+	LOG(logINFO) <<"[onIncomingCall]["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
 	if (!call->test) {
 		LOG(logINFO)<<"[onIncomingCall] max call duration["<< hangup_duration <<"]";
 		call->test = new Test(config);
@@ -598,7 +614,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				if (acc_cfg.sipConfig.transportId == transport_id_tls) {
 					acc_cfg.idUri = "sips:" + username + "@" + registrar;
 					acc_cfg.regConfig.registrarUri = "sips:" + registrar;
+					LOG(logINFO) << "SIPS URI Scheme";
 				} else {
+					LOG(logINFO) << "SIP URI Scheme";
 					acc_cfg.idUri = "sip:" + username + "@" + registrar;
 					acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 				}
@@ -639,6 +657,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					}
 					if (acc_cfg.sipConfig.transportId == transport_id_tls) {
 						acc_cfg.idUri = "sips:" + account_name;
+						//acc_cfg.sipConfig.contactParams = ";trans=tls;";
 					} else {
 						acc_cfg.idUri = "sip:" + account_name;
 					}
@@ -670,6 +689,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				LOG(logINFO) <<" >> "<<tag<<"action parameters found : " << action_type ;
 				// make call begin
 				TestAccount *acc = findAccount(caller);
+				std::string transport("");
 				if (!acc) {
 					LOG(logINFO) << "caller not found[" << caller << "] creating new account.";
 					acc = new TestAccount();
@@ -677,11 +697,10 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 
 					acc_cfg.sipConfig.transportId = transport_id_udp;
 					if (ezxml_attr(xml_action,"transport")) {
-						std::string transport = ezxml_attr(xml_action,"transport");
+						transport = ezxml_attr(xml_action,"transport");
 						if (transport.compare("tcp") == 0) {
 							acc_cfg.sipConfig.transportId = transport_id_tcp;
-						}
-						if (transport.compare("tls") == 0) {
+						} else if (transport.compare("tls") == 0) {
 							if (transport_id_tls == -1) {
 								std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
 								continue;
@@ -761,7 +780,13 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					prm.opt.videoCount = 0;
 					LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 					LOG(logINFO) << "calling :" +callee;
-					call->makeCall("sip:"+callee, prm);
+					if (transport.compare("tls") == 0) {
+						call->makeCall("sips:"+callee, prm);
+					} else if (transport.compare("tcp") == 0) {
+						call->makeCall("sip:"+callee+";transport=tcp", prm);
+					} else {
+						call->makeCall("sip:"+callee, prm);
+					}
 					repeat--;
 				} while (repeat >= 0);
 
@@ -949,6 +974,7 @@ int main(int argc, char **argv){
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
 		// TCP and UDP transports
+
 		tcfg.port = port;
 		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
 		tcfg.port = port;
@@ -965,9 +991,12 @@ int main(int argc, char **argv){
 		tcfg.tlsConfig.CaListFile = "certificate.pem";
 		tcfg.tlsConfig.certFile = "cert.pem";
 		tcfg.tlsConfig.privKeyFile = "key.pem";
+		tcfg.tlsConfig.verifyServer = 0;
+		tcfg.tlsConfig.verifyClient = 0;
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
+		LOG(logINFO) << "TLS supported ";
 	} catch (Error & err) {
 		config.transport_id_tls = -1;
 		LOG(logINFO) << "Exception: TLS not supported, see README. " << err.info() ;

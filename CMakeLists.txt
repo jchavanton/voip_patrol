@@ -10,7 +10,7 @@ set(SRC_DIR "${ROOT_DIR}/src")
 set(PESQ_SRC_DIR "${SRC_DIR}/PESQ")
 set(CURL_SRC_DIR "${SRC_DIR}/curl")
 set(EZXML_SRC_DIR "${SRC_DIR}/ezxml")
-set(HYPPO_SRC_DIR "${SRC_DIR}/voip_patrol")
+set(VOIP_PATROL_SRC_DIR "${SRC_DIR}/voip_patrol")
 
 set(PESQ_SRCS
 	${PESQ_SRC_DIR}/dsp.c
@@ -28,12 +28,13 @@ set(EZXML_SRCS
 )
 include_directories("${SRC_DIR}")
 
-set(HYPPO_SRCS_CPP
-	${HYPPO_SRC_DIR}/voip_patrol.cpp
+set(VOIP_PATROL_SRCS_CPP
+	${VOIP_PATROL_SRC_DIR}/voip_patrol.cpp
+	${VOIP_PATROL_SRC_DIR}/action.cc
 )
 
-set(HYPPO_SRCS_C
-	${HYPPO_SRC_DIR}/patrol_pesq.c
+set(VOIP_PATROL_SRCS_C
+	${VOIP_PATROL_SRC_DIR}/patrol_pesq.c
 )
 
 include_directories(${ROOT_DIR}/pjsua/pjmedia/include)
@@ -44,7 +45,7 @@ include_directories(${ROOT_DIR}/pjsua/pjlib-util/include)
 
 include_directories(${ROOT_DIR}/include)
 
-set(SOURCE_FILES ${HYPPO_SRCS_CPP} ${HYPPO_SRCS_C} ${CURL_SRCS} ${EZXML_SRCS} ${PESQ_SRCS})
+set(SOURCE_FILES ${VOIP_PATROL_SRCS_CPP} ${VOIP_PATROL_SRCS_C} ${CURL_SRCS} ${EZXML_SRCS} ${PESQ_SRCS})
 
 add_executable(voip_patrol ${SOURCE_FILES})
 

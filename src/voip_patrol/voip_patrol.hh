@@ -2,6 +2,9 @@
  * Voip Patrol
  * @author Julien Chavanton 2016
  */
+#ifndef VOIP_PATROL_H
+#define VOIP_PATROL_H
+#include "action.hh"
 #include <pjsua2.hpp>
 #include <iostream>
 #include <fstream>
@@ -71,6 +74,7 @@ class Config {
 		TransportId transport_id_tcp;
 		TransportId transport_id_tls;
 		int json_result_count;
+		Action action;
 	private:
 		std::string configFileName;
 		std::string jsonResultFileName;
@@ -164,3 +168,6 @@ class TestCall : public Call {
 		TestAccount *acc;
 
 };
+
+
+#endif

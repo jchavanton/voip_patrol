@@ -15,7 +15,10 @@ void get_time_string(char * str_now) {
 	sprintf(str_now,"%02d-%02d-%04d %02d:%02d:%02d", now->tm_mday, now->tm_mon+1, now->tm_year+1900, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
-/* declaration TestCall */
+/*
+ * TestCall implementation
+ */
+
 TestCall::TestCall(Account &p_acc, int call_id = PJSUA_INVALID_ID) : Call(p_acc, call_id) {
 	test = NULL;
 	acc = (TestAccount *)&p_acc;
@@ -175,9 +178,12 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		}
 	}
 }
-/* declaration TestCall */
 
-/* declaration TestAccount */
+
+/*
+ * TestAccount implementation
+ */
+
 void TestAccount::setTest(Test *ptest) {
 	test = ptest;
 }
@@ -237,9 +243,12 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	prm.statusCode = (pjsip_status_code)200;
 	call->answer(prm);
 }
-/* declaration TestAccount */
 
-/* declaration Test */
+
+/*
+ *  Test implementation
+ */
+
 Test::Test(Config *p_config){
 	char now[20] = {'\0'};
 	get_time_string(now);
@@ -313,11 +322,7 @@ void Test::update_result() {
 		jsonify(&jsonReason);
 
 		config->json_result_count++;
-		if (config->json_result_count ==1)
-			config->jsonResultFile << "{\n";
-		else
-			config->jsonResultFile << ", ";
-		std::string result_line_json = "\""+std::to_string(config->json_result_count)+"\": {"
+		std::string result_line_json = "{\""+std::to_string(config->json_result_count)+"\": {"
 							"\"label\": \""+label+"\", "
 							"\"start\": \""+start_time+"\", "
 							"\"end\": \""+end_time+"\", "
@@ -335,9 +340,10 @@ void Test::update_result() {
 							"\"expected_duration\": "+std::to_string(expected_duration)+", "
 							"\"max_duration\": "+std::to_string(max_duration)+", "
 							"\"hangup_duration\": "+std::to_string(hangup_duration) +" "
-						"}\n";
-		config->jsonResultFile << result_line_json;
+						"}}";
+		config->result_file.write(result_line_json);
 		LOG(logINFO)<<"["<<now<<"]" << result_line_json;
+		config->result_file.flush();
 
 		// prepare HTML report
 		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:3px;border-width:1px;'";
@@ -382,11 +388,51 @@ void Test::update_result() {
 					 "</tr>\r\n";
 		config->testResults.push_back(result);
 }
-/* declaration Test */
 
 
-/* declaration Config */
-Config::Config() : action(this) {
+
+/*
+ * ResultFile implementation
+ */
+
+ResultFile::ResultFile(string name) : name(name) {
+	open();
+}
+
+bool ResultFile::write(string res) {
+	try {
+		file << res << "\n";
+	} catch (Error & err) {
+		LOG(logINFO) <<__FUNCTION__<< "Exception: " << err.info() ;
+		return false;
+	}
+	return true;
+}
+
+void ResultFile::flush() {
+	file.flush();
+}
+
+bool ResultFile::open() {
+	file.open(name.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
+	if (file.is_open()) {
+		LOG(logINFO) << "JSON result file:" << name << "\n";
+	} else {
+		std::cerr <<__FUNCTION__<< " [error] test can not open log file :" << name ;
+		return false;
+	}
+}
+
+void ResultFile::close() {
+	file.close();
+}
+
+
+/*
+ * Config implementation
+ */
+
+Config::Config(string result_fn) : result_file(result_fn), action(this) {
 	json_result_count = 0;
 }
 
@@ -400,9 +446,7 @@ void Config::update_result(std::string text){
 }
 
 Config::~Config() {
-	if (json_result_count)
-		jsonResultFile << "}\n";
-	jsonResultFile.close();
+	result_file.close();
 }
 
 void Config::removeCall(TestCall *call) {
@@ -414,10 +458,6 @@ void Config::removeCall(TestCall *call) {
 	}
 	delete call;
 }
-
-//bool Config::wait(bool complete_all){
-//	return true;
-//}
 
 TestAccount* Config::findAccount(std::string account_name) {
 	for (auto & account : accounts) {
@@ -434,6 +474,7 @@ TestAccount* Config::findAccount(std::string account_name) {
 	return NULL;
 }
 
+
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
 	const char* tag = "[loading xml config] ";
 	// config loader
@@ -441,15 +482,6 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
-	jsonResultFileName = p_jsonResultFileName;
-
-	jsonResultFile.open (jsonResultFileName.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
-	if(jsonResultFile.is_open()) {
-		LOG(logINFO) << "JSON result file:" << jsonResultFileName << "\n";
-	} else {
-		std::cerr <<tag<< "[error] test can not open log file :" << jsonResultFileName ;
-		return false;
-	}
 
 	if(!xml_conf){
 		std::cerr <<tag<< "[error] test can not load file :" << configFileName ;
@@ -822,13 +854,14 @@ int main(int argc, char **argv){
 	pjsip_cfg()->endpt.disable_secure_dlg_check = 1;
 
 	Endpoint ep;
-	Config config;
+
 	std::string conf_fn = "conf.xml";
 	std::string log_fn = "";
 	std::string log_test_fn = "results.json";
 	int port = 5070;
 	int log_level_console = 2;
 	int log_level_file = 10;
+	Config config(log_test_fn);
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {

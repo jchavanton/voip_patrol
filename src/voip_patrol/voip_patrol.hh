@@ -50,9 +50,22 @@ class Alert {
 
 };
 
+
+class ResultFile {
+	public:
+		ResultFile(std::string file_name);
+		void flush();
+		bool open();
+		void close();
+		bool write(std::string res);
+	private:
+		std::fstream file;
+		std::string name;
+};
+
 class Config {
 	public:
-		Config();
+		Config(std::string result_file_name);
 		~Config();
 		void log(std::string message);
 		bool process(std::string ConfigFileName, std::string jsonResultFile);
@@ -61,7 +74,6 @@ class Config {
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;
-		std::fstream jsonResultFile;
 		std::vector<std::string> testResults;
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
@@ -75,9 +87,9 @@ class Config {
 		TransportId transport_id_tls;
 		int json_result_count;
 		Action action;
+		ResultFile result_file;
 	private:
 		std::string configFileName;
-		std::string jsonResultFileName;
 };
 
 typedef enum call_wait_state {

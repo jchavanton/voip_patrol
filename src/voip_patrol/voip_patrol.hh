@@ -34,6 +34,7 @@ typedef struct upload_data {
 	std::vector<std::string> payload_content;
 } upload_data_t;
 
+
 class Alert {
 	public:
 		Alert(Config* config);
@@ -70,7 +71,7 @@ class Config {
 		void log(std::string message);
 		bool process(std::string ConfigFileName, std::string jsonResultFile);
 		bool wait(bool complete_all);
-		TestAccount * findAccount(std::string);
+		TestAccount* findAccount(std::string);
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;
@@ -165,7 +166,7 @@ class TestAccount : public Account {
 
 class TestCall : public Call {
 	public:
-		TestCall(Account &acc, int call_id);
+		TestCall(TestAccount *acc, int call_id=PJSUA_INVALID_ID);
 		~TestCall();
 		Test *test;
 		void setTest(Test *test);

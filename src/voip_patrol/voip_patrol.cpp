@@ -19,9 +19,9 @@ void get_time_string(char * str_now) {
  * TestCall implementation
  */
 
-TestCall::TestCall(Account &p_acc, int call_id = PJSUA_INVALID_ID) : Call(p_acc, call_id) {
+TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 	test = NULL;
-	acc = (TestAccount *)&p_acc;
+	acc = p_acc;
 	recorder_id = -1;
 	player_id = -1;
 	role = -1; // Caller 0 | callee 1
@@ -216,7 +216,7 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 }
 
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
-	TestCall *call = new TestCall(*this, iprm.callId);
+	TestCall *call = new TestCall(this, iprm.callId);
 
 	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
 	CallInfo ci = call->getInfo();
@@ -460,7 +460,7 @@ void Config::removeCall(TestCall *call) {
 }
 
 TestAccount* Config::findAccount(std::string account_name) {
-	for (auto & account : accounts) {
+	for (auto account : accounts) {
 		AccountInfo acc_inf = account->getInfo();
 		int proto_length = 4; // "sip:"
 		if (acc_inf.uri.compare(0, 4, "sips") == 0)
@@ -471,309 +471,64 @@ TestAccount* Config::findAccount(std::string account_name) {
 			return account;
 		}
 	}
-	return NULL;
-}
-
-string get_env(string env) {
-	if (const char* val = std::getenv(env.c_str())) {
-		std::string s(val);
-		return s;
-	} else {
-		return "";
-	}
+	return nullptr;
 }
 
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
-	const char* tag = "[loading xml config] ";
 	ezxml_t xml_actions, xml_action;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
 
 	if(!xml_conf){
-		std::cerr <<tag<< "[error] test can not load file :" << configFileName ;
+		LOG(logINFO) <<__FUNCTION__<< "[error] test can not load file :" << configFileName ;
 		return false;
 	} else {
 		update_result("loading tests...");
 	}
 
 	for (xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next) {
-		LOG(logINFO) <<tag<< xml_actions->name;
+		LOG(logINFO) <<__FUNCTION__<< " ===> " << xml_actions->name;
 		for (xml_action = ezxml_child(xml_actions, "action"); xml_action; xml_action=xml_action->next) {
-			if (!ezxml_attr(xml_action,"type")) {
-				std::cerr <<" >> "<<tag<<"invalid action !\n";
+			const char * val = ezxml_attr(xml_action,"type");
+			if (!val) {
+				LOG(logERROR) <<__FUNCTION__<<" invalid action !";
 				continue;
 			}
-			string action_type = ezxml_attr(xml_action,"type");
-			LOG(logINFO) <<" >> "<<tag<<"type:"<< action_type ;
-
-			std::string username = "";
-			if (ezxml_attr(xml_action,"username")) {
-				username = ezxml_attr(xml_action,"username");
-				if (username.compare(0, 7, "VP_ENV_") == 0) {
-					username = get_env(username);
-				}
+			string action_type = ezxml_attr(xml_action,"type");;
+			LOG(logINFO) <<__FUNCTION__<< " ===> " << action_type;
+			vector<ActionParam>* params = action.get_params(action_type);
+			if (!params) {
+				LOG(logERROR) <<__FUNCTION__<< ": params not found for action:" << action_type << std::endl;
+				continue;
 			}
-			std::string password = "";
-			if (ezxml_attr(xml_action,"password")) {
-				password = ezxml_attr(xml_action,"password");
-				if (password.compare(0, 7, "VP_ENV_") == 0) {
-					password = get_env(password);
-				}
+			for (auto &param : *params) {
+				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
-
-			/* action */
-			int duration_ms = 0;
-			if (ezxml_attr(xml_action,"ms")) duration_ms = atoi(ezxml_attr(xml_action,"ms"));
-			if ( action_type.compare("wait") == 0 ) {
-				action.do_wait(false, duration_ms);
-			} else if ( action_type.compare("wait-complete") == 0 || action_type.compare("sleep") == 0 ) {
-				action.do_wait(true, duration_ms);
-			} else if ( action_type.compare("alert") == 0 ) {
+			if ( action_type.compare("wait") == 0 ) action.do_wait(*params);
+			else if ( action_type.compare("call") == 0 ) action.do_call(*params);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(*params);
+			else if ( action_type.compare("register") == 0 ) action.do_register(*params);
+			else if ( action_type.compare("alert") == 0 ) {
 				if (!ezxml_attr(xml_action,"email")) {
-					std::cerr <<" >> "<<tag<<"missing pamameter !\n";
+					LOG(logERROR) <<__FUNCTION__<<"missing pamameter !";
 					continue;
 				}
 				this->alert_email_to = ezxml_attr(xml_action,"email");
 				if (ezxml_attr(xml_action,"email_from")) this->alert_email_from = ezxml_attr(xml_action,"email_from");
 				if (ezxml_attr(xml_action,"smtp_host")) this->alert_server_url = ezxml_attr(xml_action,"smtp_host");
-			} else if ( action_type.compare("register") == 0 ) {
-				if (username.empty() || !ezxml_attr(xml_action,"realm") || password.empty() || !ezxml_attr(xml_action,"registrar")) {
-					std::cerr <<" >> "<<tag<<"missing pamameter !";
-					continue;
-				}
-				TestAccount *acc = findAccount(username);
-				int found = 0;
-				if (acc) {
-					found = 1;
-					AccountInfo acc_inf = acc->getInfo();
-					LOG(logINFO) << "found: " << username <<" [not unregistered]";
-				} else {
-					acc = new TestAccount();
-					accounts.push_back(acc);
-				}
-
-				Test *test = new Test(this);
-				test->local_user = username;
-				test->remote_user = username;
-				if (ezxml_attr(xml_action,"label")){
-					test->label = ezxml_attr(xml_action,"label");
-				}
-
-				std::string registrar = ezxml_attr(xml_action,"registrar");
-				test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
-				test->from = username;
-				test->type = action_type;
-
-				LOG(logINFO) <<" >> "<<tag<< "sip:" + username + "@" + registrar  ;
-				// register account
-				AccountConfig acc_cfg;
-
-				SipHeader sh;
-				sh.hName = "User-Agent";
-				sh.hValue = "<voip_patrol>";
-				acc_cfg.regConfig.headers.push_back(sh);
-
-				acc_cfg.sipConfig.transportId = transport_id_udp;
-				if (ezxml_attr(xml_action,"transport")) {
-					std::string transport = ezxml_attr(xml_action,"transport");
-					if (transport.compare("tcp") == 0) {
-						acc_cfg.sipConfig.transportId = transport_id_tcp;
-					}
-					if (transport.compare("tls") == 0) {
-						if (transport_id_tls == -1) {
-							std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
-							continue;
-						}
-						acc_cfg.sipConfig.transportId = transport_id_tls;
-					}
-				}
-				if (acc_cfg.sipConfig.transportId == transport_id_tls) {
-					acc_cfg.idUri = "sips:" + username + "@" + registrar;
-					acc_cfg.regConfig.registrarUri = "sips:" + registrar;
-					LOG(logINFO) << "SIPS URI Scheme";
-				} else {
-					LOG(logINFO) << "SIP URI Scheme";
-					acc_cfg.idUri = "sip:" + username + "@" + registrar;
-					acc_cfg.regConfig.registrarUri = "sip:" + registrar;
-				}
-				acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", ezxml_attr(xml_action,"realm"), username, 0, password) );
-				if (!found) {
-					// acc->setTransport();
-					acc->config = this;
-					acc->create(acc_cfg);
-				} else {
-					acc->modify(acc_cfg);
-				}
-				acc->setTest(test);
-
-			} else if ( action_type.compare("accept") == 0 ) {
-				if (!ezxml_attr(xml_action,"account")) {
-					std::cerr <<" >> "<<tag<<"missing action parameters 'account' for: " << action_type ;
-					continue;
-				}
-				std::string account_name = ezxml_attr(xml_action,"account");
-				TestAccount *acc = findAccount(account_name);
-				if (!acc) {
-					LOG(logINFO) << "account not found: " << account_name << " creating";
-					acc = new TestAccount();
-					AccountConfig acc_cfg;
-					acc_cfg.sipConfig.transportId = transport_id_udp;
-					if (ezxml_attr(xml_action,"transport")) {
-						std::string transport = ezxml_attr(xml_action,"transport");
-						if (transport.compare("tcp") == 0) {
-							acc_cfg.sipConfig.transportId = transport_id_tcp;
-						}
-						if (transport.compare("tls") == 0) {
-							if (transport_id_tls == -1) {
-								std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
-								continue;
-							}
-							acc_cfg.sipConfig.transportId = transport_id_tls;
-						}
-					}
-					if (acc_cfg.sipConfig.transportId == transport_id_tls) {
-						acc_cfg.idUri = "sips:" + account_name;
-						//acc_cfg.sipConfig.contactParams = ";trans=tls;";
-					} else {
-						acc_cfg.idUri = "sip:" + account_name;
-					}
-					acc->config = this;
-					acc->create(acc_cfg);
-				}
-				if (ezxml_attr(xml_action,"hangup")){
-					acc->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
-				} else {
-					acc->hangup_duration = 0;
-				}
-				if (ezxml_attr(xml_action,"max_duration")){
-					acc->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
-				} else {
-					acc->max_duration = 0;
-				}
-				if (ezxml_attr(xml_action,"label")){
-					acc->accept_label = ezxml_attr(xml_action,"label");
-				}
-			} else if ( action_type.compare("call") == 0 ) {
-				if (!ezxml_attr(xml_action,"caller") || !ezxml_attr(xml_action,"callee") ) {
-					std::cerr <<" >> "<<tag<<"missing action parameters for " << action_type ;
-					continue;
-				}
-
-				std::string caller = ezxml_attr(xml_action,"caller");
-				std::string callee = ezxml_attr(xml_action,"callee");
-
-				LOG(logINFO) <<" >> "<<tag<<"action parameters found : " << action_type ;
-				// make call begin
-				TestAccount *acc = findAccount(caller);
-				std::string transport("");
-				if (!acc) {
-					LOG(logINFO) << "caller not found[" << caller << "] creating new account.";
-					acc = new TestAccount();
-					AccountConfig acc_cfg;
-
-					acc_cfg.sipConfig.transportId = transport_id_udp;
-					if (ezxml_attr(xml_action,"transport")) {
-						transport = ezxml_attr(xml_action,"transport");
-						if (transport.compare("tcp") == 0) {
-							acc_cfg.sipConfig.transportId = transport_id_tcp;
-						} else if (transport.compare("tls") == 0) {
-							if (transport_id_tls == -1) {
-								std::cerr <<" >> "<<tag<<"TLS transport not supported " << action_type ;
-								continue;
-							}
-							acc_cfg.sipConfig.transportId = transport_id_tls;
-						}
-					}
-					if (acc_cfg.sipConfig.transportId == transport_id_tls) {
-						acc_cfg.idUri = "sips:" + caller;
-					} else {
-						acc_cfg.idUri = "sip:" + caller;
-					}
-					if (ezxml_attr(xml_action,"realm")) {
-						if (username.empty() || password.empty()) {
-							if (username.empty()) LOG(logERROR) << "[config] realm specified missing username";
-							else LOG(logERROR) << "[config] realm specified missing password";
-							continue;
-						}
-						std::string realm = ezxml_attr(xml_action,"realm");
-						acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
-					}
-					acc->config = this;
-					acc->create(acc_cfg);
-				}
-
-				int repeat = 0;
-				if ( ezxml_attr(xml_action,"repeat") ) {
-					repeat = (call_wait_state_t)atoi(ezxml_attr(xml_action,"repeat"));
-				}
-				do {
-					Test *test = new Test(this);
-					std::size_t pos = caller.find("@");
-					if (pos!=std::string::npos) {
-						test->local_user = caller.substr(0, pos);
-					}
-					pos = callee.find("@");
-					if (pos!=std::string::npos) {
-						test->remote_user = callee.substr(0, pos);
-					}
-
-					TestCall *call = new TestCall(*acc);
-					calls.push_back(call);
-					if (ezxml_attr(xml_action,"wait_until")){
-						test->wait_state = (call_wait_state_t)atoi(ezxml_attr(xml_action,"wait_until"));
-					}
-					if (ezxml_attr(xml_action,"mos")){
-						test->min_mos = atof(ezxml_attr(xml_action,"mos"));
-					}
-					if (ezxml_attr(xml_action,"duration")){
-						test->expected_duration = atoi(ezxml_attr(xml_action,"duration"));
-					}
-					if ( ezxml_attr(xml_action,"recording") ) {
-							test->recording = true;
-					}
-					if (ezxml_attr(xml_action,"max_duration")){
-						test->max_duration = atoi(ezxml_attr(xml_action,"max_duration"));
-					}
-					if (ezxml_attr(xml_action,"max_calling_duration")){
-						test->max_calling_duration = atoi(ezxml_attr(xml_action,"max_calling_duration"));
-					}
-					if ( ezxml_attr(xml_action,"hangup") ) {
-						test->hangup_duration = atoi(ezxml_attr(xml_action,"hangup"));
-					}
-					if (ezxml_attr(xml_action,"label")){
-						test->label = ezxml_attr(xml_action,"label");
-					}
-					call->test = test;
-					test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
-					test->from = caller;
-					test->to = callee;
-					test->type = action_type;
-					acc->calls.push_back(call);
-					CallOpParam prm(true);
-					prm.opt.audioCount = 1;
-					prm.opt.videoCount = 0;
-					LOG(logINFO) << "call->test:" << test << " " << call->test->type;
-					LOG(logINFO) << "calling :" +callee;
-					if (transport.compare("tls") == 0) {
-						call->makeCall("sips:"+callee, prm);
-					} else if (transport.compare("tcp") == 0) {
-						call->makeCall("sip:"+callee+";transport=tcp", prm);
-					} else {
-						call->makeCall("sip:"+callee, prm);
-					}
-					repeat--;
-				} while (repeat >= 0);
-
 			} else {
-				std::cerr <<" >> "<<tag<<"unknown action !\n";
+				LOG(logERROR) <<__FUNCTION__<<" unknown action !";
 			}
 		}
 	}
 }
-/* declaration Config */
 
-/* declaration Alert */
+
+/*
+ * Alert implementation
+ */
+
 Alert::Alert(Config * p_config){
 	curl = curl_easy_init();
 	config = p_config;
@@ -842,9 +597,7 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 
 	if(upload_data->lines_read >= upload_data->payload_content.size())
 		return 0;
-//	data = payload_text[upload_data->lines_read];
 	data = upload_data->payload_content[upload_data->lines_read].c_str();
-//	LOG(logINFO)<<LOG_COLOR_INFO<<data<<LOG_COLOR_END;
 	if(data) {
 		size_t len = strlen(data);
 		memcpy(ptr, data, len);
@@ -854,7 +607,7 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 
 	return 0;
 }
-/* declaration Alert */
+
 
 int main(int argc, char **argv){
 	int ret = 0;
@@ -986,7 +739,8 @@ int main(int argc, char **argv){
 		config.process(conf_fn, log_test_fn);
 
 		LOG(logINFO) << "wait complete all...";
-		config.action.do_wait(true);
+		vector<ActionParam> params {ActionParam("complete", false, APType::apt_integer, "", 1)};
+		config.action.do_wait(params);
 
 		LOG(logINFO) << "checking alerts...";
 

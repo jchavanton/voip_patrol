@@ -474,10 +474,17 @@ TestAccount* Config::findAccount(std::string account_name) {
 	return NULL;
 }
 
+string get_env(string env) {
+	if (const char* val = std::getenv(env.c_str())) {
+		std::string s(val);
+		return s;
+	} else {
+		return "";
+	}
+}
 
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
 	const char* tag = "[loading xml config] ";
-	// config loader
 	ezxml_t xml_actions, xml_action;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
@@ -490,15 +497,31 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 		update_result("loading tests...");
 	}
 
-	for (xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next){
-		LOG(logINFO) <<tag<< xml_actions->name ;
-		for (xml_action = ezxml_child(xml_actions, "action"); xml_action; xml_action=xml_action->next){
+	for (xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next) {
+		LOG(logINFO) <<tag<< xml_actions->name;
+		for (xml_action = ezxml_child(xml_actions, "action"); xml_action; xml_action=xml_action->next) {
 			if (!ezxml_attr(xml_action,"type")) {
 				std::cerr <<" >> "<<tag<<"invalid action !\n";
 				continue;
 			}
 			string action_type = ezxml_attr(xml_action,"type");
 			LOG(logINFO) <<" >> "<<tag<<"type:"<< action_type ;
+
+			std::string username = "";
+			if (ezxml_attr(xml_action,"username")) {
+				username = ezxml_attr(xml_action,"username");
+				if (username.compare(0, 7, "VP_ENV_") == 0) {
+					username = get_env(username);
+				}
+			}
+			std::string password = "";
+			if (ezxml_attr(xml_action,"password")) {
+				password = ezxml_attr(xml_action,"password");
+				if (password.compare(0, 7, "VP_ENV_") == 0) {
+					password = get_env(password);
+				}
+			}
+
 			/* action */
 			int duration_ms = 0;
 			if (ezxml_attr(xml_action,"ms")) duration_ms = atoi(ezxml_attr(xml_action,"ms"));
@@ -515,22 +538,15 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				if (ezxml_attr(xml_action,"email_from")) this->alert_email_from = ezxml_attr(xml_action,"email_from");
 				if (ezxml_attr(xml_action,"smtp_host")) this->alert_server_url = ezxml_attr(xml_action,"smtp_host");
 			} else if ( action_type.compare("register") == 0 ) {
-				if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"realm") || !ezxml_attr(xml_action,"password") || !ezxml_attr(xml_action,"registrar")) {
+				if (username.empty() || !ezxml_attr(xml_action,"realm") || password.empty() || !ezxml_attr(xml_action,"registrar")) {
 					std::cerr <<" >> "<<tag<<"missing pamameter !";
 					continue;
 				}
-				std::string username = ezxml_attr(xml_action,"username");
 				TestAccount *acc = findAccount(username);
 				int found = 0;
 				if (acc) {
 					found = 1;
 					AccountInfo acc_inf = acc->getInfo();
-					//LOG(logINFO) << "found: " << username <<" [unregistering]";
-					//while (acc_inf.regIsActive) {
-					//	acc->setRegistration(false);
-					//	pj_thread_sleep(500);
-					//	acc_inf = acc->getInfo();
-					//}
 					LOG(logINFO) << "found: " << username <<" [not unregistered]";
 				} else {
 					acc = new TestAccount();
@@ -543,7 +559,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				if (ezxml_attr(xml_action,"label")){
 					test->label = ezxml_attr(xml_action,"label");
 				}
-				std::string password = ezxml_attr(xml_action,"password");
+
 				std::string registrar = ezxml_attr(xml_action,"registrar");
 				test->expected_cause_code = atoi(ezxml_attr(xml_action,"expected_cause_code"));
 				test->from = username;
@@ -674,14 +690,12 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 					} else {
 						acc_cfg.idUri = "sip:" + caller;
 					}
-
 					if (ezxml_attr(xml_action,"realm")) {
-						if (!ezxml_attr(xml_action,"username") || !ezxml_attr(xml_action,"password")) {
-							LOG(logERROR) << "[config] realm specify but not username / password";
+						if (username.empty() || password.empty()) {
+							if (username.empty()) LOG(logERROR) << "[config] realm specified missing username";
+							else LOG(logERROR) << "[config] realm specified missing password";
 							continue;
 						}
-						std::string username = ezxml_attr(xml_action,"username");
-						std::string password = ezxml_attr(xml_action,"password");
 						std::string realm = ezxml_attr(xml_action,"realm");
 						acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 					}

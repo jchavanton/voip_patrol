@@ -41,11 +41,11 @@ void TestCall::setTest(Test *p_test) {
 void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
-	LOG(logDEBUG) <<"[CallTsx]["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	LOG(logDEBUG) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
 }
 
 void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
-	LOG(logDEBUG) << "[onStreamDestroyed] idx["<<prm.streamIdx<<"]";
+	LOG(logDEBUG) <<__FUNCTION__<<": idx["<<prm.streamIdx<<"]";
 	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
 	pjmedia_stream_info *pj_stream_info;
 	try {
@@ -55,12 +55,12 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		RtcpStreamStat txStat = rtcp.txStat;
 		LOG(logINFO) << __FUNCTION__ << ": RTCP pkt_rx:"<<rxStat.pkt<<" pkt_tx:"<<txStat.pkt<<std::endl;
 	} catch (pj::Error e)  {
-			LOG(logERROR) << "error :" << e.status << std::endl;
+			LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 	}
 }
 
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
-	LOG(logDEBUG) << __FUNCTION__ << " idx["<<prm.streamIdx<<"]\n";
+	LOG(logDEBUG) <<__FUNCTION__<< " idx["<<prm.streamIdx<<"]\n";
 	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
 	pjmedia_stream_info *pj_stream_info;
 	pjmedia_stream_get_info(pj_stream, pj_stream_info);
@@ -75,11 +75,11 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 	const pj_str_t rec_file_name = pj_str(rec_fn);
 	status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &recorder_id);
 	if (status != PJ_SUCCESS) {
-		LOG(logINFO) << "[error] tecord_call \n";
+		LOG(logINFO) <<__FUNCTION__<<": [error] tecord_call \n";
 		return status;
 	}
 	call->recorder_id = recorder_id;
-	LOG(logINFO) << "[recorder] created:" << recorder_id << " fn:"<< rec_fn;
+	LOG(logINFO) <<__FUNCTION__<<": [recorder] created:" << recorder_id << " fn:"<< rec_fn;
 	status = pjsua_conf_connect( pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(recorder_id) );
 }
 
@@ -90,11 +90,11 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	const pj_str_t file_name = pj_str(fn);
 	status = pjsua_player_create(&file_name, 0, &player_id);
 	if (status != PJ_SUCCESS) {
-		LOG(logINFO) << "[error] play_call \n";
+		LOG(logINFO) <<__FUNCTION__<<": [error] play_call \n";
 		return status;
 	}
 	call->player_id = player_id;
-	LOG(logDEBUG) << "[player] created:" << player_id;
+	LOG(logDEBUG) <<__FUNCTION__<<": [player] created:" << player_id;
 	status = pjsua_conf_connect( pjsua_player_get_conf_port(player_id), pjsua_call_get_conf_port(call_id) );
 }
 
@@ -131,9 +131,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		}
 		if (test->state != VPT_DONE && test->wait_state && (int)test->wait_state <= (int)ci.state ) {
 			test->state = VPT_RUN;
-			LOG(logDEBUG) <<"[test-wait-return]";
+			LOG(logDEBUG) <<__FUNCTION__<<": [test-wait-return]";
 		}
-		LOG(logINFO) << "[conCallState]["<<getId()<<"]role["<<(ci.role==0?"CALLER":"CALLEE")<<"]id["<<ci.callIdString
+		LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]role["<<(ci.role==0?"CALLER":"CALLEE")<<"]id["<<ci.callIdString
                              <<"]["<<ci.localUri<<"]["<<ci.remoteUri<<"]["<< ci.stateText<<"|"<<ci.state<<"]";
 		test->call_id = getId();
 		test->sip_call_id = ci.callIdString;
@@ -145,7 +145,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		test->result_cause_code = (int)ci.lastStatusCode;
 		test->reason = ci.lastReason;
 		if (ci.state == PJSIP_INV_STATE_DISCONNECTED || (test->hangup_duration && ci.connectDuration.sec >= test->hangup_duration) ){
-			LOG(logINFO) << "[call] state completed duration: "<< ci.connectDuration.sec << " >= " << test->hangup_duration ;
+			LOG(logINFO) <<__FUNCTION__<<": [call] state completed duration: "<< ci.connectDuration.sec << " >= " << test->hangup_duration ;
 			if (test->state != VPT_DONE) {
 				if (role == 0 && test->min_mos > 0) {
 					test->get_mos();
@@ -154,9 +154,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			}
 			if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 				CallOpParam prm(true);
-				LOG(logINFO) << "hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
+				LOG(logINFO) <<__FUNCTION__<<": hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
 				hangup(prm);
-				LOG(logINFO) << "hangup ok";
+				LOG(logINFO) <<__FUNCTION__<<": hangup ok";
 			}
 		}
 	}
@@ -167,7 +167,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			record_call(this, ci.id, remote_user.c_str());
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
-		LOG(logINFO) << "[Call disconnected]";
+		LOG(logINFO) <<__FUNCTION__<<": [Call disconnected]";
 		if (player_id != -1) {
 			pjsua_player_destroy(player_id);
 			player_id = -1;
@@ -744,7 +744,7 @@ int main(int argc, char **argv){
 		tcfg.port = port;
 		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
 	} catch (Error & err) {
-		LOG(logINFO) << "Exception: " << err.info() ;
+		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;
 		return 1;
 	}
 
@@ -760,10 +760,10 @@ int main(int argc, char **argv){
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
-		LOG(logINFO) << "TLS supported ";
+		LOG(logINFO) <<__FUNCTION__<<": TLS supported ";
 	} catch (Error & err) {
 		config.transport_id_tls = -1;
-		LOG(logINFO) << "Exception: TLS not supported, see README. " << err.info() ;
+		LOG(logINFO) <<__FUNCTION__<<": Exception: TLS not supported, see README. " << err.info() ;
 	}
 
 	try {
@@ -774,22 +774,22 @@ int main(int argc, char **argv){
 		config.createDefaultAccount();
 		config.process(conf_fn, log_test_fn);
 
-		LOG(logINFO) << "wait complete all...";
+		LOG(logINFO) <<__FUNCTION__<<": wait complete all...";
 		vector<ActionParam> params {ActionParam("complete", false, APType::apt_integer, "", 1)};
 		config.action.do_wait(params);
 
-		LOG(logINFO) << "checking alerts...";
+		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";
 
 		// send email reporting
 		Alert alert(&config);
 		alert.send();
 
-		LOG(logINFO) << "hangup all calls..." ;
+		LOG(logINFO) <<__FUNCTION__<<": hangup all calls..." ;
 		ep.hangupAllCalls();
 
 		ret = PJ_SUCCESS;
 	} catch (Error &err) {
-		LOG(logINFO) << "Exception: " << err.info() ;
+		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;
 		ret = 1;
 	}
 
@@ -797,17 +797,17 @@ int main(int argc, char **argv){
 	try {
 		ep.libDestroy();
 	} catch (Error &err) {
-		LOG(logINFO) << "Exception: " << err.info() ;
+		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;
 		ret = 1;
 	}
 
 	if (ret == PJ_SUCCESS) {
-		LOG(logINFO) << "Success" ;
+		LOG(logINFO) <<__FUNCTION__<<": Success" ;
 	} else {
-		LOG(logINFO) << "Error Found" ;
+		LOG(logINFO) <<__FUNCTION__<<": Error Found" ;
 	}
 
-	LOG(logINFO) << "exiting !" ;
+	LOG(logINFO) <<__FUNCTION__<<": exiting !" ;
 	return ret;
 }
 

@@ -101,7 +101,7 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 void TestCall::onCallState(OnCallStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 
-	LOG(logDEBUG) << "TestCall::onCallState";
+	LOG(logDEBUG) <<__FUNCTION__;
 	CallInfo ci = getInfo();
 
 	int uri_prefix = 3; // sip:
@@ -457,15 +457,23 @@ void Config::removeCall(TestCall *call) {
 	delete call;
 }
 
+TestAccount* Config::createAccount() {
+	TestAccount *account = new TestAccount();
+	accounts.push_back(account);
+	return account;
+}
+
 TestAccount* Config::findAccount(std::string account_name) {
+	if (account_name.compare(0, 1, "+") == 0)
+		account_name.erase(0,1);
 	for (auto account : accounts) {
 		AccountInfo acc_inf = account->getInfo();
 		int proto_length = 4; // "sip:"
 		if (acc_inf.uri.compare(0, 4, "sips") == 0)
 			proto_length = 5;
-		LOG(logINFO) << "[searching account]["<< proto_length << "]["<<acc_inf.uri<<"]<>["<<account_name<<"]";
+		LOG(logINFO) <<__FUNCTION__<< ": [searching account]["<< proto_length << "]["<<acc_inf.uri<<"]<>["<<account_name<<"]";
 		if (acc_inf.uri.compare(proto_length, account_name.length(), account_name) == 0) {
-			LOG(logINFO) << "found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
+			LOG(logINFO) <<__FUNCTION__<< ": found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
 			return account;
 		}
 	}
@@ -606,6 +614,25 @@ size_t Alert::payload_source(void *ptr, size_t size, size_t nmemb, void *userp) 
 	return 0;
 }
 
+/*
+*   VoipPatrolEndpoint implementation
+*/
+
+void VoipPatrolEnpoint::onSelectAccount(OnSelectAccountParam &param) {
+	LOG(logDEBUG) <<__FUNCTION__<<" account_index:" << param.accountIndex << "\n" << param.rdata.wholeMsg ;
+	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) param.rdata.pjRxData;
+	pjsip_to_hdr* to_hdr = (pjsip_to_hdr*) pjsip_msg_find_hdr(pjsip_data->msg_info.msg, PJSIP_H_TO, NULL);
+	const pjsip_sip_uri* sip_uri = (pjsip_sip_uri*) pjsip_uri_get_uri(to_hdr->uri);
+	std::string to(sip_uri->user.ptr, sip_uri->user.slen);
+	LOG(logINFO) <<__FUNCTION__<<" to:" << to ;
+
+	TestAccount* account = config->findAccount(to);
+	if (!account) return;
+
+	AccountInfo acc_info = account->getInfo();
+	param.accountIndex = acc_info.id;
+}
+
 
 int main(int argc, char **argv){
 	int ret = 0;
@@ -618,7 +645,7 @@ int main(int argc, char **argv){
 
 	pjsip_cfg()->endpt.disable_secure_dlg_check = 1;
 
-	Endpoint ep;
+	VoipPatrolEnpoint ep;
 
 	std::string conf_fn = "conf.xml";
 	std::string log_fn = "";
@@ -627,6 +654,7 @@ int main(int argc, char **argv){
 	int log_level_console = 2;
 	int log_level_file = 10;
 	Config config(log_test_fn);
+	ep.config = &config;
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {

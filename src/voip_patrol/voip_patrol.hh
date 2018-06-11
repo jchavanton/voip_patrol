@@ -52,6 +52,8 @@ class Alert {
 };
 
 
+
+
 class ResultFile {
 	public:
 		ResultFile(std::string file_name);
@@ -72,6 +74,7 @@ class Config {
 		bool process(std::string ConfigFileName, std::string jsonResultFile);
 		bool wait(bool complete_all);
 		TestAccount* findAccount(std::string);
+		TestAccount* createAccount();
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;
@@ -146,6 +149,13 @@ class Test {
 
 	private:
 		Config *config;
+};
+
+class VoipPatrolEnpoint : public Endpoint {
+	public:
+		Config *config;
+	private:
+		void onSelectAccount(OnSelectAccountParam &param);
 };
 
 class TestAccount : public Account {

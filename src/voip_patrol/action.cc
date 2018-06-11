@@ -104,8 +104,7 @@ void Action::do_register(vector<ActionParam> &params) {
 		AccountInfo acc_inf = acc->getInfo();
 		LOG(logINFO) << "found: " << username <<" [not unregistered]";
 	} else {
-		acc = new TestAccount();
-		config->accounts.push_back(acc);
+		acc = config->createAccount();
 	}
 
 	Test *test = new Test(config, type);
@@ -178,7 +177,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		LOG(logINFO) <<__FUNCTION__<< ": account not found: " << account_name << " creating";
-		acc = new TestAccount();
+		acc = config->createAccount();
 		AccountConfig acc_cfg;
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
 		if (!transport.empty()) {
@@ -251,7 +250,7 @@ void Action::do_call(vector<ActionParam> &params) {
 	TestAccount* acc = config->findAccount(caller);
 	if (!acc) {
 		LOG(logINFO) <<__FUNCTION__<< ": caller not found[" << caller << "] creating new account.";
-		acc = new TestAccount();
+		acc = config->createAccount();
 		AccountConfig acc_cfg;
 
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
@@ -358,13 +357,13 @@ void Action::do_wait(vector<ActionParam> &params) {
 			} else if (call->test) {
 				CallInfo ci = call->getInfo();
 				if (status_update) {
-					LOG(logINFO) <<"[wait:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+					LOG(logDEBUG) <<__FUNCTION__<<": [call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 				  		     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.connectDuration.sec <<">="<<call->test->hangup_duration<<"]";
 				}
 				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY)  {
 					if (call->test->max_calling_duration && call->test->max_calling_duration <= ci.totalDuration.sec) {
-						LOG(logINFO) <<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 				  		     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.totalDuration.sec <<">="<<call->test->max_calling_duration<<"]";
 						CallOpParam prm(true);
@@ -394,7 +393,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 		}
 		if (tests_running > 0) {
 			if (status_update) {
-				LOG(logINFO) <<LOG_COLOR_ERROR<<">>>> action[wait] active tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
+				LOG(logINFO) <<__FUNCTION__<<LOG_COLOR_ERROR<<": action[wait] active tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
 				status_update = false;
 			}
 			tests_running=0;
@@ -410,7 +409,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 				continue;
 			}
 			completed = true;
-			LOG(logINFO) << "action[wait] completed";
+			LOG(logINFO) <<__FUNCTION__<<": completed";
 			config->update_result(std::string("fds")+"action[wait] completed");
 		}
 	}

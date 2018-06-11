@@ -111,7 +111,7 @@ typedef enum test_run_state {
 
 class Test {
 	public:
-		Test(Config *config);
+		Test(Config *config, string type);
 		std::string type;
 		void update_result(void);
 		std::string from;

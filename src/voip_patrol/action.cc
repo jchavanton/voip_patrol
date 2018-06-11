@@ -74,6 +74,7 @@ void Action::init_actions_params() {
 }
 
 void Action::do_register(vector<ActionParam> &params) {
+	string type("register");
 	string transport {};
 	string label {};
 	string registrar {};
@@ -107,13 +108,13 @@ void Action::do_register(vector<ActionParam> &params) {
 		config->accounts.push_back(acc);
 	}
 
-	Test *test = new Test(config);
+	Test *test = new Test(config, type);
 	test->local_user = username;
 	test->remote_user = username;
 	test->label = label;
 	test->expected_cause_code = expected_cause_code;
 	test->from = username;
-	test->type = "register";
+	test->type = type;
 
 	LOG(logINFO) <<__FUNCTION__<< "sip:" + username + "@" + registrar  ;
 	AccountConfig acc_cfg;
@@ -154,6 +155,7 @@ void Action::do_register(vector<ActionParam> &params) {
 }
 
 void Action::do_accept(vector<ActionParam> &params) {
+	string type("accept");
 	string account_name {};
 	string transport {};
 	string label {};
@@ -175,7 +177,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
-		LOG(logINFO) <<__FUNCTION__<< "account not found: " << account_name << " creating";
+		LOG(logINFO) <<__FUNCTION__<< ": account not found: " << account_name << " creating";
 		acc = new TestAccount();
 		AccountConfig acc_cfg;
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
@@ -184,7 +186,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
 			} else if (transport.compare("tls") == 0) {
 				if (config->transport_id_tls == -1) {
-					LOG(logERROR) <<__FUNCTION__<<"TLS transport not supported.";
+					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
 					return;
 				}
 				acc_cfg.sipConfig.transportId = config->transport_id_tls;
@@ -204,6 +206,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 }
 
 void Action::do_call(vector<ActionParam> &params) {
+	string type("call");
 	string caller {};
 	string callee {};
 	string transport {};
@@ -241,13 +244,13 @@ void Action::do_call(vector<ActionParam> &params) {
 	}
 
 	if (caller.empty() || callee.empty()) {
-		LOG(logERROR) <<__FUNCTION__<<" missing action parameters for callee/caller" ;
+		LOG(logERROR) <<__FUNCTION__<<": missing action parameters for callee/caller" ;
 		return;
 	}
 
 	TestAccount* acc = config->findAccount(caller);
 	if (!acc) {
-		LOG(logINFO) << "caller not found[" << caller << "] creating new account.";
+		LOG(logINFO) <<__FUNCTION__<< ": caller not found[" << caller << "] creating new account.";
 		acc = new TestAccount();
 		AccountConfig acc_cfg;
 
@@ -257,7 +260,7 @@ void Action::do_call(vector<ActionParam> &params) {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
 			} else if (transport.compare("tls") == 0) {
 				if (config->transport_id_tls == -1) {
-					LOG(logERROR) <<__FUNCTION__<<"TLS transport not supported" ;
+					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
 					return;
 				}
 				acc_cfg.sipConfig.transportId = config->transport_id_tls;
@@ -270,8 +273,8 @@ void Action::do_call(vector<ActionParam> &params) {
 		}
 		if (!realm.empty()) {
 			if (username.empty() || password.empty()) {
-				if (username.empty()) LOG(logERROR) << "[config] realm specified missing username";
-				else LOG(logERROR) << "[config] realm specified missing password";
+				if (username.empty()) LOG(logERROR) <<__FUNCTION__<< ": realm specified missing username";
+				else LOG(logERROR) <<__FUNCTION__<<": realm specified missing password";
 				return;
 			}
 			acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
@@ -281,7 +284,7 @@ void Action::do_call(vector<ActionParam> &params) {
 	}
 
 	do {
-		Test *test = new Test(config);
+		Test *test = new Test(config, type);
 		test->wait_state = (call_wait_state_t)wait_until;
 		test->min_mos = min_mos;
 		test->expected_duration = expected_duration;
@@ -307,7 +310,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		test->expected_cause_code = expected_cause_code;
 		test->from = caller;
 		test->to = callee;
-		test->type = "call";
+		test->type = type;
 		acc->calls.push_back(call);
 		CallOpParam prm(true);
 		prm.opt.audioCount = 1;

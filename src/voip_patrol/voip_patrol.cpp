@@ -222,16 +222,16 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
-	LOG(logINFO) <<"[onIncomingCall]["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<": ["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
 	if (!call->test) {
-		LOG(logINFO)<<"[onIncomingCall] max call duration["<< hangup_duration <<"]";
-		call->test = new Test(config);
+		string type("accept");
+		LOG(logINFO)<<__FUNCTION__<<": max call duration["<< hangup_duration <<"]";
+		call->test = new Test(config, type);
 		call->test->hangup_duration = hangup_duration;
 		call->test->max_duration = max_duration;
 		call->test->expected_cause_code = 200;
 		call->test->local_user = ci.localUri;
 		call->test->remote_user = ci.remoteUri;
-		call->test->type = "accept";
 		call->test->label = accept_label;
 		call->test->sip_call_id = ci.callIdString;
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
@@ -249,16 +249,14 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
  *  Test implementation
  */
 
-Test::Test(Config *p_config){
+Test::Test(Config *config, string type) : config(config), type(type) {
 	char now[20] = {'\0'};
 	get_time_string(now);
 	from="";
 	to="";
-	type = "unknown";
 	wait_state = INV_STATE_NULL;
 	state = VPT_RUN_WAIT;
 	start_time = now;
-	config = p_config;
 	min_mos = 0.0;
 	mos = 0.0;
 	expected_cause_code = -1;
@@ -274,7 +272,7 @@ Test::Test(Config *p_config){
 	label = "-";
 	recording = false;
 	playing = false;
-	LOG(logINFO)<<LOG_COLOR_INFO<<"New test created !"<<LOG_COLOR_END;
+	LOG(logINFO)<<__FUNCTION__<<LOG_COLOR_INFO<<": New test created:"<<type<<LOG_COLOR_END;
 }
 
 void Test::get_mos() {
@@ -496,7 +494,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				continue;
 			}
 			string action_type = ezxml_attr(xml_action,"type");;
-			LOG(logINFO) <<__FUNCTION__<< " ===> " << action_type;
+			LOG(logINFO) <<__FUNCTION__<< " ===> action/" << action_type;
 			vector<ActionParam>* params = action.get_params(action_type);
 			if (!params) {
 				LOG(logERROR) <<__FUNCTION__<< ": params not found for action:" << action_type << std::endl;

@@ -97,15 +97,6 @@ void Action::do_register(vector<ActionParam> &params) {
 		LOG(logERROR) <<__FUNCTION__<<" missing action parameter" ;
 		return;
 	}
-	TestAccount *acc = config->findAccount(username);
-	int found = 0;
-	if (acc) {
-		found = 1;
-		AccountInfo acc_inf = acc->getInfo();
-		LOG(logINFO) << "found: " << username <<" [not unregistered]";
-	} else {
-		acc = config->createAccount();
-	}
 
 	Test *test = new Test(config, type);
 	test->local_user = username;
@@ -144,9 +135,10 @@ void Action::do_register(vector<ActionParam> &params) {
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
-	if (!found) {
-		acc->config = config;
-		acc->create(acc_cfg);
+
+	TestAccount *acc = config->findAccount(username);
+	if (!acc) {
+		acc = config->createAccount(acc_cfg);
 	} else {
 		acc->modify(acc_cfg);
 	}
@@ -176,8 +168,6 @@ void Action::do_accept(vector<ActionParam> &params) {
 
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
-		LOG(logINFO) <<__FUNCTION__<< ": account not found: " << account_name << " creating";
-		acc = config->createAccount();
 		AccountConfig acc_cfg;
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
 		if (!transport.empty()) {
@@ -196,8 +186,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		} else {
 			acc_cfg.idUri = "sip:" + account_name;
 		}
-		acc->config = config;
-		acc->create(acc_cfg);
+		acc = config->createAccount(acc_cfg);
 	}
 	acc->hangup_duration = hangup_duration;
 	acc->max_duration = max_duration;
@@ -249,10 +238,7 @@ void Action::do_call(vector<ActionParam> &params) {
 
 	TestAccount* acc = config->findAccount(caller);
 	if (!acc) {
-		LOG(logINFO) <<__FUNCTION__<< ": caller not found[" << caller << "] creating new account.";
-		acc = config->createAccount();
 		AccountConfig acc_cfg;
-
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {
@@ -278,8 +264,7 @@ void Action::do_call(vector<ActionParam> &params) {
 			}
 			acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 		}
-		acc->config = config;
-		acc->create(acc_cfg);
+		acc = config->createAccount(acc_cfg);
 	}
 
 	do {

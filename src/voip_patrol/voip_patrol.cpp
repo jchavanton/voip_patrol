@@ -457,9 +457,11 @@ void Config::removeCall(TestCall *call) {
 	delete call;
 }
 
-TestAccount* Config::createAccount() {
+TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	TestAccount *account = new TestAccount();
 	accounts.push_back(account);
+	account->config = this;
+	account->create(acc_cfg);
 	return account;
 }
 

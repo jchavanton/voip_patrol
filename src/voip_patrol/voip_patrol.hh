@@ -74,7 +74,7 @@ class Config {
 		bool process(std::string ConfigFileName, std::string jsonResultFile);
 		bool wait(bool complete_all);
 		TestAccount* findAccount(std::string);
-		TestAccount* createAccount();
+		TestAccount* createAccount(AccountConfig acc_cfg);
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;

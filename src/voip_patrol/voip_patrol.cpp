@@ -457,6 +457,12 @@ void Config::removeCall(TestCall *call) {
 	delete call;
 }
 
+void Config::createDefaultAccount() {
+	AccountConfig acc_cfg;
+	acc_cfg.idUri = "sip:default";
+	createAccount(acc_cfg);
+}
+
 TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	TestAccount *account = new TestAccount();
 	accounts.push_back(account);
@@ -656,6 +662,7 @@ int main(int argc, char **argv){
 	int log_level_console = 2;
 	int log_level_file = 10;
 	Config config(log_test_fn);
+
 	ep.config = &config;
 
 	// command line argument
@@ -764,6 +771,7 @@ int main(int argc, char **argv){
 		pjsua_set_null_snd_dev();
 		ep.libStart();
 
+		config.createDefaultAccount();
 		config.process(conf_fn, log_test_fn);
 
 		LOG(logINFO) << "wait complete all...";

@@ -75,6 +75,7 @@ class Config {
 		bool wait(bool complete_all);
 		TestAccount* findAccount(std::string);
 		TestAccount* createAccount(AccountConfig acc_cfg);
+		void createDefaultAccount();
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;

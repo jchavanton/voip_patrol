@@ -479,7 +479,7 @@ TestAccount* Config::findAccount(std::string account_name) {
 		int proto_length = 4; // "sip:"
 		if (acc_inf.uri.compare(0, 4, "sips") == 0)
 			proto_length = 5;
-		LOG(logINFO) <<__FUNCTION__<< ": [searching account]["<< proto_length << "]["<<acc_inf.uri<<"]<>["<<account_name<<"]";
+		LOG(logINFO) <<__FUNCTION__<< ": [searching account]["<< acc_inf.id << "]["<<acc_inf.uri<<"]<>["<<account_name<<"]";
 		if (acc_inf.uri.compare(proto_length, account_name.length(), account_name) == 0) {
 			LOG(logINFO) <<__FUNCTION__<< ": found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
 			return account;

@@ -60,6 +60,7 @@ void Action::init_actions_params() {
 	do_register_params.push_back(ActionParam("registrar", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("realm", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("username", false, APType::apt_string));
+	do_register_params.push_back(ActionParam("account", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("password", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	// do_accept
@@ -80,6 +81,7 @@ void Action::do_register(vector<ActionParam> &params) {
 	string registrar {};
 	string realm {};
 	string username {};
+	string account_name {};
 	string password {};
 	int expected_cause_code {200};
 
@@ -88,6 +90,7 @@ void Action::do_register(vector<ActionParam> &params) {
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("registrar") == 0) registrar = param.s_val;
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
+		else if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
@@ -98,6 +101,7 @@ void Action::do_register(vector<ActionParam> &params) {
 		return;
 	}
 
+	if (account_name.empty()) account_name = username;
 	Test *test = new Test(config, type);
 	test->local_user = username;
 	test->remote_user = username;
@@ -106,7 +110,7 @@ void Action::do_register(vector<ActionParam> &params) {
 	test->from = username;
 	test->type = type;
 
-	LOG(logINFO) <<__FUNCTION__<< "sip:" + username + "@" + registrar  ;
+	LOG(logINFO) <<__FUNCTION__<< " sip:" + account_name + "@" + registrar  ;
 	AccountConfig acc_cfg;
 	SipHeader sh;
 	sh.hName = "User-Agent";
@@ -126,17 +130,17 @@ void Action::do_register(vector<ActionParam> &params) {
 		}
 	}
 	if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
-		acc_cfg.idUri = "sips:" + username + "@" + registrar;
+		acc_cfg.idUri = "sips:" + account_name + "@" + registrar;
 		acc_cfg.regConfig.registrarUri = "sips:" + registrar;
 		LOG(logINFO) <<__FUNCTION__<< " SIPS URI Scheme";
 	} else {
 		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
-		acc_cfg.idUri = "sip:" + username + "@" + registrar;
+		acc_cfg.idUri = "sip:" + account_name + "@" + registrar;
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 
-	TestAccount *acc = config->findAccount(username);
+	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);
 	} else {

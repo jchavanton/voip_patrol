@@ -38,10 +38,18 @@ void TestCall::setTest(Test *p_test) {
 	test = p_test;
 }
 
-void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
+
+void TestCall::onCallRxOffer(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
 	LOG(logDEBUG) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+}
+
+void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
+	PJ_UNUSED_ARG(prm);
+	CallInfo ci = getInfo();
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	// if (ci.stateText.compare("INCOMING")  == 0 ) pj_thread_sleep(10000);
 }
 
 void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
@@ -240,7 +248,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
-	prm.statusCode = (pjsip_status_code)200;
+	prm.statusCode = PJSIP_SC_OK;
 	call->answer(prm);
 }
 
@@ -468,6 +476,8 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	accounts.push_back(account);
 	account->config = this;
 	account->create(acc_cfg);
+	AccountInfo acc_inf = account->getInfo();
+	LOG(logINFO) <<__FUNCTION__<< ": ["<< acc_inf.id << "]["<<acc_inf.uri<<"]";
 	return account;
 }
 

@@ -52,8 +52,6 @@ class Alert {
 };
 
 
-
-
 class ResultFile {
 	public:
 		ResultFile(std::string file_name);
@@ -181,6 +179,7 @@ class TestCall : public Call {
 		~TestCall();
 		Test *test;
 		void setTest(Test *test);
+		virtual void onCallRxOffer(OnCallTsxStateParam &prm);
 		virtual void onCallTsxState(OnCallTsxStateParam &prm);
 		virtual void onCallState(OnCallStateParam &prm);
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);

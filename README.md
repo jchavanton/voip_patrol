@@ -24,7 +24,7 @@ cd pjsua && ./configure
 make dep && make && make install
 cd ..
 ```
-### buil voip_patrol
+### build voip_patrol
 ```
  cmake CMakeLists.txt 
  make
@@ -42,18 +42,22 @@ cd ..
   -o,--output <result.json>         json result file name
 ```
 
+
+
 ### scenario actions
 `register` create a test account `account1` and will register to `1.1.1.1`
 ```xml
 <action type="register"
-   expected_cause_code="200"
-   transport="udp"
-   username="account1"
-   password="password"
-   realm="sip.domain.com"
-   registrar="1.1.1.1"
+	transport="udp"
+	expected_cause_code="200"
+	username="VP_ENV_USERNAME"
+	account="VP_ENV_USERNAME"   # optionnal, if not present username is used
+	password="VP_ENV_PASSWORD"
+	realm="sip.domain.com"
+	registrar="sip.domain.com"
 />
 ```
+
 `wait` wait for the tests in progress to complete or until they reach their wait_until state
 ```xml
 <action type="wait"/>
@@ -99,7 +103,15 @@ cd ..
 />
 ```
 
-## Dependencies 
+### using env variable in scenario actions parameters
+Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.
+Example : `username="VP_ENV_USERNAME"`
+```bash
+export VP_ENV_PASSWORD=????????
+export VP_ENV_USERNAME=username
+```
+
+## Dependencies
 
 #### PJSUA
 PJSUA : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA

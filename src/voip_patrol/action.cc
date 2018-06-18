@@ -347,16 +347,20 @@ void Action::do_wait(vector<ActionParam> &params) {
 				CallInfo ci = call->getInfo();
 				if (status_update) {
 					LOG(logDEBUG) <<__FUNCTION__<<": [call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
-				  		     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.connectDuration.sec <<">="<<call->test->hangup_duration<<"]";
 				}
 				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY)  {
 					if (call->test->max_calling_duration && call->test->max_calling_duration <= ci.totalDuration.sec) {
 						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
-				  		     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.totalDuration.sec <<">="<<call->test->max_calling_duration<<"]";
 						CallOpParam prm(true);
-						call->hangup(prm);
+						try {
+							call->hangup(prm);
+						} catch (pj::Error e)  {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+						}
 					}
 				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
@@ -368,7 +372,11 @@ void Action::do_wait(vector<ActionParam> &params) {
 						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 							CallOpParam prm(true);
 							LOG(logINFO) << "hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
-							call->hangup(prm);
+							try {
+								call->hangup(prm);
+							} catch (pj::Error e)  {
+								if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+							}
 						}
 						if (call->role == 0 && call->test->min_mos > 0) {
 							call->test->get_mos();

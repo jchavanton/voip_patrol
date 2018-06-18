@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<config>
+	<actions>
+		<action type="accept"
+			label="TEST-TLS"
+			account="Bob"
+			transport="tls"
+			max_duration="2"
+			hangup="1"
+		/>
+		<action type="call"
+			label="TEST-TLS" transport="tls"
+			expected_cause_code="200"
+			caller="Alice@127.0.0.1"
+			callee="Bob@127.0.0.1:5071"
+		/>
+		<action type="wait" complete/>
+	</actions>
+</config>

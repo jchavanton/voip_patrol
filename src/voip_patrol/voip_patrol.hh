@@ -91,6 +91,11 @@ class Config {
 		int json_result_count;
 		Action action;
 		ResultFile result_file;
+		struct {
+			string ca_list;
+			string private_key;
+			string certificate;
+		} tls_cfg;
 	private:
 		std::string configFileName;
 };
@@ -145,6 +150,8 @@ class Test {
 		int call_id;
 		bool recording;
 		bool playing;
+		string record_fn;
+		string reference_fn;
 
 	private:
 		Config *config;

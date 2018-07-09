@@ -80,6 +80,7 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 	char rec_fn[1024] = "voice_ref_files/recording.wav";
 	CallInfo ci = call->getInfo();
 	sprintf(rec_fn,"voice_files/%s_%s_rec.wav", ci.callIdString.c_str(), caller_contact);
+	call->test->record_fn = string(&rec_fn[0]);
 	const pj_str_t rec_file_name = pj_str(rec_fn);
 	status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &recorder_id);
 	if (status != PJ_SUCCESS) {
@@ -286,7 +287,7 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 void Test::get_mos() {
 	std::string reference = "voice_ref_files/reference_8000.wav";
 	std::string degraded = "voice_files/" + remote_user + "_rec.wav";
-	mos = pesq_process(8000, reference.c_str(), degraded.c_str());
+	// mos = pesq_process(8000, reference.c_str(), degraded.c_str());
 	LOG(logINFO) <<"[call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< degraded;
 }
 
@@ -439,7 +440,10 @@ void ResultFile::close() {
  */
 
 Config::Config(string result_fn) : result_file(result_fn), action(this) {
-	json_result_count = 0;
+		tls_cfg.ca_list = "tls/ca_list.pem";
+		tls_cfg.private_key = "tls/key.pem";
+		tls_cfg.certificate = "tls/certificate.pem";
+		json_result_count = 0;
 }
 
 void Config::log(std::string message) {
@@ -489,8 +493,8 @@ TestAccount* Config::findAccount(std::string account_name) {
 		int proto_length = 4; // "sip:"
 		if (acc_inf.uri.compare(0, 4, "sips") == 0)
 			proto_length = 5;
-		LOG(logINFO) <<__FUNCTION__<< ": [searching account]["<< acc_inf.id << "]["<<acc_inf.uri<<"]<>["<<account_name<<"]";
-		if (acc_inf.uri.compare(proto_length, account_name.length(), account_name) == 0) {
+		LOG(logINFO) <<__FUNCTION__<< ": [searching account]["<< acc_inf.id << "]["<<acc_inf.uri<<"]["<<acc_inf.uri.substr(proto_length)<<"]<>["<<account_name<<"]";
+		if (acc_inf.uri.compare(proto_length, account_name.length(), account_name) == 0 ) {
 			LOG(logINFO) <<__FUNCTION__<< ": found account id["<< acc_inf.id <<"] uri[" << acc_inf.uri <<"]";
 			return account;
 		}
@@ -687,6 +691,9 @@ int main(int argc, char **argv){
             " -c,--conf <conf.xml>              XML scenario file         \n"\
             " -l,--log <logfilename>            voip_patrol log file name \n"\
             " -o,--output <result.json>         json result file name     \n"\
+            " --tls-calist <path/file_name>     TLS CA list (pem format)     \n"\
+            " --tls-privkey <path/file_name>    TLS private key (pem format) \n"\
+            " --tls-cert <path/file_name>       TLS certificate (pem format) \n"\
 			"                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -708,6 +715,12 @@ int main(int argc, char **argv){
 			if (i + 1 < argc) {
 				log_fn = argv[++i];
 			}
+		} else if (arg == "--tls-privkey") {
+			config.tls_cfg.private_key = argv[++i];
+		} else if (arg == "--tls-calist") {
+			config.tls_cfg.ca_list = argv[++i];
+		} else if (arg == "--tls-cert") {
+			config.tls_cfg.certificate = argv[++i];
 		} else if ( (arg == "-p") || (arg == "--port")) {
 			if (i + 1 < argc) {
 				port = atoi(argv[++i]);
@@ -762,10 +775,10 @@ int main(int argc, char **argv){
 		// TLS transport
 		tcfg.port = port+1;
 		// Optional, set CA/certificate/private key files.
-		tcfg.tlsConfig.CaListFile = "certificate.pem";
-		tcfg.tlsConfig.certFile = "cert.pem";
-		tcfg.tlsConfig.privKeyFile = "key.pem";
-		tcfg.tlsConfig.verifyServer = 0;
+		tcfg.tlsConfig.CaListFile = config.tls_cfg.ca_list;
+		tcfg.tlsConfig.certFile = config.tls_cfg.certificate;
+		tcfg.tlsConfig.privKeyFile = config.tls_cfg.private_key;
+		tcfg.tlsConfig.verifyServer = 1;
 		tcfg.tlsConfig.verifyClient = 0;
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();

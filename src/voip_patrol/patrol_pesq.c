@@ -5,10 +5,98 @@
 
 #define ITU_RESULTS_FILE          "pesq_results.txt"
 
+void print_licence () {
+	printf (" \n\
+		Perceptual Evaluation of Speech Quality (PESQ)\n\
+		Reference implementation for ITU-T Recommendations P.862, P.862.1 and P.862.2.\n\
+		Version 2.0 October 2005.\n\
+		\n\
+		PESQ Intellectual Property Rights Notice.\n\
+		\n\
+		DEFINITIONS:\n\
+		For the purposes of this Intellectual Property Rights Notice the terms\n\
+		'Perceptual Evaluation of Speech Quality Algorithm' and 'PESQ Algorithm'\n\
+		refer to the objective speech quality measurement algorithm defined in ITU-T\n\
+		Recommendation P.862; the term 'PESQ Software' refers to the C-code component\n\
+		of P.862. These definitions also apply to those parts of ITU-T Recommendation\n\
+		P.862.2 and its source code that are common with P.862.\n\
+		\n\
+		NOTICE:\n\
+		All copyright, trade marks, trade names, patents, know-how and all or any other\n\
+		intellectual rights subsisting in or used in connection with including all\n\
+		algorithms, documents and manuals relating to the PESQ Algorithm and or PESQ\n\
+		Software are and remain the sole property in law, ownership, regulations,\n\
+		treaties and patent rights of the Owners identified below. The user may not\n\
+		dispute or question the ownership of the PESQ Algorithm and or PESQ Software.\n\
+		\n\
+		OWNERS ARE:\n\
+		1.	British Telecommunications plc (BT), all rights assigned\n\
+		      to Psytechnics Limited\n\
+		2.	Royal KPN NV, all rights assigned to OPTICOM GmbH\n\
+		\n\
+		RESTRICTIONS:\n\
+		The user cannot:\n\
+		1.	alter, duplicate, modify, adapt, or translate in whole or in\n\
+		      part any aspect of the PESQ Algorithm and or PESQ Software\n\
+		2.	sell, hire, loan, distribute, dispose or put to any commercial\n\
+		      use other than those permitted below in whole or in part any\n\
+		      aspect of the PESQ Algorithm and or PESQ Software\n\
+		\n\
+		PERMITTED USE:\n\
+		The user may:\n\
+		1.	Use the PESQ Software to:\n\
+		      i)   understand the PESQ Algorithm; or\n\
+		      ii)  evaluate the ability of the PESQ Algorithm to perform its intended\n\
+		           function of predicting the speech quality of a system; or\n\
+		      iii) evaluate the computational complexity of the PESQ Algorithm,\n\
+		           with the limitation that none of said evaluations or its\n\
+		           results shall be used for external commercial use.\n\
+		2.	Use the PESQ Software to test if an implementation of the PESQ\n\
+		      Algorithm conforms to ITU-T Recommendation P.862.\n\
+		3.	With the prior written permission of both Psytechnics Limited and\n\
+		      OPTICOM GmbH, use the PESQ Software in accordance with the above\n\
+		      Restrictions to perform work that meets all of the following criteria:\n\
+		      i)    the work must contribute directly to the maintenance of an\n\
+		            existing ITU recommendation or the development of a new ITU\n\
+		            recommendation under an approved ITU Study Item; and\n\
+		      ii)   the work and its results must be fully described in a\n\
+		            written contribution to the ITU that is presented at a formal\n\
+		            ITU meeting within one year of the start of the work; and\n\
+		      iii)  neither the work nor its results shall be put to any\n\
+		            commercial use other than making said contribution to the ITU.\n\
+		            Said permission will be provided on a case-by-case basis.\n\
+		\n\
+		ANY OTHER USE OR APPLICATION OF THE PESQ SOFTWARE AND/OR THE PESQ ALGORITHM\n\
+		WILL REQUIRE A PESQ LICENCE AGREEMENT, WHICH MAY BE OBTAINED FROM EITHER\n\
+		OPTICOM GMBH OR PSYTECHNICS LIMITED.\n\
+		\n\
+		EACH COMPANY OFFERS OEM LICENSE AGREEMENTS, WHICH COMBINE OEM\n\
+		IMPLEMENTATIONS OF THE PESQ ALGORITHM TOGETHER WITH A PESQ PATENT LICENSE\n\
+		AGREEMENT. PESQ PATENT-ONLY LICENSE AGREEMENTS MAY BE OBTAINED FROM OPTICOM.\n\
+		\n\
+		***********************************************************************\n\
+		*  OPTICOM GmbH                    *  Psytechnics Limited             *\n\
+		*  Naegelsbachstr. 38,             *  Fraser House, 23 Museum Street, *\n\
+		*  D- 91052 Erlangen, Germany      *  Ipswich IP1 1HN, England        *\n\
+		*  Phone: +49 (0) 9131 53020 0     *  Phone: +44 (0) 1473 261 800     *\n\
+		*  Fax:   +49 (0) 9131 53020 20    *  Fax:   +44 (0) 1473 261 880     *\n\
+		*  E-mail: info@opticom.de,        *  E-mail: info@psytechnics.com,   *\n\
+		*  www.opticom.de                  *  www.psytechnics.com             *\n\
+		***********************************************************************\n\
+	\n");
+}
+
+
 void pesq_measure (SIGNAL_INFO * ref_info, SIGNAL_INFO * deg_info,
     ERROR_INFO * err_info, long * Error_Flag, char ** Error_Type);
 
+static int licence_printed;
+
 float pesq_process (long sample_rate, const char *reference, const char *degraded) {
+	if (!licence_printed) {
+		print_licence();
+		licence_printed=1;
+	}
 	SIGNAL_INFO ref_info;
 	SIGNAL_INFO deg_info;
 	ERROR_INFO err_info;
@@ -302,30 +390,28 @@ void pesq_measure (SIGNAL_INFO * ref_info, SIGNAL_INFO * deg_info,
                     new_deg = NULL;
                 }
             }
-        }        
+        }
 
-        printf (" Acoustic model processing...\n");    
-        pesq_psychoacoustic_model (ref_info, deg_info, err_info, ftmp);
-    
-        safe_free (ref_info-> data);
-        safe_free (ref_info-> VAD);
-        safe_free (ref_info-> logVAD);
-        safe_free (deg_info-> data);
-        safe_free (deg_info-> VAD);
-        safe_free (deg_info-> logVAD);
-        safe_free (ftmp);
+		printf (" Acoustic model processing...\n");
+		pesq_psychoacoustic_model (ref_info, deg_info, err_info, ftmp);
 
-		if ( err_info->mode == NB_MODE )
-		{
+		safe_free (ref_info-> data);
+		safe_free (ref_info-> VAD);
+		safe_free (ref_info-> logVAD);
+		safe_free (deg_info-> data);
+		safe_free (deg_info-> VAD);
+		safe_free (deg_info-> logVAD);
+		safe_free (ftmp);
+
+		if ( err_info->mode == NB_MODE ) {
 			err_info->mapped_mos = 0.999f+4.0f/(1.0f+(float)exp((-1.4945f*err_info->pesq_mos+4.6607f)));
 		}
-		else
-		{
+		else {
 			err_info->mapped_mos = 0.999f+4.0f/(1.0f+(float)exp((-1.3669f*err_info->pesq_mos+3.8224f)));
 			err_info->pesq_mos = -1.0;
 		}
 
-        resultsFile = fopen (ITU_RESULTS_FILE, "at");
+		resultsFile = fopen (ITU_RESULTS_FILE, "at");
 
         if (resultsFile != NULL) {
             long start, end;

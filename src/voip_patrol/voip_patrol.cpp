@@ -95,7 +95,7 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_player_id player_id;
-	char fn[] = "voice_ref_files/reference_8000.wav";
+	char fn[] = "voice_ref_files/reference_8000_12s.wav";
 	const pj_str_t file_name = pj_str(fn);
 	status = pjsua_player_create(&file_name, 0, &player_id);
 	if (status != PJ_SUCCESS) {
@@ -106,6 +106,7 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	LOG(logDEBUG) <<__FUNCTION__<<": [player] created:" << player_id;
 	status = pjsua_conf_connect( pjsua_player_get_conf_port(player_id), pjsua_call_get_conf_port(call_id) );
 }
+
 
 void TestCall::onCallState(OnCallStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
@@ -154,11 +155,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		test->result_cause_code = (int)ci.lastStatusCode;
 		test->reason = ci.lastReason;
 		if (ci.state == PJSIP_INV_STATE_DISCONNECTED || (test->hangup_duration && ci.connectDuration.sec >= test->hangup_duration) ){
-			LOG(logINFO) <<__FUNCTION__<<": [call] state completed duration: "<< ci.connectDuration.sec << " >= " << test->hangup_duration ;
 			if (test->state != VPT_DONE) {
-				if (role == 0 && test->min_mos > 0) {
-					test->get_mos();
-				}
 				test->update_result();
 			}
 			if (ci.state == PJSIP_INV_STATE_CONFIRMED){
@@ -172,7 +169,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	// Create player and recorder
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 		stream_to_call(this, ci.id, remote_user.c_str());
-		if (test->recording)
+		if (test->min_mos)
 			record_call(this, ci.id, remote_user.c_str());
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
@@ -285,10 +282,10 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 }
 
 void Test::get_mos() {
-	std::string reference = "voice_ref_files/reference_8000.wav";
+	std::string reference = "voice_ref_files/reference_8000_12s.wav";
 	std::string degraded = "voice_files/" + remote_user + "_rec.wav";
-	// mos = pesq_process(8000, reference.c_str(), degraded.c_str());
-	LOG(logINFO) <<"[call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< degraded;
+	LOG(logINFO)<<__FUNCTION__<<": [call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< record_fn;
+	mos = pesq_process(8000, reference.c_str(), record_fn.c_str());
 }
 
 void jsonify(std::string *str) {
@@ -309,6 +306,12 @@ void Test::update_result() {
 		end_time = now;
 		state = VPT_DONE;
 		std::string res = "FAIL";
+
+		if (min_mos > 0 && mos == 0) { // Queue the tests results that will require PESQ, this will be done when all the tests are completed
+				config->tests_with_pesq.push_back(this);
+				return;
+		}
+
 		if (expected_duration && expected_duration != connect_duration) {
 			success=false;
 		} else if (max_duration && max_duration < connect_duration) {
@@ -450,11 +453,6 @@ void Config::log(std::string message) {
 	LOG(logINFO) <<"[timestamp]"<< message ;
 }
 
-void Config::update_result(std::string text){
-	char now[20] = {'\0'};
-	get_time_string(now);
-}
-
 Config::~Config() {
 	result_file.close();
 }
@@ -511,8 +509,6 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 	if(!xml_conf){
 		LOG(logINFO) <<__FUNCTION__<< "[error] test can not load file :" << configFileName ;
 		return false;
-	} else {
-		update_result("loading tests...");
 	}
 
 	for (xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next) {

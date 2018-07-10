@@ -33,6 +33,8 @@ bool Action::set_param(ActionParam &param, const char *val) {
 			if (!val) return false;
 			if (param.type == APType::apt_integer) {
 				param.i_val = atoi(val);
+			} else if (param.type == APType::apt_float) {
+				param.f_val = atof(val);
 			} else {
 				param.s_val = val;
 				if (param.s_val.compare(0, 7, "VP_ENV_") == 0)
@@ -53,6 +55,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	// do_register
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
@@ -69,6 +72,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("label", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
 	do_wait_params.push_back(ActionParam("complete", false, APType::apt_integer));
@@ -154,6 +158,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	string account_name {};
 	string transport {};
 	string label {};
+	float min_mos {0.0};
 	int max_duration {0};
 	int hangup_duration {0};
 
@@ -162,6 +167,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
+		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 	}
 
@@ -217,6 +223,7 @@ void Action::do_call(vector<ActionParam> &params) {
 	bool recording {false};
 
 	for (auto param : params) {
+		LOG(logERROR) <<__FUNCTION__<<"[call] param:" << param.name << " " << param.f_val;
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
@@ -274,9 +281,9 @@ void Action::do_call(vector<ActionParam> &params) {
 	do {
 		Test *test = new Test(config, type);
 		test->wait_state = (call_wait_state_t)wait_until;
-		test->min_mos = min_mos;
 		test->expected_duration = expected_duration;
 		test->label = label;
+		test->min_mos = min_mos;
 		test->max_duration = max_duration;
 		test->max_calling_duration = max_calling_duration;
 		test->hangup_duration = hangup_duration;
@@ -378,9 +385,6 @@ void Action::do_wait(vector<ActionParam> &params) {
 								if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 							}
 						}
-						if (call->role == 0 && call->test->min_mos > 0) {
-							call->test->get_mos();
-						}
 						call->test->update_result();
 					}
 				}
@@ -405,9 +409,12 @@ void Action::do_wait(vector<ActionParam> &params) {
 				pj_thread_sleep(10);
 				continue;
 			}
+			for (auto test : config->tests_with_pesq) {
+				test->get_mos();
+				test->update_result();
+			}
 			completed = true;
 			LOG(logINFO) <<__FUNCTION__<<": completed";
-			config->update_result(std::string("fds")+"action[wait] completed");
 		}
 	}
 }

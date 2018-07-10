@@ -80,7 +80,6 @@ class Config {
 		std::vector<std::string> testResults;
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
-		void update_result(std::string text);
 		void removeCall(TestCall *call);
 		std::string alert_email_to;
 		std::string alert_email_from;
@@ -96,6 +95,7 @@ class Config {
 			string private_key;
 			string certificate;
 		} tls_cfg;
+		std::vector<Test *> tests_with_pesq;
 	private:
 		std::string configFileName;
 };

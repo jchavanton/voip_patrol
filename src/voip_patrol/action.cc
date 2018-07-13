@@ -56,6 +56,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
+	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	// do_register
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
@@ -73,6 +74,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
+	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_integer));
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
 	do_wait_params.push_back(ActionParam("complete", false, APType::apt_integer));
@@ -161,6 +163,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	float min_mos {0.0};
 	int max_duration {0};
 	int hangup_duration {0};
+	int rtp_stats {0};
 
 	for (auto param : params) {
 		if (param.name.compare("account") == 0) account_name = param.s_val;
@@ -168,6 +171,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
+		else if (param.name.compare("rtp_stats") == 0) rtp_stats = true;
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 	}
 
@@ -201,6 +205,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->hangup_duration = hangup_duration;
 	acc->max_duration = max_duration;
 	acc->accept_label = label;
+	acc->rtp_stats = rtp_stats;
 }
 
 void Action::do_call(vector<ActionParam> &params) {
@@ -221,6 +226,7 @@ void Action::do_call(vector<ActionParam> &params) {
 	int hangup_duration {0};
 	int repeat {0};
 	bool recording {false};
+	bool rtp_stats {false};
 
 	for (auto param : params) {
 		LOG(logERROR) <<__FUNCTION__<<"[call] param:" << param.name << " " << param.f_val;
@@ -234,6 +240,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
+		else if (param.name.compare("rtp_stats") == 0) rtp_stats = true;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("max_calling_duration") == 0) max_calling_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;
@@ -288,7 +295,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		test->max_calling_duration = max_calling_duration;
 		test->hangup_duration = hangup_duration;
 		test->recording = recording;
-
+		test->rtp_stats = rtp_stats;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);
@@ -392,6 +399,17 @@ void Action::do_wait(vector<ActionParam> &params) {
 					tests_running++;
 			}
 		}
+
+		int pos=0;
+		for (auto test : config->tests_with_rtp_stats) {
+			if (test->rtp_stats_ready) {
+				test->update_result();
+				config->tests_with_rtp_stats.erase(config->tests_with_rtp_stats.begin()+pos);
+				LOG(logINFO) << __FUNCTION__ << " erase pos:" << pos;
+				pos++;
+			}
+		}
+
 		if (tests_running > 0) {
 			if (status_update) {
 				LOG(logINFO) <<__FUNCTION__<<LOG_COLOR_ERROR<<": action[wait] active tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
@@ -413,6 +431,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 				test->get_mos();
 				test->update_result();
 			}
+
 			completed = true;
 			LOG(logINFO) <<__FUNCTION__<<": completed";
 		}

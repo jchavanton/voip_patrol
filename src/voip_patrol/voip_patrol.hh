@@ -94,8 +94,11 @@ class Config {
 			string ca_list;
 			string private_key;
 			string certificate;
+			int verify_server;
+			int verify_client;
 		} tls_cfg;
 		std::vector<Test *> tests_with_pesq;
+		std::vector<Test *> tests_with_rtp_stats;
 	private:
 		std::string configFileName;
 };
@@ -129,6 +132,7 @@ class Test {
 		std::string start_time;
 		std::string end_time;
 		float min_mos;
+		bool rtp_stats;
 		float mos;
 		std::string reason;
 		int connect_duration;
@@ -152,7 +156,9 @@ class Test {
 		bool playing;
 		string record_fn;
 		string reference_fn;
-
+		string rtp_stats_json;
+		bool rtp_stats_ready;
+		bool queued;
 	private:
 		Config *config;
 };
@@ -177,6 +183,7 @@ class TestAccount : public Account {
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
 		int hangup_duration;
 		int max_duration;
+		bool rtp_stats;
 		std::string accept_label;
 };
 
@@ -194,6 +201,7 @@ class TestCall : public Call {
 		pjsua_recorder_id recorder_id;
 		pjsua_player_id player_id;
 		int role;
+		int rtt;
 	private:
 		TestAccount *acc;
 

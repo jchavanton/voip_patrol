@@ -52,6 +52,20 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	// if (ci.stateText.compare("INCOMING")  == 0 ) pj_thread_sleep(10000);
 }
 
+/* Convenient function to convert transmission factor to MOS */
+static float rfactor_to_mos(float rfactor) {
+	float mos;
+	if (rfactor <= 0) {
+		mos = 0.0;
+	} else if (rfactor > 100) {
+		mos = 4.5;
+	} else {
+		mos = rfactor*4.5/100;
+	}
+	return mos;
+}
+
+
 void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 	LOG(logDEBUG) <<__FUNCTION__<<": idx["<<prm.streamIdx<<"]";
 	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
@@ -61,7 +75,49 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		RtcpStat rtcp = stats.rtcp;
 		RtcpStreamStat rxStat = rtcp.rxStat;
 		RtcpStreamStat txStat = rtcp.txStat;
-		LOG(logINFO) << __FUNCTION__ << ": RTCP pkt_rx:"<<rxStat.pkt<<" pkt_tx:"<<txStat.pkt<<std::endl;
+
+		LOG(logINFO) << __FUNCTION__ << ": RTCP Rx jitter:"<<rxStat.jitterUsec.n<<"|"<<rxStat.jitterUsec.mean/1000<<"|"<<rxStat.jitterUsec.max/1000
+                     <<"Usec pkt:"<<rxStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<<rxStat.loss<<" discard:"<<rxStat.discard;
+		LOG(logINFO) << __FUNCTION__ << ": RTCP Tx jitter:"<<txStat.jitterUsec.n<<"|"<<txStat.jitterUsec.mean/1000<<"|"<<txStat.jitterUsec.max/1000
+                     <<"Usec pkt:"<<txStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<< txStat.loss<<" discard:"<<txStat.discard;
+		/* represent loss dependent effective equipment impairment factor and percentage loss probability */
+		const int Bpl = 25; /* packet-loss robustness factor Bpl is defined as a codec-specific value. */
+		float Ie_eff_rx, Ppl_rx, Ppl_cut_rx, Ie_eff_tx, Ppl_tx, Ppl_cut_tx;
+		const int Ie = 0; /* Not used : Refer to Appendix I of [ITU-T G.113] for the currently recommended values of Ie.*/
+		float Ta = 0.0; /* Absolute Delay */
+		Ppl_rx = (rxStat.loss+rxStat.discard) * 100.0 / (rxStat.pkt + rxStat.loss);
+		Ppl_tx = (txStat.loss+txStat.discard) * 100.0 / (txStat.pkt + txStat.loss);
+
+		float BurstR_rx = 1.0;
+		Ie_eff_rx = (Ie + (95 - Ie) * Ppl_rx / (Ppl_rx/BurstR_rx + Bpl));
+		int rfactor_rx = 100 - Ie_eff_rx;
+		float mos_rx = rfactor_to_mos(rfactor_rx);
+		float BurstR_tx = 1.0;
+		Ie_eff_tx = (Ie + (95 - Ie) * Ppl_tx / (Ppl_rx/BurstR_tx + Bpl));
+		int rfactor_tx = 100 - Ie_eff_tx;
+		float mos_tx = rfactor_to_mos(rfactor_tx);
+
+		LOG(logINFO) << __FUNCTION__ <<" rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
+		rtt = rtcp.rttUsec.mean/1000;
+		test->rtp_stats_json = " \"rtp_stats\":{\"rtt\":"+to_string(rtt)+","
+						"\"Tx\":{"
+							"\"jitter_avg\": "+to_string(txStat.jitterUsec.mean/1000)+", "
+							"\"jitter_max\": "+to_string(txStat.jitterUsec.max/1000)+", "
+							"\"pkt\": "+to_string(txStat.pkt)+", "
+							"\"kbytes\": "+to_string(txStat.bytes/1024)+", "
+							"\"loss\": "+to_string(txStat.loss)+", "
+							"\"discard\": "+to_string(txStat.discard)+", "
+							"\"mos_lq\": "+to_string(mos_tx)+"} "
+						", \"Rx\":{"
+							"\"jitter_avg\": "+to_string(rxStat.jitterUsec.mean/1000)+", "
+							"\"jitter_max\": "+to_string(rxStat.jitterUsec.max/1000)+", "
+							"\"pkt\": "+to_string(rxStat.pkt)+", "
+							"\"kbytes\": "+to_string(rxStat.bytes/1024)+", "
+							"\"loss\": "+to_string(rxStat.loss)+", "
+							"\"discard\": "+to_string(rxStat.discard)+", "
+							"\"mos_lq\": "+to_string(mos_rx)+"} "
+						"}";
+		test->rtp_stats_ready = true;
 	} catch (pj::Error e)  {
 			LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 	}
@@ -243,6 +299,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN;
+		call->test->rtp_stats = rtp_stats;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -277,7 +334,10 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 	sip_call_id = "";
 	label = "-";
 	recording = false;
-	playing = false;
+	playing=false;
+	rtp_stats_ready=false;
+	rtp_stats=false;
+	queued=false;
 	LOG(logINFO)<<__FUNCTION__<<LOG_COLOR_INFO<<": New test created:"<<type<<LOG_COLOR_END;
 }
 
@@ -285,7 +345,7 @@ void Test::get_mos() {
 	std::string reference = "voice_ref_files/reference_8000_12s.wav";
 	std::string degraded = "voice_files/" + remote_user + "_rec.wav";
 	LOG(logINFO)<<__FUNCTION__<<": [call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< record_fn;
-	mos = pesq_process(8000, reference.c_str(), record_fn.c_str());
+	// mos = pesq_process(8000, reference.c_str(), record_fn.c_str());
 }
 
 void jsonify(std::string *str) {
@@ -310,6 +370,13 @@ void Test::update_result() {
 		if (min_mos > 0 && mos == 0) { // Queue the tests results that will require PESQ, this will be done when all the tests are completed
 				config->tests_with_pesq.push_back(this);
 				return;
+		}
+		if (rtp_stats > 0 && !rtp_stats_ready) {
+			LOG(logINFO)<<__FUNCTION__<<" push_back rtp_stats";
+			if (queued) return;
+			queued = true;
+			config->tests_with_rtp_stats.push_back(this);
+			return;
 		}
 
 		if (expected_duration && expected_duration != connect_duration) {
@@ -349,11 +416,15 @@ void Test::update_result() {
 							"\"duration\": "+std::to_string(connect_duration)+", "
 							"\"expected_duration\": "+std::to_string(expected_duration)+", "
 							"\"max_duration\": "+std::to_string(max_duration)+", "
-							"\"hangup_duration\": "+std::to_string(hangup_duration) +" "
-						"}}";
+							"\"hangup_duration\": "+std::to_string(hangup_duration);
+		if (rtp_stats_ready)
+			result_line_json += "," + rtp_stats_json;
+		result_line_json += "}}";
 		config->result_file.write(result_line_json);
 		LOG(logINFO)<<"["<<now<<"]" << result_line_json;
 		config->result_file.flush();
+
+		LOG(logINFO)<<" ["<<type<<"]"<<endl;
 
 		// prepare HTML report
 		std::string td_style= "style='border-color:#98B4E5;border-style:solid;padding:3px;border-width:1px;'";
@@ -446,6 +517,8 @@ Config::Config(string result_fn) : result_file(result_fn), action(this) {
 		tls_cfg.ca_list = "tls/ca_list.pem";
 		tls_cfg.private_key = "tls/key.pem";
 		tls_cfg.certificate = "tls/certificate.pem";
+		tls_cfg.verify_server = 0;
+		tls_cfg.verify_client = 0;
 		json_result_count = 0;
 }
 
@@ -690,6 +763,8 @@ int main(int argc, char **argv){
             " --tls-calist <path/file_name>     TLS CA list (pem format)     \n"\
             " --tls-privkey <path/file_name>    TLS private key (pem format) \n"\
             " --tls-cert <path/file_name>       TLS certificate (pem format) \n"\
+            " --tls-verify-server               TLS verify server certificate \n"\
+            " --tls-verify-client               TLS verify client certificate \n"\
 			"                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -713,6 +788,10 @@ int main(int argc, char **argv){
 			}
 		} else if (arg == "--tls-privkey") {
 			config.tls_cfg.private_key = argv[++i];
+		} else if (arg == "--tls-verify-client") {
+			config.tls_cfg.verify_client = 1;
+		} else if (arg == "--tls-verify-server") {
+			config.tls_cfg.verify_server = 1;
 		} else if (arg == "--tls-calist") {
 			config.tls_cfg.ca_list = argv[++i];
 		} else if (arg == "--tls-cert") {
@@ -774,8 +853,8 @@ int main(int argc, char **argv){
 		tcfg.tlsConfig.CaListFile = config.tls_cfg.ca_list;
 		tcfg.tlsConfig.certFile = config.tls_cfg.certificate;
 		tcfg.tlsConfig.privKeyFile = config.tls_cfg.private_key;
-		tcfg.tlsConfig.verifyServer = 1;
-		tcfg.tlsConfig.verifyClient = 0;
+		tcfg.tlsConfig.verifyServer = config.tls_cfg.verify_server;
+		tcfg.tlsConfig.verifyClient = config.tls_cfg.verify_client;
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);

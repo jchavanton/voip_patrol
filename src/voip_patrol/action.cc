@@ -427,10 +427,6 @@ void Action::do_wait(vector<ActionParam> &params) {
 				pj_thread_sleep(10);
 				continue;
 			}
-			for (auto test : config->tests_with_pesq) {
-				test->get_mos();
-				test->update_result();
-			}
 
 			completed = true;
 			LOG(logINFO) <<__FUNCTION__<<": completed";

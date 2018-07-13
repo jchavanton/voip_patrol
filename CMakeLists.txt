@@ -7,17 +7,9 @@ message("CMAKE_SYSTEM_PROCESSOR:${CMAKE_SYSTEM_PROCESSOR} CMAKE_SYSTEM:${CMAKE_S
 
 set(ROOT_DIR ".")
 set(SRC_DIR "${ROOT_DIR}/src")
-set(PESQ_SRC_DIR "${SRC_DIR}/PESQ")
 set(CURL_SRC_DIR "${SRC_DIR}/curl")
 set(EZXML_SRC_DIR "${SRC_DIR}/ezxml")
 set(VOIP_PATROL_SRC_DIR "${SRC_DIR}/voip_patrol")
-
-set(PESQ_SRCS
-	${PESQ_SRC_DIR}/dsp.c
-	${PESQ_SRC_DIR}/pesqdsp.c
-	${PESQ_SRC_DIR}/pesqio.c
-	${PESQ_SRC_DIR}/pesqmod.c
-)
 
 set(CURL_SRCS
 	${CURL_SRC_DIR}/email.c
@@ -34,7 +26,6 @@ set(VOIP_PATROL_SRCS_CPP
 )
 
 set(VOIP_PATROL_SRCS_C
-	${VOIP_PATROL_SRC_DIR}/patrol_pesq.c
 )
 
 include_directories(${ROOT_DIR}/pjsua/pjmedia/include)
@@ -45,7 +36,7 @@ include_directories(${ROOT_DIR}/pjsua/pjlib-util/include)
 
 include_directories(${ROOT_DIR}/include)
 
-set(SOURCE_FILES ${VOIP_PATROL_SRCS_CPP} ${VOIP_PATROL_SRCS_C} ${CURL_SRCS} ${EZXML_SRCS} ${PESQ_SRCS})
+set(SOURCE_FILES ${VOIP_PATROL_SRCS_CPP} ${VOIP_PATROL_SRCS_C} ${CURL_SRCS} ${EZXML_SRCS})
 
 add_executable(voip_patrol ${SOURCE_FILES})
 

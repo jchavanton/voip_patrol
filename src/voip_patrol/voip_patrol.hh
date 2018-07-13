@@ -12,7 +12,6 @@
 #include <pj/file_access.h>
 #include "ezxml/ezxml.h"
 #include "curl/email.h"
-#include "patrol_pesq.h"
 #include <sstream>
 #include <ctime>
 #include "log.h"
@@ -97,7 +96,6 @@ class Config {
 			int verify_server;
 			int verify_client;
 		} tls_cfg;
-		std::vector<Test *> tests_with_pesq;
 		std::vector<Test *> tests_with_rtp_stats;
 	private:
 		std::string configFileName;

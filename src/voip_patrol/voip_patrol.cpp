@@ -345,7 +345,6 @@ void Test::get_mos() {
 	std::string reference = "voice_ref_files/reference_8000_12s.wav";
 	std::string degraded = "voice_files/" + remote_user + "_rec.wav";
 	LOG(logINFO)<<__FUNCTION__<<": [call] mos["<<mos<<"] min-mos["<<min_mos<<"] "<< reference <<" vs "<< record_fn;
-	// mos = pesq_process(8000, reference.c_str(), record_fn.c_str());
 }
 
 void jsonify(std::string *str) {
@@ -367,8 +366,7 @@ void Test::update_result() {
 		state = VPT_DONE;
 		std::string res = "FAIL";
 
-		if (min_mos > 0 && mos == 0) { // Queue the tests results that will require PESQ, this will be done when all the tests are completed
-				config->tests_with_pesq.push_back(this);
+		if (min_mos > 0 && mos == 0) {
 				return;
 		}
 		if (rtp_stats > 0 && !rtp_stats_ready) {

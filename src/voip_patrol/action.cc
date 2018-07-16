@@ -12,12 +12,13 @@ Action::Action(Config *cfg) : config{cfg} {
 	std::cout<<"Prepared for Action!\n";
 }
 
-vector<ActionParam>* Action::get_params(string name) {
-	if (name.compare("call") == 0) return &do_call_params;
-	if (name.compare("register") == 0) return &do_register_params;
-	if (name.compare("wait") == 0) return &do_wait_params;
-	if (name.compare("accept") == 0) return &do_accept_params;
-	return nullptr;
+vector<ActionParam> Action::get_params(string name) {
+	if (name.compare("call") == 0) return do_call_params;
+	if (name.compare("register") == 0) return do_register_params;
+	if (name.compare("wait") == 0) return do_wait_params;
+	if (name.compare("accept") == 0) return do_accept_params;
+	vector<ActionParam> empty_params;
+	return empty_params;
 }
 
 string Action::get_env(string env) {
@@ -35,6 +36,8 @@ bool Action::set_param(ActionParam &param, const char *val) {
 				param.i_val = atoi(val);
 			} else if (param.type == APType::apt_float) {
 				param.f_val = atof(val);
+			} else if (param.type == APType::apt_bool) {
+				param.b_val = true;
 			} else {
 				param.s_val = val;
 				if (param.s_val.compare(0, 7, "VP_ENV_") == 0)
@@ -56,8 +59,9 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
-	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
 	// do_register
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("label", false, APType::apt_string));
@@ -74,14 +78,15 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
-	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
-	do_wait_params.push_back(ActionParam("complete", false, APType::apt_integer));
+	do_wait_params.push_back(ActionParam("complete", false, APType::apt_bool));
 }
 
 void Action::do_register(vector<ActionParam> &params) {
-	string type("register");
+	string type {"register"};
 	string transport {};
 	string label {};
 	string registrar {};
@@ -156,18 +161,20 @@ void Action::do_register(vector<ActionParam> &params) {
 }
 
 void Action::do_accept(vector<ActionParam> &params) {
-	string type("accept");
+	string type {"accept"};
 	string account_name {};
 	string transport {};
 	string label {};
+	string play {default_playback_file};
 	float min_mos {0.0};
 	int max_duration {0};
 	int hangup_duration {0};
-	int rtp_stats {0};
+	bool rtp_stats {false};
 
 	for (auto param : params) {
 		if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
+		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
@@ -206,10 +213,12 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->max_duration = max_duration;
 	acc->accept_label = label;
 	acc->rtp_stats = rtp_stats;
+	acc->play = play;
 }
 
 void Action::do_call(vector<ActionParam> &params) {
-	string type("call");
+	string type {"call"};
+	string play {default_playback_file};
 	string caller {};
 	string callee {};
 	string transport {};
@@ -233,6 +242,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
+		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
@@ -290,6 +300,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		test->wait_state = (call_wait_state_t)wait_until;
 		test->expected_duration = expected_duration;
 		test->label = label;
+		test->play = play;
 		test->min_mos = min_mos;
 		test->max_duration = max_duration;
 		test->max_calling_duration = max_calling_duration;
@@ -332,10 +343,10 @@ void Action::do_call(vector<ActionParam> &params) {
 
 void Action::do_wait(vector<ActionParam> &params) {
 	int duration_ms = 0;
-	int complete_all = 0;
+	bool complete_all = false;
 	for (auto param : params) {
 		if (param.name.compare("ms") == 0) duration_ms = param.i_val;
-		if (param.name.compare("complete") == 0) complete_all = param.i_val;
+		if (param.name.compare("complete") == 0) complete_all = param.b_val;
 	}
 	LOG(logINFO) << __FUNCTION__ << " duration_ms:" << duration_ms << " complete all tests:" << complete_all;
 	bool completed = false;

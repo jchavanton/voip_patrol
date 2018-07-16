@@ -151,16 +151,18 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
 	pjsua_player_id player_id;
-	char fn[] = "voice_ref_files/reference_8000_12s.wav";
+	char * fn = new char [call->test->play.length()+1];
+	strcpy (fn, call->test->play.c_str());
 	const pj_str_t file_name = pj_str(fn);
 	status = pjsua_player_create(&file_name, 0, &player_id);
+	delete[] fn;
 	if (status != PJ_SUCCESS) {
-		LOG(logINFO) <<__FUNCTION__<<": [error] play_call \n";
+		LOG(logINFO) <<__FUNCTION__<<": [error] creating player\n";
 		return status;
 	}
 	call->player_id = player_id;
-	LOG(logDEBUG) <<__FUNCTION__<<": [player] created:" << player_id;
 	status = pjsua_conf_connect( pjsua_player_get_conf_port(player_id), pjsua_call_get_conf_port(call_id) );
+	return status;
 }
 
 
@@ -300,6 +302,8 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN;
 		call->test->rtp_stats = rtp_stats;
+		LOG(logINFO) <<__FUNCTION__<<"account play:" << play;
+		call->test->play = play;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -541,7 +545,9 @@ void Config::removeCall(TestCall *call) {
 void Config::createDefaultAccount() {
 	AccountConfig acc_cfg;
 	acc_cfg.idUri = "sip:default";
-	createAccount(acc_cfg);
+	TestAccount *acc = createAccount(acc_cfg);
+	acc->play = default_playback_file;
+	LOG(logINFO) <<__FUNCTION__<<" created:"<<default_playback_file;
 }
 
 TestAccount* Config::createAccount(AccountConfig acc_cfg) {
@@ -592,18 +598,18 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			}
 			string action_type = ezxml_attr(xml_action,"type");;
 			LOG(logINFO) <<__FUNCTION__<< " ===> action/" << action_type;
-			vector<ActionParam>* params = action.get_params(action_type);
-			if (!params) {
+			vector<ActionParam> params = action.get_params(action_type);
+			if (params.size() == 0) {
 				LOG(logERROR) <<__FUNCTION__<< ": params not found for action:" << action_type << std::endl;
 				continue;
 			}
-			for (auto &param : *params) {
+			for (auto &param : params) {
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
-			if ( action_type.compare("wait") == 0 ) action.do_wait(*params);
-			else if ( action_type.compare("call") == 0 ) action.do_call(*params);
-			else if ( action_type.compare("accept") == 0 ) action.do_accept(*params);
-			else if ( action_type.compare("register") == 0 ) action.do_register(*params);
+			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
+			else if ( action_type.compare("call") == 0 ) action.do_call(params);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(params);
+			else if ( action_type.compare("register") == 0 ) action.do_register(params);
 			else if ( action_type.compare("alert") == 0 ) {
 				if (!ezxml_attr(xml_action,"email")) {
 					LOG(logERROR) <<__FUNCTION__<<"missing pamameter !";

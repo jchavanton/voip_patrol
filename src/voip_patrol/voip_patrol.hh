@@ -111,6 +111,8 @@ typedef enum call_wait_state {
 	INV_STATE_DISCONNECTED
 } call_wait_state_t;
 
+const char default_playback_file[] = "voice_ref_files/reference_8000.wav";
+
 typedef enum test_run_state {
 	VPT_RUN,              // test is running
 	VPT_RUN_WAIT,         // test is running and will block execution when command wait is used
@@ -155,6 +157,7 @@ class Test {
 		string record_fn;
 		string reference_fn;
 		string rtp_stats_json;
+		string play;
 		bool rtp_stats_ready;
 		bool queued;
 	private:
@@ -182,6 +185,7 @@ class TestAccount : public Account {
 		int hangup_duration;
 		int max_duration;
 		bool rtp_stats;
+		string play;
 		std::string accept_label;
 };
 

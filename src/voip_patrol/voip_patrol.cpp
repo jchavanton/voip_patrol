@@ -877,7 +877,9 @@ int main(int argc, char **argv){
 		config.process(conf_fn, log_test_fn);
 
 		LOG(logINFO) <<__FUNCTION__<<": wait complete all...";
-		vector<ActionParam> params {ActionParam("complete", false, APType::apt_integer, "", 1)};
+		vector<ActionParam> params = config.action.get_params("wait");
+		string name {"complete"};
+		config.action.set_param_by_name(&params, name, NULL);
 		config.action.do_wait(params);
 
 		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";

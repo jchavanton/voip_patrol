@@ -32,7 +32,8 @@ class Action {
 	public:
 			Action(Config *cfg);
 			vector<ActionParam> get_params(string);
-			bool set_param(ActionParam&, const char *);
+			bool set_param(ActionParam&, const char *val);
+			bool set_param_by_name(ActionParam *params, const string name, const char *val);
 			void do_call(vector<ActionParam> &params);
 			void do_accept(vector<ActionParam> &params);
 			void do_wait(vector<ActionParam> &params);

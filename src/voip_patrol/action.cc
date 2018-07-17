@@ -31,19 +31,29 @@ string Action::get_env(string env) {
 }
 
 bool Action::set_param(ActionParam &param, const char *val) {
+			if (!val && param.type == APType::apt_bool) {
+				param.b_val = true;
+				return true;
+			}
 			if (!val) return false;
 			if (param.type == APType::apt_integer) {
 				param.i_val = atoi(val);
 			} else if (param.type == APType::apt_float) {
 				param.f_val = atof(val);
-			} else if (param.type == APType::apt_bool) {
-				param.b_val = true;
 			} else {
 				param.s_val = val;
 				if (param.s_val.compare(0, 7, "VP_ENV_") == 0)
 						param.s_val = get_env(val);
 			}
 			return true;
+}
+
+bool Action::set_param_by_name(vector<ActionParam> *params, const string name, const char *val) {
+	for (auto param : params) {
+		if (param.name.compare(name) == 0)
+				return set_param(param, val);
+	}
+	return false;
 }
 
 void Action::init_actions_params() {
@@ -238,7 +248,6 @@ void Action::do_call(vector<ActionParam> &params) {
 	bool rtp_stats {false};
 
 	for (auto param : params) {
-		LOG(logERROR) <<__FUNCTION__<<"[call] param:" << param.name << " " << param.f_val;
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;

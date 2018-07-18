@@ -111,6 +111,9 @@ typedef enum call_wait_state {
 	INV_STATE_DISCONNECTED
 } call_wait_state_t;
 
+call_wait_state_t get_call_state_from_string (string state);
+string get_call_state_string (call_wait_state_t state);
+
 const char default_playback_file[] = "voice_ref_files/reference_8000.wav";
 
 typedef enum test_run_state {

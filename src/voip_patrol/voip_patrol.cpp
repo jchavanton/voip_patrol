@@ -15,6 +15,26 @@ void get_time_string(char * str_now) {
 	sprintf(str_now,"%02d-%02d-%04d %02d:%02d:%02d", now->tm_mday, now->tm_mon+1, now->tm_year+1900, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
+call_wait_state_t get_call_state_from_string (string state) {
+	if (state.compare("CALLING") == 0) return INV_STATE_CALLING;
+	if (state.compare("INCOMING") == 0) return INV_STATE_INCOMING;
+	if (state.compare("EARLY") == 0) return INV_STATE_EARLY;
+	if (state.compare("CONNECTING") == 0) return INV_STATE_CONNECTING;
+	if (state.compare("CONFIRMED") == 0) return INV_STATE_CONFIRMED;
+	if (state.compare("DISCONNECTED") == 0) return INV_STATE_DISCONNECTED;
+	return INV_STATE_NULL;
+}
+
+string get_call_state_string (call_wait_state_t state) {
+	if (state == INV_STATE_CALLING) return "CALLING";
+	if (state == INV_STATE_INCOMING) return "INCOMING";
+	if (state == INV_STATE_EARLY) return "EARLY";
+	if (state == INV_STATE_CONNECTING) return "CONNECTING";
+	if (state == INV_STATE_CONFIRMED) return "CONFIRMED";
+	if (state == INV_STATE_DISCONNECTED) return "DISCONNECTED";
+	return "NULL";
+}
+
 /*
  * TestCall implementation
  */

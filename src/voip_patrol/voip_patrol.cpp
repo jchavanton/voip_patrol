@@ -373,7 +373,7 @@ void Test::update_result() {
 		if (min_mos > 0 && mos == 0) {
 				return;
 		}
-		if (rtp_stats > 0 && !rtp_stats_ready) {
+		if (rtp_stats && !rtp_stats_ready) {
 			LOG(logINFO)<<__FUNCTION__<<" push_back rtp_stats";
 			if (queued) return;
 			queued = true;
@@ -419,7 +419,7 @@ void Test::update_result() {
 							"\"expected_duration\": "+std::to_string(expected_duration)+", "
 							"\"max_duration\": "+std::to_string(max_duration)+", "
 							"\"hangup_duration\": "+std::to_string(hangup_duration);
-		if (rtp_stats_ready)
+		if (rtp_stats && rtp_stats_ready)
 			result_line_json += "," + rtp_stats_json;
 		result_line_json += "}}";
 		config->result_file.write(result_line_json);
@@ -878,8 +878,7 @@ int main(int argc, char **argv){
 
 		LOG(logINFO) <<__FUNCTION__<<": wait complete all...";
 		vector<ActionParam> params = config.action.get_params("wait");
-		string name {"complete"};
-		config.action.set_param_by_name(&params, name, NULL);
+		config.action.set_param_by_name(&params, "complete");
 		config.action.do_wait(params);
 
 		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";

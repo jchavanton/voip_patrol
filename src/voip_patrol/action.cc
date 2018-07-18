@@ -31,12 +31,10 @@ string Action::get_env(string env) {
 }
 
 bool Action::set_param(ActionParam &param, const char *val) {
-			if (!val && param.type == APType::apt_bool) {
-				param.b_val = true;
-				return true;
-			}
 			if (!val) return false;
-			if (param.type == APType::apt_integer) {
+			if (param.type == APType::apt_bool) {
+				param.b_val = true;
+			} else if (param.type == APType::apt_integer) {
 				param.i_val = atoi(val);
 			} else if (param.type == APType::apt_float) {
 				param.f_val = atof(val);
@@ -49,9 +47,10 @@ bool Action::set_param(ActionParam &param, const char *val) {
 }
 
 bool Action::set_param_by_name(vector<ActionParam> *params, const string name, const char *val) {
-	for (auto param : params) {
-		if (param.name.compare(name) == 0)
+	for (auto &param : *params) {
+		if (param.name.compare(name) == 0) {
 				return set_param(param, val);
+		}
 	}
 	return false;
 }
@@ -188,7 +187,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
-		else if (param.name.compare("rtp_stats") == 0) rtp_stats = true;
+		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 	}
 
@@ -259,7 +258,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
-		else if (param.name.compare("rtp_stats") == 0) rtp_stats = true;
+		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("max_calling_duration") == 0) max_calling_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;

@@ -632,17 +632,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("call") == 0 ) action.do_call(params);
 			else if ( action_type.compare("accept") == 0 ) action.do_accept(params);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params);
-			else if ( action_type.compare("alert") == 0 ) {
-				if (!ezxml_attr(xml_action,"email")) {
-					LOG(logERROR) <<__FUNCTION__<<"missing pamameter !";
-					continue;
-				}
-				this->alert_email_to = ezxml_attr(xml_action,"email");
-				if (ezxml_attr(xml_action,"email_from")) this->alert_email_from = ezxml_attr(xml_action,"email_from");
-				if (ezxml_attr(xml_action,"smtp_host")) this->alert_server_url = ezxml_attr(xml_action,"smtp_host");
-			} else {
-				LOG(logERROR) <<__FUNCTION__<<" unknown action !";
-			}
+			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 		}
 	}
 }
@@ -689,8 +679,10 @@ void Alert::send(void) {
 	CURLcode res = CURLE_OK;
 	struct curl_slist *recipients = NULL;
 	upload_data.lines_read = 0;
+	LOG(logINFO) <<__FUNCTION__<< " smtp" << config->alert_server_url;
 	if (config->alert_server_url.empty() || config->alert_email_to.empty() || config->alert_email_from.empty())
 		return;
+
 	prepare();
 	if(curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, alert_server_url.c_str());

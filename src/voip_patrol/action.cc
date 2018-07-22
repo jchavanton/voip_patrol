@@ -17,6 +17,7 @@ vector<ActionParam> Action::get_params(string name) {
 	if (name.compare("register") == 0) return do_register_params;
 	if (name.compare("wait") == 0) return do_wait_params;
 	if (name.compare("accept") == 0) return do_accept_params;
+	if (name.compare("alert") == 0) return do_alert_params;
 	vector<ActionParam> empty_params;
 	return empty_params;
 }
@@ -93,6 +94,10 @@ void Action::init_actions_params() {
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
 	do_wait_params.push_back(ActionParam("complete", false, APType::apt_bool));
+	// do_alert
+	do_alert_params.push_back(ActionParam("email", false, APType::apt_string));
+	do_alert_params.push_back(ActionParam("email_from", false, APType::apt_string));
+	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
 }
 
 void Action::do_register(vector<ActionParam> &params) {
@@ -353,6 +358,21 @@ void Action::do_call(vector<ActionParam> &params) {
 		}
 		repeat--;
 	} while (repeat >= 0);
+}
+
+void Action::do_alert(vector<ActionParam> &params) {
+	string email {};
+	string email_from {};
+	string smtp_host {};
+	for (auto param : params) {
+		if (param.name.compare("email") == 0) email = param.s_val;
+		else if (param.name.compare("email_from") == 0) email_from = param.s_val;
+		else if (param.name.compare("smtp_host") == 0) smtp_host = param.s_val;
+	}
+	LOG(logINFO) << __FUNCTION__ << "email to:"<<email<< " from:"<<email_from;
+	config->alert_email_to = email;
+	config->alert_email_from = email_from;
+	config->alert_server_url = smtp_host;
 }
 
 void Action::do_wait(vector<ActionParam> &params) {

@@ -15,7 +15,7 @@ void get_time_string(char * str_now) {
 	sprintf(str_now,"%02d-%02d-%04d %02d:%02d:%02d", now->tm_mday, now->tm_mon+1, now->tm_year+1900, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
-call_wait_state_t get_call_state_from_string (string state) {
+call_state_t get_call_state_from_string (string state) {
 	if (state.compare("CALLING") == 0) return INV_STATE_CALLING;
 	if (state.compare("INCOMING") == 0) return INV_STATE_INCOMING;
 	if (state.compare("EARLY") == 0) return INV_STATE_EARLY;
@@ -25,7 +25,7 @@ call_wait_state_t get_call_state_from_string (string state) {
 	return INV_STATE_NULL;
 }
 
-string get_call_state_string (call_wait_state_t state) {
+string get_call_state_string (call_state_t state) {
 	if (state == INV_STATE_CALLING) return "CALLING";
 	if (state == INV_STATE_INCOMING) return "INCOMING";
 	if (state == INV_STATE_EARLY) return "EARLY";
@@ -322,6 +322,8 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN;
 		call->test->rtp_stats = rtp_stats;
+		if (wait_state != INV_STATE_NULL)
+			call->test->state = VPT_RUN_WAIT;
 		LOG(logINFO) <<__FUNCTION__<<"account play:" << play;
 		call->test->play = play;
 	}
@@ -342,7 +344,7 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 	from="";
 	to="";
 	wait_state = INV_STATE_NULL;
-	state = VPT_RUN_WAIT;
+	state = VPT_RUN;
 	start_time = now;
 	min_mos = 0.0;
 	mos = 0.0;

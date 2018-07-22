@@ -109,10 +109,10 @@ typedef enum call_wait_state {
 	INV_STATE_CONNECTING,  //4 After 2xx is sent/received.
 	INV_STATE_CONFIRMED,   //5 After ACK is sent/received.
 	INV_STATE_DISCONNECTED
-} call_wait_state_t;
+} call_state_t;
 
-call_wait_state_t get_call_state_from_string (string state);
-string get_call_state_string (call_wait_state_t state);
+call_state_t get_call_state_from_string (string state);
+string get_call_state_string (call_state_t state);
 
 const char default_playback_file[] = "voice_ref_files/reference_8000.wav";
 
@@ -152,7 +152,7 @@ class Test {
 		std::string label;
 		std::string transport;
 		std::string peer_socket;
-		call_wait_state_t wait_state;
+		call_state_t wait_state;
 		test_state_t state;
 		int call_id;
 		bool recording;
@@ -189,6 +189,7 @@ class TestAccount : public Account {
 		int max_duration;
 		bool rtp_stats;
 		string play;
+		call_state_t wait_state;
 		std::string accept_label;
 };
 

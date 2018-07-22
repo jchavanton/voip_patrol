@@ -65,7 +65,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("realm", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
-	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
@@ -85,6 +85,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("label", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
@@ -178,6 +179,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	float min_mos {0.0};
 	int max_duration {0};
 	int hangup_duration {0};
+	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
 
 	for (auto param : params) {
@@ -188,6 +190,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
+		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 	}
 
@@ -223,6 +226,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->accept_label = label;
 	acc->rtp_stats = rtp_stats;
 	acc->play = play;
+	acc->wait_state = wait_until;
 }
 
 void Action::do_call(vector<ActionParam> &params) {
@@ -236,7 +240,7 @@ void Action::do_call(vector<ActionParam> &params) {
 	string realm {};
 	string label {};
 	int expected_cause_code {200};
-	int wait_until {0};
+	call_state_t wait_until {INV_STATE_NULL};
 	float min_mos {0.0};
 	int max_duration {0};
 	int max_calling_duration {0};
@@ -256,7 +260,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
-		else if (param.name.compare("wait_until") == 0) wait_until = param.i_val;
+		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
@@ -305,7 +309,9 @@ void Action::do_call(vector<ActionParam> &params) {
 
 	do {
 		Test *test = new Test(config, type);
-		test->wait_state = (call_wait_state_t)wait_until;
+		test->wait_state = wait_until;
+		if (test->wait_state != INV_STATE_NULL)
+			test->state = VPT_RUN_WAIT;
 		test->expected_duration = expected_duration;
 		test->label = label;
 		test->play = play;
@@ -416,6 +422,9 @@ void Action::do_wait(vector<ActionParam> &params) {
 				}
 				if (complete_all || call->test->state == VPT_RUN_WAIT)
 					tests_running++;
+				if (call->test->state == VPT_RUN_WAIT) {
+					LOG(logINFO) <<__FUNCTION__<<": RUN WAIT waiting - " << call->test->label;
+				}
 			}
 		}
 
@@ -435,6 +444,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 				status_update = false;
 			}
 			tests_running=0;
+
 			if (duration_ms > 0) duration_ms -= 100;
 			pj_thread_sleep(100);
 		} else {

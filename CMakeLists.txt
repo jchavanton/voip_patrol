@@ -11,17 +11,13 @@ set(CURL_SRC_DIR "${SRC_DIR}/curl")
 set(EZXML_SRC_DIR "${SRC_DIR}/ezxml")
 set(VOIP_PATROL_SRC_DIR "${SRC_DIR}/voip_patrol")
 
-set(CURL_SRCS
-	${CURL_SRC_DIR}/email.c
-)
-
 set(EZXML_SRCS
 	${EZXML_SRC_DIR}/ezxml.c
 )
 include_directories("${SRC_DIR}")
 
 set(VOIP_PATROL_SRCS_CPP
-	${VOIP_PATROL_SRC_DIR}/voip_patrol.cpp
+	${VOIP_PATROL_SRC_DIR}/voip_patrol.cc
 	${VOIP_PATROL_SRC_DIR}/action.cc
 )
 

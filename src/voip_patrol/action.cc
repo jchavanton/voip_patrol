@@ -462,9 +462,6 @@ void Action::do_wait(vector<ActionParam> &params) {
 				}
 				if (complete_all || call->test->state == VPT_RUN_WAIT)
 					tests_running++;
-				if (call->test->state == VPT_RUN_WAIT) {
-					LOG(logINFO) <<__FUNCTION__<<": RUN WAIT waiting - " << call->test->label;
-				}
 			}
 		}
 

@@ -91,6 +91,8 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
+	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("reason", false, APType::apt_string));
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
 	do_wait_params.push_back(ActionParam("complete", false, APType::apt_bool));
@@ -186,11 +188,15 @@ void Action::do_accept(vector<ActionParam> &params) {
 	int hangup_duration {0};
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
+	int code {200};
+	string reason {};
 
 	for (auto param : params) {
 		if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
+		else if (param.name.compare("code") == 0) code = param.i_val;
+		else if (param.name.compare("reason") == 0 && param.s_val.length() > 0) reason = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
@@ -232,6 +238,8 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->rtp_stats = rtp_stats;
 	acc->play = play;
 	acc->wait_state = wait_until;
+	acc->reason = reason;
+	acc->code = code;
 }
 
 void Action::do_call(vector<ActionParam> &params) {
@@ -460,7 +468,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 
 		if (tests_running > 0) {
 			if (status_update) {
-				LOG(logINFO) <<__FUNCTION__<<LOG_COLOR_ERROR<<": action[wait] active tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
+				LOG(logINFO) <<__FUNCTION__<<LOG_COLOR_ERROR<<": action[wait] active account tests or call tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
 				status_update = false;
 			}
 			tests_running=0;

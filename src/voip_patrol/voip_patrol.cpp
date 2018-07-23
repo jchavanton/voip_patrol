@@ -329,7 +329,10 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
-	prm.statusCode = PJSIP_SC_OK;
+	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
+	prm.statusCode = (pjsip_status_code) code;
+	if (reason.size() > 0)
+			prm.reason = reason;
 	call->answer(prm);
 }
 
@@ -456,13 +459,12 @@ void Test::update_result() {
 		std::string td_small_style="style='padding:1px;width:50%;border-style:solid;border-spacing:0px;border-width:1px;border-color:#98B4E5;text-align:center;font-size:8pt'";
 		if (config->testResults.size() == 0){
 			std::string headers = "<tr>"
-				              "<td "+td_hd_style+">label</td>"
-				              "<td "+td_hd_style+">start/end</td>"
-				              "<td "+td_hd_style+">type</td><td "+td_hd_style+">result</td>"
-				              "<td "+td_hd_style+">cause code</td><td "+td_hd_style+">reason</td>"
-				              "<td "+td_hd_style+">mos</td>"
-				              "<td "+td_hd_style+">duration</td>"
-					      "<td "+td_hd_style+">from</td><td "+td_hd_style+">to</td>\r\n";
+				"<td "+td_hd_style+">label</td>"
+				"<td "+td_hd_style+">start/end</td>"
+				"<td "+td_hd_style+">type</td><td "+td_hd_style+">result</td>"
+				"<td "+td_hd_style+">cause code</td><td "+td_hd_style+">reason</td>"
+				"<td "+td_hd_style+">duration</td>"
+				"<td "+td_hd_style+">from</td><td "+td_hd_style+">to</td>\r\n";
 			config->testResults.push_back(headers);
 		}
 		std::string mos_color = "green";
@@ -475,22 +477,21 @@ void Test::update_result() {
 			res = "<font color='red'>"+res+"</font>";
 
 		std::string html_duration_table = "<table><tr><td>expected</td><td>max</td><td>hangup</td><td>connect</td></tr><tr>"
-                                                  "<td "+td_small_style+">"+std::to_string(expected_duration)+"</td>"
-						  "<td "+td_small_style+">"+std::to_string(max_duration)+"</td>"
-						  "<td "+td_small_style+">"+std::to_string(hangup_duration)+"</td>"
-						  "<td "+td_small_style+">"+std::to_string(connect_duration)+"</td></tr></table>";
+			"<td "+td_small_style+">"+std::to_string(expected_duration)+"</td>"
+			"<td "+td_small_style+">"+std::to_string(max_duration)+"</td>"
+			"<td "+td_small_style+">"+std::to_string(hangup_duration)+"</td>"
+			"<td "+td_small_style+">"+std::to_string(connect_duration)+"</td></tr></table>";
 		type = type +"["+std::to_string(call_id)+"]transport["+transport+"]<br>peer socket["+peer_socket+"]<br>"+sip_call_id;
 		std::string result = "<tr>"
-					 "<td "+td_style+">"+label+"</td>"
-			                 "<td "+td_style+">"+start_time+"<br>"+end_time+"</td><td "+td_style+">"+type+"</td>"
-                                         "<td "+td_style+">"+res+"</td>"
-                                         "<td "+td_style+">"+std::to_string(expected_cause_code)+"|<font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
-                                         "<td "+td_style+">"+reason+"</td>"
-                                         "<td "+td_style+">"+std::to_string(min_mos)+">=<font color="+mos_color+">"+std::to_string(mos)+"</font></td>"
-					 "<td "+td_style+">"+html_duration_table+"</td>"
-                                         "<td "+td_style+">"+local_user+"</td>"
-                                         "<td "+td_style+">"+remote_user+"</td>"
-					 "</tr>\r\n";
+			"<td "+td_style+">"+label+"</td>"
+			"<td "+td_style+">"+start_time+"<br>"+end_time+"</td><td "+td_style+">"+type+"</td>"
+			"<td "+td_style+">"+res+"</td>"
+			"<td "+td_style+">"+std::to_string(expected_cause_code)+"|<font color="+code_color+">"+std::to_string(result_cause_code)+"</font></td>"
+			"<td "+td_style+">"+reason+"</td>"
+			"<td "+td_style+">"+html_duration_table+"</td>"
+			"<td "+td_style+">"+local_user+"</td>"
+			"<td "+td_style+">"+remote_user+"</td>"
+			"</tr>\r\n";
 		config->testResults.push_back(result);
 }
 

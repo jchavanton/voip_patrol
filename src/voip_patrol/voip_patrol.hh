@@ -191,6 +191,8 @@ class TestAccount : public Account {
 		string play;
 		call_state_t wait_state;
 		std::string accept_label;
+		string reason;
+		int code;
 };
 
 class TestCall : public Call {

@@ -51,7 +51,7 @@ cd ..
 	transport="udp"
 	expected_cause_code="200"
 	username="VP_ENV_USERNAME"
-	account="VP_ENV_USERNAME"   # optionnal, if not present username is used
+	account="VP_ENV_USERNAME"   # optional, if not present username is used
 	password="VP_ENV_PASSWORD"
 	realm="sip.domain.com"
 	registrar="sip.domain.com"

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<config>
+    <actions>
+        <action type="accept"
+            transport="tls"
+            account="default"
+            max_duration="10" hangup="5"
+            play="voice_ref_files/reference_8000.wav"
+            code="200" reason="OK"
+            rtp_stats
+        />
+    <!-- wait for new call forever and generate
+          test result for incomming calls -->
+        <action type="wait" ms="-1"/>
+    </actions>
+</config>

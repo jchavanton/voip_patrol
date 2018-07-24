@@ -1,19 +1,14 @@
 #!/bin/sh
 
-DIR_PREFIX="/tmp/voip_patrol"
-SCENARIO_FILE="1.xml"
-RESULT_JSON_FILE="result.json"
+DIR_PREFIX=`pwd`
+echo $DIR_PREFIX
 IMAGE=voip_patrol:latest
-mkdir -p ${DIR_PREFIX}/logs
-mkdir -p ${DIR_PREFIX}/scenarios
-[ -e ${DIR_PREFIX}/logs/${RESULT_JSON_FILE} ] && rm ${DIR_PREFIX}/logs/${RESULT_JSON_FILE}
-cp ${SCENARIO_FILE} ${DIR_PREFIX}/scenarios
 docker stop voip_patrol
 docker rm voip_patrol
 
 docker run -d \
 	--name=voip_patrol \
-	-v ${DIR_PREFIX}:/vp \
+	--volume $DIR_PREFIX/../xml:/xml \
 	$IMAGE \
-	./git/voip_patrol/voip_patrol -c /vp/scenarios/1.xml -l /vp/logs/voip_patrol.log -o /vp/logs/result.json
+	./git/voip_patrol/voip_patrol --port 5555 --conf /xml/tls_server.xml -l /log/voip_patrol.log --output result.json
 #	/bin/sh -c "tail -f /dev/null"

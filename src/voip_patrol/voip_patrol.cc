@@ -556,8 +556,8 @@ Config::Config(string result_fn) : result_file(result_fn), action(this) {
 		tls_cfg.ca_list = "tls/ca_list.pem";
 		tls_cfg.private_key = "tls/key.pem";
 		tls_cfg.certificate = "tls/certificate.pem";
-		tls_cfg.verify_server = 0;
-		tls_cfg.verify_client = 0;
+		tls_cfg.verify_server = 1;
+		tls_cfg.verify_client = 1;
 		json_result_count = 0;
 }
 
@@ -886,8 +886,8 @@ int main(int argc, char **argv){
 		tcfg.tlsConfig.CaListFile = config.tls_cfg.ca_list;
 		tcfg.tlsConfig.certFile = config.tls_cfg.certificate;
 		tcfg.tlsConfig.privKeyFile = config.tls_cfg.private_key;
-		tcfg.tlsConfig.verifyServer = config.tls_cfg.verify_server;
-		tcfg.tlsConfig.verifyClient = config.tls_cfg.verify_client;
+		tcfg.tlsConfig.verifyServer = 1; // config.tls_cfg.verify_server;
+		tcfg.tlsConfig.verifyClient = 1; // config.tls_cfg.verify_client;
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);

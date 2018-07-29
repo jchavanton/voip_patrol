@@ -3,10 +3,17 @@
 ## VoIP signaling and media test automaton
 
 ### Linux Alpine dependencies
+```bash
+apk update \
+    && apk add git cmake g++ cmake make curl-dev alsa-lib-dev \
+    && mkdir /git && cd /git && git clone https://github.com/jchavanton/voip_patrol.git \
+    && cd voip_patrol && git checkout master \
+    && git submodule update --init \
+    && cp include/config_site.h  pjsua/pjlib/include/pj/config_site.h \
+    && cd pjsua && ./configure && make dep && make && make install \
+    && cd .. && cmake CMakeLists.txt && mak
 ```
-apk update
-apk add git cmake g++ cmake make openssl-dev curl-dev alsa-lib-dev
-```
+
 ### Linux Debian dependencies
 ```
 apt-get install build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev
@@ -42,65 +49,155 @@ cd ..
   -o,--output <result.json>         json result file name
 ```
 
-
-
-### scenario actions
-`register` create a test account `account1` and will register to `1.1.1.1`
+### Example: making a test call
 ```xml
-<action type="register"
-	transport="udp"
-	expected_cause_code="200"
-	username="VP_ENV_USERNAME"
-	account="VP_ENV_USERNAME"   # optional, if not present username is used
-	password="VP_ENV_PASSWORD"
-	realm="sip.domain.com"
-	registrar="sip.domain.com"
-/>
+<config>
+  <actions>
+    <action type="call" label="us-east-va"
+            transport="tls"
+            expected_cause_code="200"
+            caller="15147371787@noreply.com"
+            callee="12012665228@target.com"
+            max_duration="20" hangup="16"
+            username="VP_ENV_USERNAME"
+            password="VP_ENV_PASSWORD"
+            realm="target.com"
+            rtp_stats
+    />
+    <!-- note: param value starting with VP_ENV_ will
+               be replaced by environment variables -->
+    <!-- note: rtp_stats will include RTP transmission
+               statistics -->
+    <action type="wait" complete/>
+  </actions>
+</config>
+```
+### Sample output
+```json
+{
+  "2": {
+    "label": "us-east-va",
+    "start": "17-07-2018 00:00:05",
+    "end": "17-07-2018 00:00:24",
+    "action": "call",
+    "from": "15147371787",
+    "to": "12012665228",
+    "result": "PASS",
+    "expected_cause_code": 200,
+    "cause_code": 200,
+    "reason": "Normal call clearing",
+    "callid": "7iYDFukJr-9BOLOmWg.7fZyHZeZUAwao",
+    "transport": "TLS",
+    "peer_socket": "34.226.136.32:5061",
+    "duration": 16,
+    "expected_duration": 0,
+    "max_duration": 20,
+    "hangup_duration": 16,
+    "rtp_stats": {
+      "rtt": 0,
+      "Tx": {
+        "jitter_avg": 0,
+        "jitter_max": 0,
+        "pkt": 816,
+        "kbytes": 127,
+        "loss": 0,
+        "discard": 0,
+        "mos_lq": 4.5
+      },
+      "Rx": {
+        "jitter_avg": 0,
+        "jitter_max": 0,
+        "pkt": 813,
+        "kbytes": 127,
+        "loss": 0,
+        "discard": 0,
+        "mos_lq": 4.5
+      }
+    }
+  }
+}
 ```
 
-`wait` wait for the tests in progress to complete or until they reach their wait_until state
+### Example: starting a TLS server
+```bash
+./voip_patrol \
+   --port 5060 \ # TLS port 5061 +1
+   --conf "xml/tls_server.xml" \
+   --tls-calist "tls/ca_list.pem" \
+   --tls-privkey "tls/key.pem" \
+   --tls-cert "tls/certificate.pem" \
+   --tls-verify-server \
+```
 ```xml
-<action type="wait"/>
+<config>
+  <actions>
+    <action type="accept"
+            account="default"
+            <!-- default is the 
+                 "catch all" account -->
+            hangup="5"
+            play="voice_ref_files/f.wav"
+            code="200" reason="YES"
+    />
+    <!-- note: wait for new incoming calls
+               forever and generate test results -->
+    <action type="wait" ms="-1"/>
+  </actions>
+</config>
 ```
 
-`wait-complete` wait for tests in progress to complete
+### Example: making tests calls with wait_until
+iScenario execution is sequential and non-blocking.
+
+We can use “wait” command with previously set “wait_until” params
+to control parallel execution.
+
+```
+Call States
+NULL : Before INVITE is sent or received
+CALLING : After INVITE is sent
+INCOMING : After INVITE is received.
+EARLY : After response with To tag.
+CONNECTING : After 2xx is sent/received.
+CONFIRMED : After ACK is sent/received.
+DISCONNECTED
+```
 ```xml
-<action type="wait-complete"/>
+config>
+  <actions>
+    <action type="call" label="call#1"
+            transport="udp"
+            wait_until="CONFIRMED"
+            expected_cause_code="200"
+            caller="15148888888@noreply.com"
+            callee="12011111111@target.com"
+    />
+    <action type="wait"/> <!-- wait until -->
+    <action type="call" label="call#2"
+            transport="udp"
+            wait_until="CONFIRMED"
+            expected_cause_code="200"
+            caller="15147777777@noreply.com"
+            callee="12012222222@target.com"
+    />
+    <action type="wait" complete/>
+  </actions>
+</config>
 ```
 
-`accept` when receiving an inbound call on the specified account, create a test with the specified parameters
+### Example: email reporting
 ```xml
-<action type="accept"
-   label="my_label_-1"
-   account="63633170"
-   hangup="2"
-   max_duration="10"
-   wait_until="2"
-/>
-```
-`call` make a call using the specified callee and create a test with the specified parameters
-```xml
-<action type="call"
-   label="call_with_creds"
-   wait_until="3"
-   expected_cause_code="200"
-   callee="+12061234567@2.2.2.2"
-   caller="68595971@1.1.1.1"
-   username="68595971"
-   password="xxxxxx"
-   realm="sip.domain.com"
-   max_duration="4"
-   hangup="10"
-/>
-```
-
-`alert` send an email with the test results
-```xml
-<action type="alert"
-   email="your_email@gmail.com"
-   email_from="test@voip-patrol.org"
-   smtp_host="smtp://gmail-smtp-in.l.google.com:25"
-/>
+<config>
+  <actions>
+    <action type="alert"
+     email="jchavanton+vp@gmail.com"
+     email_from="test@voip-patrol.org"
+     smtp_host="smtp://gmail-smtp-in.l.google.com:25"
+    />
+    <!-- add test actions here ...  -->
+    <action type="wait" complete/>
+  </actions>
+</config>
 ```
 
 ### using env variable in scenario actions parameters
@@ -109,6 +206,15 @@ Example : `username="VP_ENV_USERNAME"`
 ```bash
 export VP_ENV_PASSWORD=????????
 export VP_ENV_USERNAME=username
+```
+
+### Docker
+```bash
+voip_patrol/docker$ tree
+.
+├── build.sh        # docker build command example
+├── Dockerfile      # docker build file for Linux Alpine
+└── voip_patrol.sh  # docker run example starting
 ```
 
 ## Dependencies

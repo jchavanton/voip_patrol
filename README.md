@@ -39,14 +39,19 @@ cd ..
 
 ### run
 ```
-./voip_patrol
-  -v --vesion                       voip_patrol version
-  --log-level-file <0-10>           file log level
-  --log-level-console <0-10>        console log level
-  -p --port <5060>                  local port
-  -c,--conf <conf.xml>              XML scenario file
-  -l,--log <logfilename>            voip_patrol log file name
-  -o,--output <result.json>         json result file name
+./voip_patrol --help                                
+ -v --vesion                       voip_patrol version       
+ --log-level-file <0-10>           file log level            
+ --log-level-console <0-10>        console log level         
+ -p --port <5060>                  local port                
+ -c,--conf <conf.xml>              XML scenario file         
+ -l,--log <logfilename>            voip_patrol log file name 
+ -o,--output <result.json>         json result file name     
+ --tls-calist <path/file_name>     TLS CA list (pem format)     
+ --tls-privkey <path/file_name>    TLS private key (pem format) 
+ --tls-cert <path/file_name>       TLS certificate (pem format) 
+ --tls-verify-server               TLS verify server certificate 
+ --tls-verify-client               TLS verify client certificate 
 ```
 
 ### Example: making a test call
@@ -131,10 +136,10 @@ cd ..
 ```xml
 <config>
   <actions>
+     <!-- note: default is the "catch all" account,
+          else account as to match called number -->
     <action type="accept"
             account="default"
-            <!-- default is the 
-                 "catch all" account -->
             hangup="5"
             play="voice_ref_files/f.wav"
             code="200" reason="YES"
@@ -147,8 +152,7 @@ cd ..
 ```
 
 ### Example: making tests calls with wait_until
-iScenario execution is sequential and non-blocking.
-
+Scenario execution is sequential and non-blocking.
 We can use “wait” command with previously set “wait_until” params
 to control parallel execution.
 
@@ -172,7 +176,8 @@ config>
             caller="15148888888@noreply.com"
             callee="12011111111@target.com"
     />
-    <action type="wait"/> <!-- wait until -->
+    <!-- note: will wait until all tests pass wait_until state -->
+    <action type="wait"/> 
     <action type="call" label="call#2"
             transport="udp"
             wait_until="CONFIRMED"
@@ -194,7 +199,7 @@ config>
      email_from="test@voip-patrol.org"
      smtp_host="smtp://gmail-smtp-in.l.google.com:25"
     />
-    <!-- add test actions here ...  -->
+    <!-- add more test actions here ...  -->
     <action type="wait" complete/>
   </actions>
 </config>
@@ -219,12 +224,12 @@ voip_patrol/docker$ tree
 
 ## Dependencies
 
-#### PJSUA
-PJSUA : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
-http://www.pjsip.org
-
 #### PJSUA2
+PJSUA2 : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
+http://www.pjsip.org
 http://www.pjsip.org/docs/book-latest/PJSUA2Doc.pdf
+
+## External tool to test audio quality
 
 #### PESQ
 P.862 : Perceptual evaluation of speech quality (PESQ): An objective method for end-to-end speech quality assessment of narrow-band telephone networks and speech codecs

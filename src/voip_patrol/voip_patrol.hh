@@ -166,6 +166,7 @@ class Test {
 		std::string label;
 		std::string transport;
 		std::string peer_socket;
+		std::string dtmf_recv;
 		call_state_t wait_state;
 		test_state_t state;
 		int call_id;
@@ -220,6 +221,7 @@ class TestCall : public Call {
 		virtual void onCallState(OnCallStateParam &prm);
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);
 		virtual void onStreamDestroyed(OnStreamDestroyedParam &prm);
+		virtual void onDtmfDigit(OnDtmfDigitParam &prm);
 		pjsua_recorder_id recorder_id;
 		pjsua_player_id player_id;
 		int role;

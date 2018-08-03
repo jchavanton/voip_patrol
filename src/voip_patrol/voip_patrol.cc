@@ -99,6 +99,10 @@ static float rfactor_to_mos(float rfactor) {
 	return mos;
 }
 
+void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
+	LOG(logINFO) << __FUNCTION__ << ":"<<prm.digit;
+	test->dtmf_recv.append(prm.digit);
+}
 
 void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 	LOG(logDEBUG) <<__FUNCTION__<<": idx["<<prm.streamIdx<<"]";

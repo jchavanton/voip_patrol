@@ -370,11 +370,23 @@ void Action::do_call(vector<ActionParam> &params) {
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
 		if (transport.compare("tls") == 0) {
-			call->makeCall("sips:"+callee, prm);
+			try {
+				call->makeCall("sips:"+callee, prm);
+			} catch (pj::Error e)  {
+				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+			}
 		} else if (transport.compare("tcp") == 0) {
-			call->makeCall("sip:"+callee+";transport=tcp", prm);
+			try {
+				call->makeCall("sip:"+callee+";transport=tcp", prm);
+			} catch (pj::Error e)  {
+				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+			}
 		} else {
-			call->makeCall("sip:"+callee, prm);
+			try {
+				call->makeCall("sip:"+callee, prm);
+			} catch (pj::Error e)  {
+				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+			}
 		}
 		repeat--;
 	} while (repeat >= 0);

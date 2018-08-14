@@ -352,6 +352,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	calls.push_back(call);
 	config->calls.push_back(call);
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
+	prm.statusCode = PJSIP_SC_OK;
 	if (ring_duration > 0) {
 			prm.statusCode = PJSIP_SC_RINGING;
 	} else {

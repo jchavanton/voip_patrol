@@ -84,6 +84,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
+	do_call_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
 	// do_register
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("label", false, APType::apt_string));
@@ -106,6 +107,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("reason", false, APType::apt_string));
+	do_accept_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
 	do_wait_params.push_back(ActionParam("complete", false, APType::apt_bool));
@@ -196,6 +198,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	string transport {};
 	string label {};
 	string play {default_playback_file};
+	string play_dtmf {};
 	float min_mos {0.0};
 	int max_duration {0};
 	int ring_duration {0};
@@ -209,6 +212,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
+		else if (param.name.compare("play_dtmf") == 0 && param.s_val.length() > 0) play_dtmf = param.s_val;
 		else if (param.name.compare("code") == 0) code = param.i_val;
 		else if (param.name.compare("reason") == 0 && param.s_val.length() > 0) reason = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
@@ -253,6 +257,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->accept_label = label;
 	acc->rtp_stats = rtp_stats;
 	acc->play = play;
+	acc->play_dtmf = play_dtmf;
 	acc->wait_state = wait_until;
 	acc->reason = reason;
 	acc->code = code;
@@ -261,6 +266,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 void Action::do_call(vector<ActionParam> &params) {
 	string type {"call"};
 	string play {default_playback_file};
+	string play_dtmf {};
 	string caller {};
 	string callee {};
 	string transport {};
@@ -284,6 +290,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
+		else if (param.name.compare("play_dtmf") == 0 && param.s_val.length() > 0) play_dtmf = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
@@ -344,6 +351,7 @@ void Action::do_call(vector<ActionParam> &params) {
 		test->expected_duration = expected_duration;
 		test->label = label;
 		test->play = play;
+		test->play_dtmf = play_dtmf;
 		test->min_mos = min_mos;
 		test->max_duration = max_duration;
 		test->max_calling_duration = max_calling_duration;

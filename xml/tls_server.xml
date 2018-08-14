@@ -5,6 +5,7 @@
             transport="tls"
             account="default"
             max_duration="10" hangup="5"
+            play_dtmf="0123456789#*"
             play="voice_ref_files/reference_8000.wav"
             code="200" reason="OK"
             ring_duration="5"

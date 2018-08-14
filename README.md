@@ -141,10 +141,12 @@ cd ..
     <action type="accept"
             account="default"
             hangup="5"
+            play_dtmf="0123456789#*"
             play="voice_ref_files/f.wav"
             code="200" reason="YES"
             ring_duration="5"
     />
+    <!-- DTMF will be sent using RFC2833 -->
     <!-- note: wait for new incoming calls
                forever and generate test results -->
     <action type="wait" ms="-1"/>

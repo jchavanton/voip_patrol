@@ -264,6 +264,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	}
 	// Create player and recorder
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED){
+		if (test->play_dtmf.length() > 0) {
+			dialDtmf(test->play_dtmf);
+			LOG(logINFO) <<__FUNCTION__<<": [dtmf]" << test->play_dtmf;
+		}
 		stream_to_call(this, ci.id, remote_user.c_str());
 		if (test->min_mos)
 			record_call(this, ci.id, remote_user.c_str());
@@ -348,6 +352,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 			call->test->state = VPT_RUN_WAIT;
 		LOG(logINFO) <<__FUNCTION__<<"account play:" << play;
 		call->test->play = play;
+		call->test->play_dtmf = play_dtmf;
 	}
 	calls.push_back(call);
 	config->calls.push_back(call);
@@ -471,6 +476,8 @@ void Test::update_result() {
 							"\"expected_duration\": "+std::to_string(expected_duration)+", "
 							"\"max_duration\": "+std::to_string(max_duration)+", "
 							"\"hangup_duration\": "+std::to_string(hangup_duration);
+		if (dtmf_recv.length() > 0)
+			result_line_json += ", \"dtmf_recv\": \""+dtmf_recv+"\"";
 		if (rtp_stats && rtp_stats_ready)
 			result_line_json += "," + rtp_stats_json;
 		result_line_json += "}}";

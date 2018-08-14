@@ -178,6 +178,7 @@ class Test {
 		string reference_fn;
 		string rtp_stats_json;
 		string play;
+		string play_dtmf;
 		bool rtp_stats_ready;
 		bool queued;
 	private:
@@ -207,6 +208,7 @@ class TestAccount : public Account {
 		int ring_duration;
 		bool rtp_stats;
 		string play;
+		string play_dtmf;
 		call_state_t wait_state;
 		std::string accept_label;
 		string reason;

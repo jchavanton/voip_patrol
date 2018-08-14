@@ -143,6 +143,7 @@ cd ..
             hangup="5"
             play="voice_ref_files/f.wav"
             code="200" reason="YES"
+            ring_duration="5"
     />
     <!-- note: wait for new incoming calls
                forever and generate test results -->

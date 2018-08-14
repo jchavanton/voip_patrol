@@ -295,6 +295,7 @@ TestAccount::TestAccount() {
 	config=NULL;
 	hangup_duration=0;
 	max_duration=0;
+	ring_duration=0;
 	accept_label="-";
 }
 
@@ -331,6 +332,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test = new Test(config, type);
 		call->test->hangup_duration = hangup_duration;
 		call->test->max_duration = max_duration;
+		call->test->ring_duration = ring_duration;
 		call->test->expected_cause_code = 200;
 		call->test->local_user = ci.localUri;
 		call->test->remote_user = ci.remoteUri;
@@ -340,6 +342,8 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN;
 		call->test->rtp_stats = rtp_stats;
+		call->test->code = (pjsip_status_code) code;
+		call->test->reason = reason;
 		if (wait_state != INV_STATE_NULL)
 			call->test->state = VPT_RUN_WAIT;
 		LOG(logINFO) <<__FUNCTION__<<"account play:" << play;
@@ -348,9 +352,12 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	calls.push_back(call);
 	config->calls.push_back(call);
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
-	prm.statusCode = (pjsip_status_code) code;
-	if (reason.size() > 0)
-			prm.reason = reason;
+	if (ring_duration > 0) {
+			prm.statusCode = PJSIP_SC_RINGING;
+	} else {
+		if (reason.size() > 0) prm.reason = reason;
+		if (code) prm.statusCode = (pjsip_status_code) code;
+	}
 	call->answer(prm);
 }
 
@@ -376,6 +383,7 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 	expected_duration = 0;
 	setup_duration = 0;
 	max_duration = 0;
+	ring_duration = 0;
 	hangup_duration = 0;
 	call_id = 0;
 	sip_call_id = "";

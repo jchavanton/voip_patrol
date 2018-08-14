@@ -144,6 +144,7 @@ class Test {
 		std::string from;
 		std::string to;
 		int expected_cause_code;
+		pjsip_status_code code;
 		int result_cause_code;
 		bool completed;
 		std::string start_time;
@@ -157,6 +158,7 @@ class Test {
 		int setup_duration;
 		int expected_duration;
 		int max_duration;
+		int ring_duration;
 		int max_calling_duration;
 		void get_mos();
 		std::string local_user;
@@ -202,6 +204,7 @@ class TestAccount : public Account {
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
 		int hangup_duration;
 		int max_duration;
+		int ring_duration;
 		bool rtp_stats;
 		string play;
 		call_state_t wait_state;

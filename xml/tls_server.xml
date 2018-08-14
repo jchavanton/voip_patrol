@@ -7,6 +7,7 @@
             max_duration="10" hangup="5"
             play="voice_ref_files/reference_8000.wav"
             code="200" reason="OK"
+            ring_duration="5"
             rtp_stats
         />
     <!-- wait for new call forever and generate

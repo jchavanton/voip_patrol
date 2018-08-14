@@ -359,7 +359,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
 	prm.statusCode = PJSIP_SC_OK;
 	if (ring_duration > 0) {
-			prm.statusCode = PJSIP_SC_RINGING;
+			prm.statusCode = PJSIP_SC_PROGRESS;
 	} else {
 		if (reason.size() > 0) prm.reason = reason;
 		if (code) prm.statusCode = (pjsip_status_code) code;

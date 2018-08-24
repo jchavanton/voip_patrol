@@ -40,19 +40,19 @@ cd ..
 
 ### run
 ```
-./voip_patrol --help                                
- -v --vesion                       voip_patrol version       
- --log-level-file <0-10>           file log level            
- --log-level-console <0-10>        console log level         
- -p --port <5060>                  local port                
- -c,--conf <conf.xml>              XML scenario file         
- -l,--log <logfilename>            voip_patrol log file name 
- -o,--output <result.json>         json result file name     
- --tls-calist <path/file_name>     TLS CA list (pem format)     
- --tls-privkey <path/file_name>    TLS private key (pem format) 
- --tls-cert <path/file_name>       TLS certificate (pem format) 
- --tls-verify-server               TLS verify server certificate 
- --tls-verify-client               TLS verify client certificate 
+./voip_patrol --help
+ -v --vesion                       voip_patrol version
+ --log-level-file <0-10>           file log level
+ --log-level-console <0-10>        console log level
+ -p --port <5060>                  local port
+ -c,--conf <conf.xml>              XML scenario file
+ -l,--log <logfilename>            voip_patrol log file name
+ -o,--output <result.json>         json result file name
+ --tls-calist <path/file_name>     TLS CA list (pem format)
+ --tls-privkey <path/file_name>    TLS private key (pem format)
+ --tls-cert <path/file_name>       TLS certificate (pem format)
+ --tls-verify-server               TLS verify server certificate
+ --tls-verify-client               TLS verify client certificate
 ```
 
 ### Example: making a test call
@@ -69,11 +69,12 @@ cd ..
             password="VP_ENV_PASSWORD"
             realm="target.com"
             rtp_stats
-    />
-    <!-- note: param value starting with VP_ENV_ will
-               be replaced by environment variables -->
-    <!-- note: rtp_stats will include RTP transmission
-               statistics -->
+    >
+        <x-header name="X-Foo" value="Bar"/>
+    </action>
+    <!-- note: param value starting with VP_ENV_ will be replaced by environment variables -->
+    <!-- note: rtp_stats will include RTP transmission statistics -->
+    <!-- note: x-header tag inside an action will append an header -->
     <action type="wait" complete/>
   </actions>
 </config>

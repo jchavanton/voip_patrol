@@ -635,7 +635,7 @@ TestAccount* Config::findAccount(std::string account_name) {
 }
 
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
-	ezxml_t xml_actions, xml_action;
+	ezxml_t xml_actions, xml_action, xml_xhdr;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
@@ -664,7 +664,16 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
-			else if ( action_type.compare("call") == 0 ) action.do_call(params);
+			else if ( action_type.compare("call") == 0 ) {
+				SipHeaderVector x_hdrs = SipHeaderVector();
+				for (xml_xhdr = ezxml_child(xml_action, "x-header"); xml_xhdr; xml_xhdr=xml_xhdr->next) {
+					SipHeader sh = SipHeader();
+					sh.hName = ezxml_attr(xml_xhdr, "name");
+					sh.hValue = ezxml_attr(xml_xhdr, "value");
+					x_hdrs.push_back(sh);
+				}
+				action.do_call(params, x_hdrs);
+			}
 			else if ( action_type.compare("accept") == 0 ) action.do_accept(params);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);

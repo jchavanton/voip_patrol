@@ -263,7 +263,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->code = code;
 }
 
-void Action::do_call(vector<ActionParam> &params) {
+void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string type {"call"};
 	string play {default_playback_file};
 	string play_dtmf {};
@@ -377,6 +377,11 @@ void Action::do_call(vector<ActionParam> &params) {
 		test->type = type;
 		acc->calls.push_back(call);
 		CallOpParam prm(true);
+
+		for (auto x_hdr : x_headers) {
+			prm.txOption.headers.push_back(x_hdr);
+		}
+
 		prm.opt.audioCount = 1;
 		prm.opt.videoCount = 0;
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;

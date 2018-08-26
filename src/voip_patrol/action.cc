@@ -89,6 +89,7 @@ void Action::init_actions_params() {
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("label", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("registrar", false, APType::apt_string));
+	do_register_params.push_back(ActionParam("proxy", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("realm", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("username", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("account", false, APType::apt_string));
@@ -122,6 +123,7 @@ void Action::do_register(vector<ActionParam> &params) {
 	string transport {};
 	string label {};
 	string registrar {};
+	string proxy {};
 	string realm {};
 	string username {};
 	string account_name {};
@@ -132,6 +134,7 @@ void Action::do_register(vector<ActionParam> &params) {
 		if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("registrar") == 0) registrar = param.s_val;
+		else if (param.name.compare("proxy") == 0) proxy = param.s_val;
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
 		else if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
@@ -175,11 +178,17 @@ void Action::do_register(vector<ActionParam> &params) {
 	if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
 		acc_cfg.idUri = "sips:" + account_name + "@" + registrar;
 		acc_cfg.regConfig.registrarUri = "sips:" + registrar;
+		if (!proxy.empty())
+			acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
+
 		LOG(logINFO) <<__FUNCTION__<< " SIPS URI Scheme";
 	} else {
 		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
 		acc_cfg.idUri = "sip:" + account_name + "@" + registrar;
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
+		if (!proxy.empty())
+			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
+
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 

@@ -72,10 +72,11 @@ class ResultFile {
 		bool open();
 		void close();
 		bool write(std::string res);
+		std::string name;
 	private:
 		std::fstream file;
-		std::string name;
 };
+
 
 class Config {
 	public:
@@ -93,6 +94,7 @@ class Config {
 		std::vector<std::string> testResults;
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
+		void set_output_file(std::string);
 		void removeCall(TestCall *call);
 		std::string alert_email_to;
 		std::string alert_email_from;
@@ -114,6 +116,7 @@ class Config {
 	private:
 		std::string configFileName;
 };
+
 
 typedef enum call_wait_state {
 	INV_STATE_NULL,        //0 Before INVITE is sent or received

@@ -581,6 +581,13 @@ Config::Config(string result_fn) : result_file(result_fn), action(this) {
 		json_result_count = 0;
 }
 
+void Config::set_output_file(string file_name) {
+		result_file.flush();
+		result_file.close();
+		result_file.name = file_name;
+		result_file.open();
+}
+
 void Config::log(std::string message) {
 	LOG(logINFO) <<"[timestamp]"<< message ;
 }
@@ -865,6 +872,7 @@ int main(int argc, char **argv){
 		} else if ( (arg == "-o") || (arg == "--output")) {
 			if (i + 1 < argc) {
 				log_test_fn = argv[++i];
+				config.set_output_file(log_test_fn);
 			}
 		}
 	}

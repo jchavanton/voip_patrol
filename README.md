@@ -55,6 +55,8 @@ cd ..
  --tls-verify-client               TLS verify client certificate
 ```
 
+
+
 ### Example: making a test call
 ```xml
 <config>
@@ -189,6 +191,25 @@ config>
             expected_cause_code="200"
             caller="15147777777@noreply.com"
             callee="12012222222@target.com"
+    />
+    <action type="wait" complete/>
+  </actions>
+</config>
+```
+
+### Example: testing registration
+```xml
+<config>
+  <actions>
+    <!-- note: proxy param to send to a proxy -->
+    <action type="register" label="register target.com"
+            transport="udp"
+            username="VP_ENV_USERNAME"
+            password="VP_ENV_PASSWORD"
+            proxy="172.16.7.1"
+            realm="target.com"
+            registrar="target.com"
+            expected_cause_code="200"
     />
     <action type="wait" complete/>
   </actions>

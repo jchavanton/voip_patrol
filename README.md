@@ -245,8 +245,13 @@ config>
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| early_media | bool | if present 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
+
+### register command parameters (partial list)
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| proxy | string | ip/hostname of a proxy where to send the register |
 
 
 ### using env variable in scenario actions parameters

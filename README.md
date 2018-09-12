@@ -234,15 +234,19 @@ config>
 ```
 
 ### accept command parameters (partial list)
-Name|Type|Description
-early_media|bool|if present 183 with SDP and early media is used
-timer|string|control SIP session timers, possible values are : inactive, optional, required or always
+
+| Name | Type | Description | 
+| ---- | ---- | ----------- |
+| early_media | bool| if present 183 with SDP and early media is used |
+| timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 
 
 ### call command parameters (partial list)
-Name|Type|Description
-early_media|bool|if present 183 with SDP and early media is used
-timer|string|control SIP session timers, possible values are : inactive, optional, required or always
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| early_media | bool | if present 183 with SDP and early media is used |
+| timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 
 
 ### using env variable in scenario actions parameters

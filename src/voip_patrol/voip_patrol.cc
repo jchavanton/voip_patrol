@@ -359,7 +359,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
 	prm.statusCode = PJSIP_SC_OK;
 	if (ring_duration > 0) {
-			prm.statusCode = PJSIP_SC_PROGRESS;
+			prm.statusCode = PJSIP_SC_RINGING;
+			if (early_media)
+				prm.statusCode = PJSIP_SC_PROGRESS;
 	} else {
 		if (reason.size() > 0) prm.reason = reason;
 		if (code) prm.statusCode = (pjsip_status_code) code;
@@ -609,6 +611,8 @@ void Config::removeCall(TestCall *call) {
 void Config::createDefaultAccount() {
 	AccountConfig acc_cfg;
 	acc_cfg.idUri = "sip:default";
+	acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
+
 	TestAccount *acc = createAccount(acc_cfg);
 	acc->play = default_playback_file;
 	LOG(logINFO) <<__FUNCTION__<<" created:"<<default_playback_file;

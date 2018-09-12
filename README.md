@@ -158,6 +158,8 @@ cd ..
 </config>
 ```
 
+
+
 ### Example: making tests calls with wait_until
 Scenario execution is sequential and non-blocking.
 We can use “wait” command with previously set “wait_until” params
@@ -230,6 +232,18 @@ config>
   </actions>
 </config>
 ```
+
+### accept command parameters (partial list)
+Name|Type|Description
+early_media|bool|if present 183 with SDP and early media is used
+timer|string|control SIP session timers, possible values are : inactive, optional, required or always
+
+
+### call command parameters (partial list)
+Name|Type|Description
+early_media|bool|if present 183 with SDP and early media is used
+timer|string|control SIP session timers, possible values are : inactive, optional, required or always
+
 
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.

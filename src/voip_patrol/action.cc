@@ -85,6 +85,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
+	do_call_params.push_back(ActionParam("timer", false, APType::apt_string));
 	// do_register
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("label", false, APType::apt_string));
@@ -101,6 +102,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("label", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("ring_duration", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("early_media", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
@@ -109,6 +111,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("reason", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
+	do_accept_params.push_back(ActionParam("timer", false, APType::apt_string));
 	// do_wait
 	do_wait_params.push_back(ActionParam("ms", false, APType::apt_integer));
 	do_wait_params.push_back(ActionParam("complete", false, APType::apt_bool));
@@ -208,9 +211,11 @@ void Action::do_accept(vector<ActionParam> &params) {
 	string label {};
 	string play {default_playback_file};
 	string play_dtmf {};
+	string timer {};
 	float min_mos {0.0};
 	int max_duration {0};
 	int ring_duration {0};
+	int early_media {false};
 	int hangup_duration {0};
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
@@ -222,11 +227,13 @@ void Action::do_accept(vector<ActionParam> &params) {
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
 		else if (param.name.compare("play_dtmf") == 0 && param.s_val.length() > 0) play_dtmf = param.s_val;
+		else if (param.name.compare("timer") == 0 && param.s_val.length() > 0) timer = param.s_val;
 		else if (param.name.compare("code") == 0) code = param.i_val;
 		else if (param.name.compare("reason") == 0 && param.s_val.length() > 0) reason = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("ring_duration") == 0) ring_duration = param.i_val;
+		else if (param.name.compare("early_media") == 0) early_media = param.b_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
@@ -258,6 +265,17 @@ void Action::do_accept(vector<ActionParam> &params) {
 		} else {
 			acc_cfg.idUri = "sip:" + account_name;
 		}
+		if (!timer.empty()) {
+			if (timer.compare("inactive")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
+			} else if (timer.compare("optionnal")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_OPTIONAL;
+			} else if (timer.compare("required")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_REQUIRED;
+			} else if (timer.compare("always")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_ALWAYS;
+			}
+		}
 		acc = config->createAccount(acc_cfg);
 	}
 	acc->hangup_duration = hangup_duration;
@@ -267,6 +285,8 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->rtp_stats = rtp_stats;
 	acc->play = play;
 	acc->play_dtmf = play_dtmf;
+	acc->timer = timer;
+	acc->early_media = early_media;
 	acc->wait_state = wait_until;
 	acc->reason = reason;
 	acc->code = code;
@@ -276,6 +296,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string type {"call"};
 	string play {default_playback_file};
 	string play_dtmf {};
+	string timer {};
 	string caller {};
 	string callee {};
 	string transport {};
@@ -300,6 +321,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
 		else if (param.name.compare("play_dtmf") == 0 && param.s_val.length() > 0) play_dtmf = param.s_val;
+		else if (param.name.compare("timer") == 0 && param.s_val.length() > 0) timer = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
@@ -324,6 +346,17 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	TestAccount* acc = config->findAccount(caller);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		if (!timer.empty()) {
+			if (timer.compare("inactive")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
+			} else if (timer.compare("optionnal")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_OPTIONAL;
+			} else if (timer.compare("required")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_REQUIRED;
+			} else if (timer.compare("always")) {
+				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_ALWAYS;
+			}
+		}
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {

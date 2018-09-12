@@ -210,8 +210,10 @@ class TestAccount : public Account {
 		int max_duration;
 		int ring_duration;
 		bool rtp_stats;
+		bool early_media;
 		string play;
 		string play_dtmf;
+		string timer;
 		call_state_t wait_state;
 		std::string accept_label;
 		string reason;

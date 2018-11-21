@@ -230,7 +230,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 
 	if (test) {
 		pjsip_tx_data *pjsip_data = (pjsip_tx_data *) prm.e.body.txMsg.tdata.pjTxData;
-		if (pjsip_data) {
+		if (pjsip_data && pjsip_data->tp_info.transport) {
 			test->transport = pjsip_data->tp_info.transport->type_name;
 			test->peer_socket = pjsip_data->tp_info.dst_name;
 			test->peer_socket = test->peer_socket +":"+ std::to_string(pjsip_data->tp_info.dst_port);
@@ -905,6 +905,7 @@ int main(int argc, char **argv){
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
+		// ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
 
 		ep.libInit( ep_cfg );
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
@@ -932,7 +933,7 @@ int main(int argc, char **argv){
 		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
 		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
-		LOG(logINFO) <<__FUNCTION__<<": TLS supported ";
+		LOG(logINFO) <<__FUNCTION__<<": TLS supported :"<< config.tls_cfg.certificate;
 	} catch (Error & err) {
 		config.transport_id_tls = -1;
 		LOG(logINFO) <<__FUNCTION__<<": Exception: TLS not supported, see README. " << err.info() ;

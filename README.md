@@ -206,6 +206,7 @@ config>
     <!-- note: proxy param to send to a proxy -->
     <action type="register" label="register target.com"
             transport="udp"
+            account="VP_ENV_USERNAME"
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
             proxy="172.16.7.1"
@@ -252,7 +253,10 @@ config>
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | proxy | string | ip/hostname of a proxy where to send the register |
-
+| username | string | authentication username, account name, From/To/Contact header user part |
+| account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
+| registrar | string | SIP UAS handling registration where the messages will be sent |
+| realm | string | realm use for authentication |
 
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.

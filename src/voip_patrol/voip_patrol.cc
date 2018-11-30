@@ -63,7 +63,6 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 
 TestCall::~TestCall() {
 	if (test) {
-		LOG(logINFO) << "delete call test["<<test<<"]";
 		delete test;
 	}
 }
@@ -598,14 +597,18 @@ Config::~Config() {
 	result_file.close();
 }
 
-void Config::removeCall(TestCall *call) {
+bool Config::removeCall(TestCall *call) {
+	bool found = false;
 	for (auto it = calls.begin(); it != calls.end(); ++it) {
 		if (*it == call) {
+			found = true;
 			calls.erase(it);
 			break;
 		}
 	}
-	delete call;
+	if (found)
+		delete call;
+	return found;
 }
 
 void Config::createDefaultAccount() {
@@ -791,8 +794,14 @@ void VoipPatrolEnpoint::onSelectAccount(OnSelectAccountParam &param) {
 	LOG(logINFO) <<__FUNCTION__<<" to:" << to ;
 
 	TestAccount* account = config->findAccount(to);
+	if (!account) {
+		account = config->findAccount("default");
+	}
 	if (!account) return;
-
+	if (account->response_delay > 0) {
+		LOG(logINFO) <<__FUNCTION__<<" account_index:" << param.accountIndex << " response_delay:" << account->response_delay ;
+		pj_thread_sleep(account->response_delay);
+	}
 	AccountInfo acc_info = account->getInfo();
 	param.accountIndex = acc_info.id;
 }
@@ -981,7 +990,7 @@ int main(int argc, char **argv){
 		LOG(logINFO) <<__FUNCTION__<<": Error Found" ;
 	}
 
-	LOG(logINFO) <<__FUNCTION__<<": exiting !" ;
+	LOG(logINFO) <<__FUNCTION__<<": Watch completed, exiting  /('l')" ;
 	return ret;
 }
 

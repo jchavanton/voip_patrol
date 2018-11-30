@@ -102,6 +102,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("label", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("ring_duration", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("response_delay", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("early_media", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
@@ -220,6 +221,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
 	int code {200};
+	int response_delay {0};
 	string reason {};
 
 	for (auto param : params) {
@@ -238,6 +240,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
+		else if (param.name.compare("response_delay") == 0) response_delay = param.i_val;
 	}
 
 	if (account_name.empty()) {
@@ -279,6 +282,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 		acc = config->createAccount(acc_cfg);
 	}
 	acc->hangup_duration = hangup_duration;
+	acc->response_delay = response_delay;
 	acc->max_duration = max_duration;
 	acc->ring_duration = ring_duration;
 	acc->accept_label = label;
@@ -489,10 +493,8 @@ void Action::do_wait(vector<ActionParam> &params) {
 		}
 		for (auto & call : config->calls) {
 			if (call->test && call->test->state == VPT_DONE){
-				//LOG(logINFO) << "delete call test["<<call->test<<"]";
-				//delete call->test;
-				//call->test = NULL;
-				//removeCall(call);
+				//LOG(logINFO) << "delete call test["<<call->test<<"] = " << config->removeCall(call);
+				continue;
 			} else if (call->test) {
 				CallInfo ci = call->getInfo();
 				if (status_update) {

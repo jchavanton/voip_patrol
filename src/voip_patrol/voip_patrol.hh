@@ -95,7 +95,7 @@ class Config {
 		ezxml_t xml_conf_head;
 		ezxml_t xml_test;
 		void set_output_file(std::string);
-		void removeCall(TestCall *call);
+		bool removeCall(TestCall *call);
 		std::string alert_email_to;
 		std::string alert_email_from;
 		std::string alert_server_url;
@@ -209,6 +209,7 @@ class TestAccount : public Account {
 		int hangup_duration;
 		int max_duration;
 		int ring_duration;
+		int response_delay;
 		bool rtp_stats;
 		bool early_media;
 		string play;

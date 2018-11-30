@@ -238,8 +238,9 @@ config>
 
 | Name | Type | Description | 
 | ---- | ---- | ----------- |
-| early_media | bool| if present 183 with SDP and early media is used |
+| early_media | bool | if present 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
+| response_delay | int | ms delay before reponse is sent, useful to test timeouts and race conditions | 
 
 
 ### call command parameters (partial list)

@@ -493,7 +493,9 @@ void Action::do_wait(vector<ActionParam> &params) {
 		}
 		for (auto & call : config->calls) {
 			if (call->test && call->test->state == VPT_DONE){
-				//LOG(logINFO) << "delete call test["<<call->test<<"] = " << config->removeCall(call);
+				CallInfo ci = call->getInfo();
+				if (ci.state == PJSIP_INV_STATE_DISCONNECTED)
+				LOG(logINFO) << "delete call test["<<call->test<<"] = " << config->removeCall(call);
 				continue;
 			} else if (call->test) {
 				CallInfo ci = call->getInfo();

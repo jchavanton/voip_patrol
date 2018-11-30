@@ -968,7 +968,11 @@ int main(int argc, char **argv){
 		alert.send();
 
 		LOG(logINFO) <<__FUNCTION__<<": hangup all calls..." ;
-		ep.hangupAllCalls();
+		pj_thread_sleep(2000);
+		// ep.hangupAllCalls();
+		for (auto & call : config.calls) {
+			LOG(logINFO) << "disconnecting call["<< call <<"] "<< config.removeCall(call);
+		}
 
 		ret = PJ_SUCCESS;
 	} catch (Error &err) {

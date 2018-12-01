@@ -970,9 +970,6 @@ int main(int argc, char **argv){
 		LOG(logINFO) <<__FUNCTION__<<": hangup all calls..." ;
 		pj_thread_sleep(2000);
 		// ep.hangupAllCalls();
-		for (auto & call : config.calls) {
-			LOG(logINFO) << "disconnecting call["<< call <<"] "<< config.removeCall(call);
-		}
 
 		ret = PJ_SUCCESS;
 	} catch (Error &err) {
@@ -980,6 +977,29 @@ int main(int argc, char **argv){
 		ret = 1;
 	}
 
+
+	for (auto & call : config.calls) {
+		pjsua_call_info pj_ci;
+		pjsua_call_id call_id;
+    		CallInfo ci;
+		pj_status_t status = pjsua_call_get_info(call_id, &pj_ci); 
+		if (status != PJ_SUCCESS) {
+			LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+			continue;
+		}
+		ci.fromPj(pj_ci);	
+
+		CallOpParam prm(true);
+		if (ci.state != PJSIP_INV_STATE_DISCONNECTED) {
+			LOG(logINFO) << "call hangup["<< call <<"] "<< config.removeCall(call);
+			try {
+				call->hangup(prm);
+			} catch (pj::Error e)  {
+				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
+			}
+		}
+		LOG(logINFO) << "removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+	}
 
 	try {
 		ep.libDestroy();

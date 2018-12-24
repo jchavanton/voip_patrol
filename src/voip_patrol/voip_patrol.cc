@@ -19,6 +19,11 @@
 #include "voip_patrol.hh"
 #include "action.hh"
 #define THIS_FILE "voip_patrol.cpp"
+#include <pjsua2/account.hpp>
+#include <pjsua2/call.hpp>
+#include <pjsua2/endpoint.hpp>
+#include <pj/ctype.h>
+#include "util.hpp"
 
 using namespace pj;
 
@@ -52,6 +57,33 @@ string get_call_state_string (call_state_t state) {
 /*
  * TestCall implementation
  */
+
+struct call_param {
+	pjsua_msg_data      msg_data;
+	pjsua_msg_data     *p_msg_data;
+	pjsua_call_setting  opt;
+	pjsua_call_setting *p_opt;
+	pj_str_t            reason;
+	pj_str_t           *p_reason;
+
+public:
+    /**
+     * Default constructors with specified parameters.
+     */
+	call_param(const SipTxOption &tx_option);
+	call_param(const SipTxOption &tx_option, const CallSetting &setting,
+               const string &reason_str);
+};
+
+
+void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm) throw(Error) {
+	pjsua_call_make_call;
+	pj_str_t pj_dst_uri = str2Pj(dst_uri);
+	call_param param(prm.txOption, prm.opt, prm.reason);
+	int id = Call::getId();
+	PJSUA2_CHECK_EXPR( pjsua_call_make_call(acc->getId(), &pj_dst_uri,
+		param.p_opt, this, param.p_msg_data, &id) );
+}
 
 TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 	test = NULL;

@@ -296,6 +296,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->code = code;
 }
 
+
 void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string type {"call"};
 	string play {default_playback_file};

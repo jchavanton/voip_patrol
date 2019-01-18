@@ -867,7 +867,7 @@ int main(int argc, char **argv){
 		std::string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
 			std::cout <<"\n"<< argv[0] <<"                                \n"\
-            " -v --vesion                       voip_patrol version       \n"\
+            " -v --version                      voip_patrol version       \n"\
             " --log-level-file <0-10>           file log level            \n"\
             " --log-level-console <0-10>        console log level         \n"\
             " -p --port <5060>                  local port                \n"\

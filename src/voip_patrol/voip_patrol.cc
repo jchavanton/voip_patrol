@@ -187,6 +187,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"mos_lq\": "+to_string(mos_rx)+"} "
 						"}";
 		test->rtp_stats_ready = true;
+		test->update_result();
 	} catch (pj::Error e)  {
 			LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 	}
@@ -460,6 +461,7 @@ void Test::update_result() {
 		state = VPT_DONE;
 		std::string res = "FAIL";
 
+		LOG(logINFO)<<__FUNCTION__<<"\n";
 		if (min_mos > 0 && mos == 0) {
 				return;
 		}
@@ -515,7 +517,7 @@ void Test::update_result() {
 			result_line_json += "," + rtp_stats_json;
 		result_line_json += "}}";
 		config->result_file.write(result_line_json);
-		LOG(logINFO)<<"["<<now<<"]" << result_line_json;
+		LOG(logINFO)<<__FUNCTION__<<"["<<now<<"]" << result_line_json;
 		config->result_file.flush();
 
 		LOG(logINFO)<<" ["<<type<<"]"<<endl;

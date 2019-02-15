@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <pj/file_access.h>
 #include "ezxml/ezxml.h"
 #include "curl/email.h"
@@ -186,6 +187,7 @@ class Test {
 		bool queued;
 	private:
 		Config *config;
+		std::mutex process_result;
 };
 
 class VoipPatrolEnpoint : public Endpoint {

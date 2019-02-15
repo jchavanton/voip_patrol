@@ -139,6 +139,10 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 	LOG(logDEBUG) <<__FUNCTION__<<": idx["<<prm.streamIdx<<"]";
 	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
 	pjmedia_stream_info *pj_stream_info;
+
+	CallInfo ci = getInfo();
+	if  (ci.state == PJSIP_INV_STATE_EARLY) return;
+
 	try {
 		StreamStat const &stats = getStreamStat(prm.streamIdx);
 		RtcpStat rtcp = stats.rtcp;
@@ -433,6 +437,7 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 	rtp_stats_ready=false;
 	rtp_stats=false;
 	queued=false;
+	completed=false;
 	LOG(logINFO)<<__FUNCTION__<<LOG_COLOR_INFO<<": New test created:"<<type<<LOG_COLOR_END;
 }
 
@@ -472,6 +477,13 @@ void Test::update_result() {
 			config->tests_with_rtp_stats.push_back(this);
 			return;
 		}
+		std::lock_guard<std::mutex> lock(process_result);
+		if (completed) {
+			LOG(logINFO)<<__FUNCTION__<<"["<<this<<"]"<<" already completed\n";
+			return;
+		}
+		LOG(logINFO)<<__FUNCTION__<<"["<<this<<"]"<<"  completing\n";
+		completed = true;
 
 		if (expected_duration && expected_duration != connect_duration) {
 			success=false;

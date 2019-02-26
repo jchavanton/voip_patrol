@@ -470,7 +470,7 @@ void Test::update_result() {
 		if (min_mos > 0 && mos == 0) {
 				return;
 		}
-		if (rtp_stats && !rtp_stats_ready) {
+		if (rtp_stats && !rtp_stats_ready && result_cause_code < 300) {
 			LOG(logINFO)<<__FUNCTION__<<" push_back rtp_stats";
 			if (queued) return;
 			queued = true;

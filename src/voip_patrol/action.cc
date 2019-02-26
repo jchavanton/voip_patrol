@@ -86,6 +86,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("timer", false, APType::apt_string));
+	do_call_params.push_back(ActionParam("proxy", false, APType::apt_string));
 	// do_register
 	do_register_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("label", false, APType::apt_string));
@@ -309,6 +310,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string password {};
 	string realm {};
 	string label {};
+	string proxy {};
 	int expected_cause_code {200};
 	call_state_t wait_until {INV_STATE_NULL};
 	float min_mos {0.0};
@@ -331,6 +333,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("realm") == 0) realm = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
+		else if (param.name.compare("proxy") == 0) proxy = param.s_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
@@ -351,6 +354,8 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	TestAccount* acc = config->findAccount(caller);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		if (!proxy.empty())
+			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		if (!timer.empty()) {
 			if (timer.compare("inactive")) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;

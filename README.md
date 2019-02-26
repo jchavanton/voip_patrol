@@ -248,6 +248,7 @@ config>
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
+| proxy | string | ip/hostname of a proxy where to send the call |
 
 ### register command parameters (partial list)
 

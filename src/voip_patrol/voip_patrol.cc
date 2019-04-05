@@ -399,13 +399,16 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		prm.statusCode = PJSIP_SC_OK;
 	}
 
+	for (auto x_hdr : x_headers) {
+		prm.txOption.headers.push_back(x_hdr);
+	}
+
 	if (ring_duration > 0) {
 			prm.statusCode = PJSIP_SC_RINGING;
 			if (early_media)
 				prm.statusCode = PJSIP_SC_PROGRESS;
 	} else {
 		if (reason.size() > 0) prm.reason = reason;
-		if (code) prm.statusCode = (pjsip_status_code) code;
 	}
 	call->answer(prm);
 }
@@ -718,6 +721,13 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				LOG(logERROR) <<__FUNCTION__<<" invalid action !";
 				continue;
 			}
+			SipHeaderVector x_hdrs = SipHeaderVector();
+			for (xml_xhdr = ezxml_child(xml_action, "x-header"); xml_xhdr; xml_xhdr=xml_xhdr->next) {
+				SipHeader sh = SipHeader();
+				sh.hName = ezxml_attr(xml_xhdr, "name");
+				sh.hValue = ezxml_attr(xml_xhdr, "value");
+				x_hdrs.push_back(sh);
+			}
 			string action_type = ezxml_attr(xml_action,"type");;
 			LOG(logINFO) <<__FUNCTION__<< " ===> action/" << action_type;
 			vector<ActionParam> params = action.get_params(action_type);
@@ -729,18 +739,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
-			else if ( action_type.compare("call") == 0 ) {
-				SipHeaderVector x_hdrs = SipHeaderVector();
-				for (xml_xhdr = ezxml_child(xml_action, "x-header"); xml_xhdr; xml_xhdr=xml_xhdr->next) {
-					SipHeader sh = SipHeader();
-					sh.hName = ezxml_attr(xml_xhdr, "name");
-					sh.hValue = ezxml_attr(xml_xhdr, "value");
-					x_hdrs.push_back(sh);
-				}
-				action.do_call(params, x_hdrs);
-			}
-			else if ( action_type.compare("accept") == 0 ) action.do_accept(params);
-			else if ( action_type.compare("register") == 0 ) action.do_register(params);
+			else if ( action_type.compare("call") == 0 ) action.do_call(params, x_hdrs);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, x_hdrs);
+			else if ( action_type.compare("register") == 0 ) action.do_register(params, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 		}
 	}

@@ -214,6 +214,7 @@ class TestAccount : public Account {
 		int response_delay;
 		bool rtp_stats;
 		bool early_media;
+		SipHeaderVector x_headers;
 		string play;
 		string play_dtmf;
 		string timer;

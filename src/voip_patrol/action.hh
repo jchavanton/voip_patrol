@@ -49,9 +49,9 @@ class Action {
 			bool set_param(ActionParam&, const char *val);
 			bool set_param_by_name(vector<ActionParam> *params, const string name, const char *val=nullptr);
 			void do_call(vector<ActionParam> &params, pj::SipHeaderVector &x_headers);
-			void do_accept(vector<ActionParam> &params);
+			void do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_headers);
 			void do_wait(vector<ActionParam> &params);
-			void do_register(vector<ActionParam> &params);
+			void do_register(vector<ActionParam> &params, pj::SipHeaderVector &x_headers);
 			void do_alert(vector<ActionParam> &params);
 			void set_config(Config *);
 			Config* get_config();

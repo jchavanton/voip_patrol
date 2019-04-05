@@ -123,7 +123,7 @@ void Action::init_actions_params() {
 	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
 }
 
-void Action::do_register(vector<ActionParam> &params) {
+void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string type {"register"};
 	string transport {};
 	string label {};
@@ -167,6 +167,9 @@ void Action::do_register(vector<ActionParam> &params) {
 	sh.hName = "User-Agent";
 	sh.hValue = "<voip_patrol>";
 	acc_cfg.regConfig.headers.push_back(sh);
+	for (auto x_hdr : x_headers) {
+		acc_cfg.regConfig.headers.push_back(x_hdr);
+	}
 
 	acc_cfg.sipConfig.transportId = config->transport_id_udp;
 	if (!transport.empty()) {
@@ -206,7 +209,7 @@ void Action::do_register(vector<ActionParam> &params) {
 	acc->setTest(test);
 }
 
-void Action::do_accept(vector<ActionParam> &params) {
+void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_headers) {
 	string type {"accept"};
 	string account_name {};
 	string transport {};
@@ -295,6 +298,7 @@ void Action::do_accept(vector<ActionParam> &params) {
 	acc->wait_state = wait_until;
 	acc->reason = reason;
 	acc->code = code;
+	acc->x_headers = x_headers;
 }
 
 

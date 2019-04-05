@@ -365,7 +365,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
-	LOG(logINFO) <<__FUNCTION__<<": ["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<":"<<" ["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
 	if (!call->test) {
 		string type("accept");
 		LOG(logINFO)<<__FUNCTION__<<": max call duration["<< hangup_duration <<"]";
@@ -393,7 +393,12 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	calls.push_back(call);
 	config->calls.push_back(call);
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
-	prm.statusCode = PJSIP_SC_OK;
+	if (code  >= 100 && code <= 699) {
+		prm.statusCode = (pjsip_status_code) code;
+	} else {
+		prm.statusCode = PJSIP_SC_OK;
+	}
+
 	if (ring_duration > 0) {
 			prm.statusCode = PJSIP_SC_RINGING;
 			if (early_media)

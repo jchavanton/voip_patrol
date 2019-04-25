@@ -76,12 +76,21 @@ public:
 };
 
 
-void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm) throw(Error) {
+
+void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error) {
 	pjsua_call_make_call;
-	pj_str_t pj_dst_uri = str2Pj(dst_uri);
+	pj_str_t pj_to_uri = str2Pj(dst_uri);
 	call_param param(prm.txOption, prm.opt, prm.reason);
+
+	if (!to_uri.empty()) {
+		pjsua_msg_data_init(&param.msg_data);
+		param.p_msg_data = &param.msg_data;
+		param.p_msg_data->target_uri = str2Pj(dst_uri);
+		pj_to_uri = str2Pj(to_uri);
+	}
+
 	int id = Call::getId();
-	PJSUA2_CHECK_EXPR( pjsua_call_make_call(acc->getId(), &pj_dst_uri,
+	PJSUA2_CHECK_EXPR( pjsua_call_make_call(acc->getId(), &pj_to_uri,
 		param.p_opt, this, param.p_msg_data, &id) );
 }
 

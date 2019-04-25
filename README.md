@@ -66,6 +66,7 @@ cd ..
             expected_cause_code="200"
             caller="15147371787@noreply.com"
             callee="12012665228@target.com"
+            to_uri="+12012665228@target.com"
             max_duration="20" hangup="16"
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
@@ -251,6 +252,10 @@ config>
 | ---- | ---- | ----------- |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | proxy | string | ip/hostname of a proxy where to send the call |
+| caller | string | From header user@host |
+| callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
+| to_uri | string | used@host part of the URI in the To header |
+
 
 ### register command parameters (partial list)
 

@@ -72,6 +72,7 @@ void Action::init_actions_params() {
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("callee", true, APType::apt_string));
+	do_call_params.push_back(ActionParam("to_uri", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("label", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("username", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("password", false, APType::apt_string));
@@ -309,6 +310,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string timer {};
 	string caller {};
 	string callee {};
+	string to_uri {};
 	string transport {};
 	string username {};
 	string password {};
@@ -329,6 +331,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	for (auto param : params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
+		else if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
 		else if (param.name.compare("play_dtmf") == 0 && param.s_val.length() > 0) play_dtmf = param.s_val;
@@ -444,19 +447,19 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		LOG(logINFO) << "calling :" +callee;
 		if (transport.compare("tls") == 0) {
 			try {
-				call->makeCall("sips:"+callee, prm);
+				call->makeCall("sips:"+callee, prm, "sips:"+to_uri);
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else if (transport.compare("tcp") == 0) {
 			try {
-				call->makeCall("sip:"+callee+";transport=tcp", prm);
+				call->makeCall("sip:"+callee+";transport=tcp", prm, "sip:"+to_uri+";transport=tcp");
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else {
 			try {
-				call->makeCall("sip:"+callee, prm);
+				call->makeCall("sip:"+callee, prm, "sip:"+to_uri);
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}

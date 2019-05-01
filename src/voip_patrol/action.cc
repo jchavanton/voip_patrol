@@ -446,20 +446,26 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
 		if (transport.compare("tls") == 0) {
+			if (!to_uri.empty())
+					to_uri = "sips:"+to_uri;
 			try {
-				call->makeCall("sips:"+callee, prm, "sips:"+to_uri);
+				call->makeCall("sips:"+callee, prm, to_uri);
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else if (transport.compare("tcp") == 0) {
+			if (!to_uri.empty())
+					to_uri = "sip:"+to_uri+";transport=tcp";
 			try {
-				call->makeCall("sip:"+callee+";transport=tcp", prm, "sip:"+to_uri+";transport=tcp");
+				call->makeCall("sip:"+callee+";transport=tcp", prm, to_uri);
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else {
+			if (!to_uri.empty())
+					to_uri = "sip:"+to_uri;
 			try {
-				call->makeCall("sip:"+callee, prm, "sip:"+to_uri);
+				call->makeCall("sip:"+callee, prm, to_uri);
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}

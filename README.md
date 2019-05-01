@@ -252,7 +252,8 @@ config>
 | ---- | ---- | ----------- |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | proxy | string | ip/hostname of a proxy where to send the call |
-| caller | string | From header user@host |
+| caller | string | From header user@host, only used if from it not specified |
+| from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
 

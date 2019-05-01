@@ -71,6 +71,7 @@ bool Action::set_param_by_name(vector<ActionParam> *params, const string name, c
 void Action::init_actions_params() {
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
+	do_call_params.push_back(ActionParam("from", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("callee", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("to_uri", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("label", false, APType::apt_string));
@@ -309,6 +310,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	string play_dtmf {};
 	string timer {};
 	string caller {};
+	string from {};
 	string callee {};
 	string to_uri {};
 	string transport {};
@@ -331,6 +333,7 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 	for (auto param : params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
+		else if (param.name.compare("from") == 0) from = param.s_val;
 		else if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("play") == 0 && param.s_val.length() > 0) play = param.s_val;
@@ -391,6 +394,8 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		} else {
 			acc_cfg.idUri = "sip:" + caller;
 		}
+		if (!from.empty())
+			acc_cfg.idUri = from;
 		if (!realm.empty()) {
 			if (username.empty() || password.empty()) {
 				if (username.empty()) LOG(logERROR) <<__FUNCTION__<< ": realm specified missing username";

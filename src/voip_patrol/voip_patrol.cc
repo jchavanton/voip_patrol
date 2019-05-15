@@ -259,11 +259,14 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	std::string remote_user("");
 	std::string local_user("");
 	std::size_t pos = ci.localUri.find("@");
+	LOG(logINFO) <<__FUNCTION__<<": ["<< ci.localUri <<"]\n";
 	if (ci.localUri[0] == '<')
 		uri_prefix++;
 	if (pos!=std::string::npos) {
 		local_user = ci.localUri.substr(uri_prefix, pos - uri_prefix);
 	}
+	test->remote_uri = ci.remoteUri;
+	test->local_uri = ci.localUri;
 	pos = ci.remoteUri.find("@");
 	uri_prefix = 3;
 	if (ci.remoteUri[0] != '<')
@@ -383,8 +386,12 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->max_duration = max_duration;
 		call->test->ring_duration = ring_duration;
 		call->test->expected_cause_code = 200;
+		LOG(logINFO)<<__FUNCTION__<<": local["<< ci.localUri <<"]";
+
 		call->test->local_user = ci.localUri;
+		call->test->local_uri = ci.localUri;
 		call->test->remote_user = ci.remoteUri;
+		call->test->remote_uri = ci.remoteUri;
 		call->test->label = accept_label;
 		call->test->sip_call_id = ci.callIdString;
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
@@ -513,8 +520,10 @@ void Test::update_result() {
 
 		// JSON report
 		string jsonFrom = local_user;
+		string jsonLocalUri = local_uri;
 		jsonify(&jsonFrom);
 		string jsonTo = remote_user;
+		string jsonRemoteUri = remote_uri;
 		jsonify(&jsonTo);
 		string jsonCallid = sip_call_id;
 		jsonify(&jsonCallid);
@@ -529,6 +538,8 @@ void Test::update_result() {
 							"\"action\": \""+type+"\", "
 							"\"from\": \""+jsonFrom+"\", "
 							"\"to\": \""+jsonTo+"\", "
+							"\"local_uri\": \""+jsonLocalUri+"\", "
+							"\"remote_uri\": \""+jsonRemoteUri+"\", "
 							"\"result\": \""+res+"\", "
 							"\"expected_cause_code\": "+std::to_string(expected_cause_code)+", "
 							"\"cause_code\": "+std::to_string(result_cause_code)+", "

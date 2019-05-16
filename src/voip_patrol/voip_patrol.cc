@@ -538,8 +538,7 @@ void Test::update_result() {
 							"\"action\": \""+type+"\", "
 							"\"from\": \""+jsonFrom+"\", "
 							"\"to\": \""+jsonTo+"\", "
-							"\"local_uri\": \""+jsonLocalUri+"\", "
-							"\"remote_uri\": \""+jsonRemoteUri+"\", "
+
 							"\"result\": \""+res+"\", "
 							"\"expected_cause_code\": "+std::to_string(expected_cause_code)+", "
 							"\"cause_code\": "+std::to_string(result_cause_code)+", "
@@ -553,6 +552,14 @@ void Test::update_result() {
 							"\"hangup_duration\": "+std::to_string(hangup_duration);
 		if (dtmf_recv.length() > 0)
 			result_line_json += ", \"dtmf_recv\": \""+dtmf_recv+"\"";
+
+
+		result_line_json += ", \"call_info\":{"
+							"\"local_uri\": \""+jsonLocalUri+"\", "
+							"\"remote_uri\": \""+jsonRemoteUri+"\" "
+							"}";
+
+
 		if (rtp_stats && rtp_stats_ready)
 			result_line_json += "," + rtp_stats_json;
 		result_line_json += "}}";

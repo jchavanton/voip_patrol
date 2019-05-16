@@ -167,8 +167,10 @@ class Test {
 		void get_mos();
 		std::string local_user;
 		std::string local_uri;
+		std::string local_contact;
 		std::string remote_user;
 		std::string remote_uri;
+		std::string remote_contact;
 		std::string call_direction;
 		std::string sip_call_id;
 		std::string label;

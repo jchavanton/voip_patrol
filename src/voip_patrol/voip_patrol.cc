@@ -267,6 +267,8 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	}
 	test->remote_uri = ci.remoteUri;
 	test->local_uri = ci.localUri;
+	test->remote_contact = ci.remoteContact;
+	test->local_contact = ci.localContact;
 	pos = ci.remoteUri.find("@");
 	uri_prefix = 3;
 	if (ci.remoteUri[0] != '<')
@@ -520,11 +522,17 @@ void Test::update_result() {
 
 		// JSON report
 		string jsonFrom = local_user;
-		string jsonLocalUri = local_uri;
 		jsonify(&jsonFrom);
+		string jsonLocalUri = local_uri;
+		jsonify(&jsonLocalUri);
+		string jsonLocalContact = local_contact;
+		jsonify(&jsonLocalContact);
 		string jsonTo = remote_user;
-		string jsonRemoteUri = remote_uri;
 		jsonify(&jsonTo);
+		string jsonRemoteUri = remote_uri;
+		jsonify(&jsonRemoteUri);
+		string jsonRemoteContact = remote_contact;
+		jsonify(&jsonRemoteContact);
 		string jsonCallid = sip_call_id;
 		jsonify(&jsonCallid);
 		string jsonReason = reason;
@@ -556,7 +564,9 @@ void Test::update_result() {
 
 		result_line_json += ", \"call_info\":{"
 							"\"local_uri\": \""+jsonLocalUri+"\", "
-							"\"remote_uri\": \""+jsonRemoteUri+"\" "
+							"\"remote_uri\": \""+jsonRemoteUri+"\", "
+							"\"local_contact\": \""+jsonLocalContact+"\", "
+							"\"remote_contact\": \""+jsonRemoteContact+"\" "
 							"}";
 
 

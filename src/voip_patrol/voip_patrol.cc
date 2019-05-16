@@ -476,6 +476,14 @@ void Test::get_mos() {
 void jsonify(std::string *str) {
 	size_t index = 0;
 	while (true) {
+		index = str->find("\\", index);
+		if (index == std::string::npos) break;
+		std::cout << str->substr(index)  << std::endl;
+		str->replace(index, 1, "\\\\");
+		index += 2;
+	}
+	index = 0;
+	while (true) {
 		index = str->find("\"", index);
 		if (index == std::string::npos) break;
 		std::cout << str->substr(index)  << std::endl;

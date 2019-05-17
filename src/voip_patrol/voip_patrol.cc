@@ -478,7 +478,6 @@ void jsonify(std::string *str) {
 	while (true) {
 		index = str->find("\\", index);
 		if (index == std::string::npos) break;
-		std::cout << str->substr(index)  << std::endl;
 		str->replace(index, 1, "\\\\");
 		index += 2;
 	}
@@ -486,7 +485,6 @@ void jsonify(std::string *str) {
 	while (true) {
 		index = str->find("\"", index);
 		if (index == std::string::npos) break;
-		std::cout << str->substr(index)  << std::endl;
 		str->replace(index, 1, "\\\"");
 		index += 2;
 	}
@@ -908,7 +906,7 @@ int main(int argc, char **argv){
 	int ret = 0;
 
 	pjsip_cfg_t *pjsip_config = pjsip_cfg();
-	std::cout <<"pjsip_config->tsx.t1 :" << pjsip_config->tsx.t1 <<"\n";
+	LOG(logINFO) <<"pjsip_config->tsx.t1 :" << pjsip_config->tsx.t1 <<"\n";
 	// pjsip_config->tsx.t1 = 250;
 	// pjsip_config->tsx.t2 = 250;
 	// pjsip_config->tsx.t4 = 1000;
@@ -931,7 +929,7 @@ int main(int argc, char **argv){
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
-			std::cout <<"\n"<< argv[0] <<"                                \n"\
+			LOG(logINFO) <<"\n"<< argv[0] <<"                                \n"\
             " -v --version                      voip_patrol version       \n"\
             " --log-level-file <0-10>           file log level            \n"\
             " --log-level-console <0-10>        console log level         \n"\
@@ -947,7 +945,7 @@ int main(int argc, char **argv){
 			"                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
-			std::cout <<"version: voip_patrol "<<VERSION<<std::endl;
+			LOG(logINFO) <<"version: voip_patrol "<<VERSION<<std::endl;
 			return 0;
 		} else if ( (arg == "-c") || (arg == "--conf") ) {
 			if (i + 1 < argc) {
@@ -993,10 +991,13 @@ int main(int argc, char **argv){
 		FILE* log_fd = fopen(log_fn.c_str(), "w");
 		Output2FILE::Stream() = log_fd;
 	}
-	std::cout << "\n* * * * * * *\n "
+	if (log_fn.empty()) log_fn = "voip_patrol.log";
+	string log_fn_pjsua = log_fn + ".pjsua";
+	LOG(logINFO) << "\n* * * * * * *\n"
 		"voip_patrol version: "<<VERSION<<"\n"
 		"configuration: "<<conf_fn<<"\n"
-		"log file: "<<log_fn<<"\n"
+		"log file (voip_patrol): "<<log_fn<<"\n"
+		"log file (pjsua): "<<log_fn_pjsua<<"\n"
 		"output file: "<<log_test_fn<<"\n"
 		"* * * * * * *\n";
 
@@ -1007,7 +1008,7 @@ int main(int argc, char **argv){
 		ep_cfg.uaConfig.maxCalls = 1000;
 		ep_cfg.logConfig.level = log_level_file;
 		ep_cfg.logConfig.consoleLevel = log_level_console;
-		std::string pj_log_fn =  "pjsua_" + std::to_string(port) + ".log";
+		std::string pj_log_fn =  log_fn_pjsua;
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;

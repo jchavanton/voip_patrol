@@ -671,12 +671,13 @@ void ResultFile::close() {
  */
 
 Config::Config(string result_fn) : result_file(result_fn), action(this) {
-		tls_cfg.ca_list = "tls/ca_list.pem";
-		tls_cfg.private_key = "tls/key.pem";
-		tls_cfg.certificate = "tls/certificate.pem";
-		tls_cfg.verify_server = 0;
-		tls_cfg.verify_client = 0;
-		json_result_count = 0;
+	tls_cfg.ca_list = "tls/ca_list.pem";
+	tls_cfg.private_key = "tls/key.pem";
+	tls_cfg.certificate = "tls/certificate.pem";
+	tls_cfg.verify_server = 0;
+	tls_cfg.verify_client = 0;
+	json_result_count = 0;
+	graceful_shutdown = false;
 }
 
 void Config::set_output_file(string file_name) {
@@ -942,6 +943,7 @@ int main(int argc, char **argv){
             " --tls-cert <path/file_name>       TLS certificate (pem format) \n"\
             " --tls-verify-server               TLS verify server certificate \n"\
             " --tls-verify-client               TLS verify client certificate \n"\
+	    " --graceful-shutdown               Wait a few seconds when shuting down \n"\
 			"                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -951,6 +953,8 @@ int main(int argc, char **argv){
 			if (i + 1 < argc) {
 				conf_fn = argv[++i];
 			}
+		} else if ( (arg == "--graceful-shutdown") ) {
+			config.graceful_shutdown = true;
 		} else if ( (arg == "--log-level-file") ) {
 			if (i + 1 < argc) {
 				log_level_file = atoi(argv[++i]);
@@ -1066,8 +1070,8 @@ int main(int argc, char **argv){
 		alert.send();
 
 		LOG(logINFO) <<__FUNCTION__<<": hangup all calls..." ;
-		pj_thread_sleep(2000);
-		// ep.hangupAllCalls();
+		if (config.graceful_shutdown) // make sure we terminate transactions, not sure why this was necessary
+			pj_thread_sleep(2000);
 
 		ret = PJ_SUCCESS;
 	} catch (Error &err) {

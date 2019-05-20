@@ -97,6 +97,7 @@ class Config {
 		ezxml_t xml_test;
 		void set_output_file(std::string);
 		bool removeCall(TestCall *call);
+		bool graceful_shutdown;
 		std::string alert_email_to;
 		std::string alert_email_from;
 		std::string alert_server_url;

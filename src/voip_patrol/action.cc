@@ -194,7 +194,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 		LOG(logINFO) <<__FUNCTION__<< " SIPS URI Scheme";
 	} else {
 		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
-		acc_cfg.idUri = "sip:" + account_name + "@" + registrar;
+		acc_cfg.idUri = "sip:vp@" + registrar;
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);

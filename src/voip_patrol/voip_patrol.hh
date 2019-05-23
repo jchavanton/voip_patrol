@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <vector>
 #include <mutex>
 #include <pj/file_access.h>
 #include "ezxml/ezxml.h"
@@ -98,6 +99,7 @@ class Config {
 		void set_output_file(std::string);
 		bool removeCall(TestCall *call);
 		bool graceful_shutdown;
+		bool rewrite_ack_transport;
 		std::string alert_email_to;
 		std::string alert_email_from;
 		std::string alert_server_url;

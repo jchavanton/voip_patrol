@@ -17,13 +17,15 @@
  */
 
 #include "voip_patrol.hh"
+#include "mod_voip_patrol.hh"
 #include "action.hh"
-#define THIS_FILE "voip_patrol.cpp"
+#define THIS_FILE "voip_patrol.cc"
 #include <pjsua2/account.hpp>
 #include <pjsua2/call.hpp>
 #include <pjsua2/endpoint.hpp>
 #include <pj/ctype.h>
 #include "util.hpp"
+#include <pjsua-lib/pjsua_internal.h>
 
 using namespace pj;
 
@@ -678,6 +680,7 @@ Config::Config(string result_fn) : result_file(result_fn), action(this) {
 	tls_cfg.verify_client = 0;
 	json_result_count = 0;
 	graceful_shutdown = false;
+	rewrite_ack_transport = false;
 }
 
 void Config::set_output_file(string file_name) {
@@ -943,7 +946,8 @@ int main(int argc, char **argv){
             " --tls-cert <path/file_name>       TLS certificate (pem format) \n"\
             " --tls-verify-server               TLS verify server certificate \n"\
             " --tls-verify-client               TLS verify client certificate \n"\
-	    " --graceful-shutdown               Wait a few seconds when shuting down \n"\
+            " --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent \n"\
+            " --graceful-shutdown               Wait a few seconds when shuting down \n"\
 			"                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -955,6 +959,8 @@ int main(int argc, char **argv){
 			}
 		} else if ( (arg == "--graceful-shutdown") ) {
 			config.graceful_shutdown = true;
+		} else if ( (arg == "--rewrite-ack-transport") ) {
+			config.rewrite_ack_transport = true;
 		} else if ( (arg == "--log-level-file") ) {
 			if (i + 1 < argc) {
 				log_level_file = atoi(argv[++i]);
@@ -1008,6 +1014,13 @@ int main(int argc, char **argv){
 	TransportConfig tcfg;
 	try {
 		ep.libCreate();
+		if (config.rewrite_ack_transport) {
+			/* Register stateless server module */
+			pj_status_t status = -1;
+			struct pjsua_data* pjsua_var = pjsua_get_var();
+			status = pjsip_endpt_register_module(pjsua_var->endpt, &mod_voip_patrol);
+			PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+		}
 		EpConfig ep_cfg;
 		ep_cfg.uaConfig.maxCalls = 1000;
 		ep_cfg.logConfig.level = log_level_file;

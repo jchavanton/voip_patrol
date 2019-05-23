@@ -17,11 +17,13 @@ set(EZXML_SRCS
 include_directories("${SRC_DIR}")
 
 set(VOIP_PATROL_SRCS_CPP
+	${VOIP_PATROL_SRC_DIR}/mod_voip_patrol.cc
 	${VOIP_PATROL_SRC_DIR}/voip_patrol.cc
 	${VOIP_PATROL_SRC_DIR}/action.cc
 )
 
 set(VOIP_PATROL_SRCS_C
+
 )
 
 include_directories(${ROOT_DIR}/pjsua/pjmedia/include)

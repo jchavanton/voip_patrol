@@ -20,8 +20,6 @@
 #define VOIP_PATROL_ACTION_H
 
 #include "voip_patrol.hh"
-#include <iostream>
-#include <vector>
 #include <pjsua2.hpp>
 
 class Config;

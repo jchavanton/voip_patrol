@@ -926,6 +926,8 @@ int main(int argc, char **argv){
 	int log_level_console = 2;
 	int log_level_file = 10;
 	Config config(log_test_fn);
+	bool tcp_only = false;
+	bool udp_only = false;
 
 	ep.config = &config;
 
@@ -948,6 +950,7 @@ int main(int argc, char **argv){
             " --tls-verify-client               TLS verify client certificate \n"\
             " --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent \n"\
             " --graceful-shutdown               Wait a few seconds when shuting down \n"\
+            " --tcp / --udp                     Only listen to TCP/UDP    \n"\
 			"                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -959,6 +962,10 @@ int main(int argc, char **argv){
 			}
 		} else if ( (arg == "--graceful-shutdown") ) {
 			config.graceful_shutdown = true;
+		} else if ( (arg == "--tcp") ) {
+			tcp_only = true;
+		} else if ( (arg == "--udp") ) {
+			udp_only = true;
 		} else if ( (arg == "--rewrite-ack-transport") ) {
 			config.rewrite_ack_transport = true;
 		} else if ( (arg == "--log-level-file") ) {
@@ -1011,6 +1018,11 @@ int main(int argc, char **argv){
 		"output file: "<<log_test_fn<<"\n"
 		"* * * * * * *\n";
 
+	if (udp_only && tcp_only) {
+		udp_only = false;
+		tcp_only = false;
+	}
+
 	TransportConfig tcfg;
 	try {
 		ep.libCreate();
@@ -1034,33 +1046,40 @@ int main(int argc, char **argv){
 		ep.libInit( ep_cfg );
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
-		// TCP and UDP transports
+		tcfg.port = port;
+		config.transport_id_tcp = -1;
+		config.transport_id_udp = -1;
 
-		tcfg.port = port;
-		config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
-		tcfg.port = port;
-		config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+		// TCP and UDP transports
+		if (!udp_only) {
+			config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
+		}
+		if (!tcp_only) {
+			config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+		}
 	} catch (Error & err) {
 		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;
 		return 1;
 	}
 
-	try {
-		// TLS transport
-		tcfg.port = port+1;
-		// Optional, set CA/certificate/private key files.
-		tcfg.tlsConfig.CaListFile = config.tls_cfg.ca_list;
-		tcfg.tlsConfig.certFile = config.tls_cfg.certificate;
-		tcfg.tlsConfig.privKeyFile = config.tls_cfg.private_key;
-		tcfg.tlsConfig.verifyServer = config.tls_cfg.verify_server;
-		tcfg.tlsConfig.verifyClient = config.tls_cfg.verify_client;
-		// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
-		// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
-		config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
-		LOG(logINFO) <<__FUNCTION__<<": TLS supported :"<< config.tls_cfg.certificate;
-	} catch (Error & err) {
-		config.transport_id_tls = -1;
-		LOG(logINFO) <<__FUNCTION__<<": Exception: TLS not supported, see README. " << err.info() ;
+	if (!udp_only) {
+		try {
+			// TLS transport
+			tcfg.port = port+1;
+			// Optional, set CA/certificate/private key files.
+			tcfg.tlsConfig.CaListFile = config.tls_cfg.ca_list;
+			tcfg.tlsConfig.certFile = config.tls_cfg.certificate;
+			tcfg.tlsConfig.privKeyFile = config.tls_cfg.private_key;
+			tcfg.tlsConfig.verifyServer = config.tls_cfg.verify_server;
+			tcfg.tlsConfig.verifyClient = config.tls_cfg.verify_client;
+			// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
+			// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
+			config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
+			LOG(logINFO) <<__FUNCTION__<<": TLS supported :"<< config.tls_cfg.certificate;
+		} catch (Error & err) {
+			config.transport_id_tls = -1;
+			LOG(logINFO) <<__FUNCTION__<<": Exception: TLS not supported, see README. " << err.info() ;
+		}
 	}
 
 	try {

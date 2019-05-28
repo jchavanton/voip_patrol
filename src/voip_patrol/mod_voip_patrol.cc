@@ -9,6 +9,8 @@ pj_status_t vp_on_tx_msg(pjsip_tx_data *tdata) {
 	 *  has lower priority than transport layer.
 	 */
 
+
+	// Curently the logic is simply to strip the transport to reproduce some broken carrier, this should evolve to be controled using PCRE
 	pjsip_sip_uri *sip_uri = (pjsip_sip_uri*)tdata->msg->line.req.uri;
 	LOG(logINFO) <<__FUNCTION__<<":"<< sip_uri->host.ptr <<" " << sip_uri->transport_param.ptr << "\n" ;
 
@@ -19,14 +21,29 @@ pj_status_t vp_on_tx_msg(pjsip_tx_data *tdata) {
 	buff.slen = tdata->buf.cur - tdata->buf.start;
 
 	LOG(logINFO) <<__FUNCTION__<<">>>> :"<<buff.slen <<" "<< sip_uri->host.ptr <<" " << sip_uri->transport_param.ptr << "\n" ;
+	char packet[PJSIP_MAX_PKT_LEN];
+	packet[0] = '\0';
+	char *packet_ptr = packet;
 
 	char *m = tdata->buf.start;
 	const char t[12] = ";transport=";
 	if (m[0] == 'A') {
 		char *ret = strstr(m, t);
-		while (ret && ret[0] != 'S' && ret[1] != 'I') {
-			ret[0] = ' ';
-			ret++;
+		if (ret) {
+			memcpy(packet_ptr, tdata->buf.start, ret - tdata->buf.start);
+			packet_ptr += ret - tdata->buf.start;
+			*packet_ptr = ' ';
+			packet_ptr++;
+			while (ret && ret[0] != 'S' && ret[1] != 'I') {
+				ret[0] = ' ';
+				ret++;
+			}
+			memcpy(packet_ptr, ret, tdata->buf.cur - ret);
+			packet_ptr +=  tdata->buf.cur - ret;
+			tdata->buf.cur = tdata->buf.start;
+			memcpy(tdata->buf.cur, packet, packet_ptr - packet);
+			tdata->buf.cur += (packet_ptr - packet);
+//			LOG(logINFO) <<__FUNCTION__<<">>OUT>> :\n" << tdata->buf.start << "\n" ;
 		}
 	}
 

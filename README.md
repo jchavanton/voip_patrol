@@ -235,6 +235,51 @@ config>
 </config>
 ```
 
+### Example: making a test call and blind transferring
+```xml
+<config>
+  <actions>
+    <action type="call" label="us-east-va"
+            transport="tls"
+            expected_cause_code="200"
+            caller="15147371787@noreply.com"
+            callee="12012665228@target.com"
+            to_uri="+12012665228@target.com"
+            max_duration="20" hangup="16"
+            username="VP_ENV_USERNAME"
+            password="VP_ENV_PASSWORD"
+            realm="target.com"
+            rtp_stats
+    >
+        <x-header name="X-Foo" value="Bar"/>
+    </action>
+    <!-- note: blind_transfer (and attended_transfer) inherit variables from initial call -->
+    <action type="transfer" transfer_type="blind" to_uri="12012665228@target.com"/>
+  </actions>
+</config>
+```
+
+### Example: receiving a test call and attended transferring
+```xml
+<config>
+  <actions>
+     <!-- note: default is the "catch all" account,
+          else account as to match called number -->
+    <action type="accept"
+            account="default"
+            hangup="5"
+            play_dtmf="0123456789#*"
+            play="voice_ref_files/f.wav"
+            code="200" reason="YES"
+            ring_duration="5"
+    />
+    <!-- note: attended_transfer (and blind_transfer) inherit variables from initial call -->
+               forever and generate test results -->
+    <action type="transfer" transfer_type="attended" to_uri="12012665228@target.com"/>
+  </actions>
+</config>
+```
+
 ### accept command parameters (partial list)
 
 | Name | Type | Description | 

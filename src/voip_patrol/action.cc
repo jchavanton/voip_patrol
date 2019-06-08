@@ -30,6 +30,7 @@ vector<ActionParam> Action::get_params(string name) {
 	if (name.compare("wait") == 0) return do_wait_params;
 	if (name.compare("accept") == 0) return do_accept_params;
 	if (name.compare("alert") == 0) return do_alert_params;
+	if (name.compare("transfer") == 0) return do_transfer_params;
 	vector<ActionParam> empty_params;
 	return empty_params;
 }
@@ -123,6 +124,9 @@ void Action::init_actions_params() {
 	do_alert_params.push_back(ActionParam("email", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("email_from", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
+	// do_transfer
+	do_transfer_params.push_back(ActionParam("blind", false, APType::apt_bool));
+	do_transfer_params.push_back(ActionParam("attended", false, APType::apt_bool));
 }
 
 void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers) {
@@ -602,6 +606,111 @@ void Action::do_wait(vector<ActionParam> &params) {
 
 			completed = true;
 			LOG(logINFO) <<__FUNCTION__<<": completed";
+		}
+	}
+}
+
+void Action::do_transfer(vector<ActionParam> &params) {
+	bool completed = false;
+	int tests_running = 0;
+	bool status_update = true;
+	bool complete_all = false;
+
+	bool blind {false};
+	bool attended {false};
+	string to_uri {};
+
+	for (auto param : params) {
+		if (param.name.compare("blind") == 0) blind = param.b_val;
+		if (param.name.compare("attended") == 0) attended = param.b_val;
+		if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
+	}
+
+	if (!blind && !attended ) {
+		LOG(logERROR) <<__FUNCTION__<<": missing action parameters for transfer type or blind or attended" ;
+		return;
+	}
+
+	while (!completed) {
+		for (auto & account : config->accounts) {
+			AccountInfo acc_inf = account->getInfo();
+			if (account->test && account->test->state == VPT_DONE){
+				delete account->test;
+				account->test = NULL;
+			} else if (account->test) {
+				tests_running++;
+			}
+		}
+
+		for (auto & call : config->calls) {
+			if (call->test && call->test->state == VPT_DONE){
+				//CallInfo ci = call->getInfo();
+				//if (ci.state == PJSIP_INV_STATE_DISCONNECTED)
+				//LOG(logINFO) << "delete call test["<<call->test<<"] = " << config->removeCall(call);
+				continue;
+			} else if (call->test) {
+				CallInfo ci = call->getInfo();
+				if (status_update) {
+					LOG(logDEBUG) <<__FUNCTION__<<": [call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.connectDuration.sec <<">="<<call->test->hangup_duration<<"]";
+				}
+				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY)  {
+					Test *test = call->test;
+					if (test->ring_duration > 0 && ci.totalDuration.sec >= test->ring_duration) {
+						CallOpParam prm;
+						if (test->reason.size() > 0) prm.reason = test->reason;
+						if (test->code) prm.statusCode = test->code;
+						call->answer(prm);
+					} else if (test->max_calling_duration && test->max_calling_duration <= ci.totalDuration.sec) {
+						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.totalDuration.sec <<">="<<test->max_calling_duration<<"]";
+						CallOpParam prm(true);
+						try {
+							call->hangup(prm);
+						} catch (pj::Error e)  {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
+						}
+					}
+				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
+					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
+					call->test->connect_duration = ci.connectDuration.sec;
+					call->test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
+					call->test->result_cause_code = (int)ci.lastStatusCode;
+					call->test->reason = ci.lastReason;
+					if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
+						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
+							CallOpParam prm(true);
+							LOG(logINFO) << "transfer : call in PJSIP_INV_STATE_CONFIRMED" ;
+							try {
+								if (to_uri.empty() ) {
+									LOG(logERROR) <<__FUNCTION__<<": missing action parameters for to_uri" ;
+									return;
+								}
+								// check transfer_type
+								if (attended) {
+									//call->xferReplaces("sip:"+to_uri, prm);
+									std::string to_uri = "sip:" + std::to_string(to_uri);
+									LOG(logERROR) <<__FUNCTION__<<": incorrect action parameter. attended type not implemented" ;
+									return;
+								} else if (blind) {
+									call->xfer(to_uri, prm);
+								} else {
+									LOG(logERROR) <<__FUNCTION__<<": incorrect action parameter. Pass either blind or attended" ;
+									return;
+								}
+								
+							} catch (pj::Error e)  {
+								if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+							}
+						}
+						call->test->update_result();
+					}
+				}
+				if (complete_all || call->test->state == VPT_RUN_WAIT)
+					tests_running++;
+			} 
 		}
 	}
 }

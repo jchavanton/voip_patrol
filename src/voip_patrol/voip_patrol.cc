@@ -337,6 +337,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	}
 }
 
+void TestCall::onCallTransferStatus(OnCallTransferStatusParam &prm) {
+
+}
+
 
 /*
  * TestAccount implementation
@@ -790,6 +794,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, x_hdrs);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
+			else if ( action_type.compare("transfer") == 0 ) action.do_transfer(params);
 		}
 	}
 }

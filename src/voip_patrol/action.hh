@@ -51,6 +51,7 @@ class Action {
 			void do_wait(vector<ActionParam> &params);
 			void do_register(vector<ActionParam> &params, pj::SipHeaderVector &x_headers);
 			void do_alert(vector<ActionParam> &params);
+			void do_transfer(vector<ActionParam> &params);
 			void set_config(Config *);
 			Config* get_config();
 	private:
@@ -61,6 +62,7 @@ class Action {
 			vector<ActionParam> do_wait_params;
 			vector<ActionParam> do_accept_params;
 			vector<ActionParam> do_alert_params;
+			vector<ActionParam> do_transfer_params;
 			Config* config;
 };
 

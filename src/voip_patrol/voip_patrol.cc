@@ -78,6 +78,13 @@ public:
 };
 
 
+void TestCall::hangup(const CallOpParam &prm) throw(Error) {
+		if (disconnecting) return;
+		disconnecting = true;
+		LOG(logINFO) <<__FUNCTION__<<": [hangup]";
+		Call::hangup(prm);
+}
+
 
 void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error) {
 	pjsua_call_make_call;
@@ -102,6 +109,7 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 	recorder_id = -1;
 	player_id = -1;
 	role = -1; // Caller 0 | callee 1
+	disconnecting = false;
 }
 
 TestCall::~TestCall() {
@@ -916,6 +924,9 @@ int main(int argc, char **argv){
 	// pjsip_config->tsx.t4 = 1000;
 
 	pjsip_cfg()->endpt.disable_secure_dlg_check = 1;
+	//pjsip_cfg()->tsx.t1 = 100;
+	//pjsip_cfg()->tsx.t2 = 100;
+	//pjsip_cfg()->tsx.t4 = 1000;
 
 	VoipPatrolEnpoint ep;
 
@@ -1008,7 +1019,7 @@ int main(int argc, char **argv){
 		FILE* log_fd = fopen(log_fn.c_str(), "w");
 		Output2FILE::Stream() = log_fd;
 	}
-	if (log_fn.empty()) log_fn = "voip_patrol.log";
+	if (log_fn.empty()) log_fn = log_test_fn;
 	string log_fn_pjsua = log_fn + ".pjsua";
 	LOG(logINFO) << "\n* * * * * * *\n"
 		"voip_patrol version: "<<VERSION<<"\n"
@@ -1025,6 +1036,9 @@ int main(int argc, char **argv){
 
 	TransportConfig tcfg;
 	try {
+//	pjsip_cfg()->tsx.t1 = 100;
+//	pjsip_cfg()->tsx.t2 = 100;
+//	pjsip_cfg()->tsx.t4 = 1000;
 		ep.libCreate();
 		if (config.rewrite_ack_transport) {
 			/* Register stateless server module */
@@ -1111,28 +1125,33 @@ int main(int argc, char **argv){
 		ret = 1;
 	}
 
+	bool disconnecting = true;
+	while (disconnecting) {
+		disconnecting = false;
+		for (auto & call : config.calls) {
+			pjsua_call_info pj_ci;
+			pjsua_call_id call_id;
+			CallInfo ci;
+			pj_status_t status = pjsua_call_get_info(call_id, &pj_ci); 
+			if (status != PJ_SUCCESS) {
+				LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+				continue;
+			}
+			ci.fromPj(pj_ci);
 
-	for (auto & call : config.calls) {
-		pjsua_call_info pj_ci;
-		pjsua_call_id call_id;
-    		CallInfo ci;
-		pj_status_t status = pjsua_call_get_info(call_id, &pj_ci); 
-		if (status != PJ_SUCCESS) {
-			LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
-			continue;
-		}
-		ci.fromPj(pj_ci);	
-
-		CallOpParam prm(true);
-		if (ci.state != PJSIP_INV_STATE_DISCONNECTED) {
-			LOG(logINFO) << "call hangup["<< call <<"] "<< config.removeCall(call);
-			try {
-				call->hangup(prm);
-			} catch (pj::Error e)  {
-				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
+			CallOpParam prm(true);
+			if (ci.state != PJSIP_INV_STATE_DISCONNECTED) {
+				disconnecting = true;
+				try {
+					call->hangup(prm);
+				} catch (pj::Error e)  {
+					LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
+				}
+			} else {
+				LOG(logINFO) << "removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
 			}
 		}
-		LOG(logINFO) << "removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+		pj_thread_sleep(50);
 	}
 
 	try {

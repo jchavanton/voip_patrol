@@ -244,11 +244,13 @@ class TestCall : public Call {
 		virtual void onStreamDestroyed(OnStreamDestroyedParam &prm);
 		virtual void onDtmfDigit(OnDtmfDigitParam &prm);
 		void makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error);
+		void hangup(const CallOpParam &prm) throw(Error);
 		pjsua_recorder_id recorder_id;
 		pjsua_player_id player_id;
 		int role;
 		int rtt;
 	private:
+		bool disconnecting;
 		TestAccount *acc;
 
 };

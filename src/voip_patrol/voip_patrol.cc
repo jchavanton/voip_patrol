@@ -87,7 +87,7 @@ void TestCall::hangup(const CallOpParam &prm) throw(Error) {
 
 
 void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error) {
-	pjsua_call_make_call;
+	// pjsua_call_make_call;
 	pj_str_t pj_to_uri = str2Pj(dst_uri);
 	call_param param(prm.txOption, prm.opt, prm.reason);
 
@@ -919,14 +919,8 @@ int main(int argc, char **argv){
 
 	pjsip_cfg_t *pjsip_config = pjsip_cfg();
 	LOG(logINFO) <<"pjsip_config->tsx.t1 :" << pjsip_config->tsx.t1 <<"\n";
-	// pjsip_config->tsx.t1 = 250;
-	// pjsip_config->tsx.t2 = 250;
-	// pjsip_config->tsx.t4 = 1000;
 
 	pjsip_cfg()->endpt.disable_secure_dlg_check = 1;
-	//pjsip_cfg()->tsx.t1 = 100;
-	//pjsip_cfg()->tsx.t2 = 100;
-	//pjsip_cfg()->tsx.t4 = 1000;
 
 	VoipPatrolEnpoint ep;
 
@@ -939,6 +933,7 @@ int main(int argc, char **argv){
 	Config config(log_test_fn);
 	bool tcp_only = false;
 	bool udp_only = false;
+	int timer_ms = 0;
 
 	ep.config = &config;
 
@@ -953,6 +948,7 @@ int main(int argc, char **argv){
             " -p --port <5060>                  local port                \n"\
             " -c,--conf <conf.xml>              XML scenario file         \n"\
             " -l,--log <logfilename>            voip_patrol log file name \n"\
+            " -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s\n"\
             " -o,--output <result.json>         json result file name     \n"\
             " --tls-calist <path/file_name>     TLS CA list (pem format)     \n"\
             " --tls-privkey <path/file_name>    TLS private key (pem format) \n"\
@@ -970,6 +966,10 @@ int main(int argc, char **argv){
 		} else if ( (arg == "-c") || (arg == "--conf") ) {
 			if (i + 1 < argc) {
 				conf_fn = argv[++i];
+			}
+		} else if ( (arg == "-t") || (arg == "--timer_ms") ) {
+			if (i + 1 < argc) {
+				timer_ms = atoi(argv[++i]);
 			}
 		} else if ( (arg == "--graceful-shutdown") ) {
 			config.graceful_shutdown = true;
@@ -1034,11 +1034,14 @@ int main(int argc, char **argv){
 		tcp_only = false;
 	}
 
+	//pjsip_cfg()->tsx.t1 = 100;
+	//pjsip_cfg()->tsx.t2 = 100;
+	//pjsip_cfg()->tsx.t4 = 1000;
+	if (timer_ms > 0)
+		pjsip_cfg()->tsx.td = timer_ms;
 	TransportConfig tcfg;
 	try {
-//	pjsip_cfg()->tsx.t1 = 100;
-//	pjsip_cfg()->tsx.t2 = 100;
-//	pjsip_cfg()->tsx.t4 = 1000;
+
 		ep.libCreate();
 		if (config.rewrite_ack_transport) {
 			/* Register stateless server module */

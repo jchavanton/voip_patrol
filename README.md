@@ -40,19 +40,23 @@ cd ..
 
 ### run
 ```
-./voip_patrol --help
- -v --vesion                       voip_patrol version
+./voip_patrol
+ -v --version                      voip_patrol version
  --log-level-file <0-10>           file log level
  --log-level-console <0-10>        console log level
  -p --port <5060>                  local port
  -c,--conf <conf.xml>              XML scenario file
  -l,--log <logfilename>            voip_patrol log file name
+ -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s
  -o,--output <result.json>         json result file name
  --tls-calist <path/file_name>     TLS CA list (pem format)
  --tls-privkey <path/file_name>    TLS private key (pem format)
  --tls-cert <path/file_name>       TLS certificate (pem format)
  --tls-verify-server               TLS verify server certificate
  --tls-verify-client               TLS verify client certificate
+ --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent
+ --graceful-shutdown               Wait a few seconds when shuting down
+ --tcp / --udp                     Only listen to TCP/UDP
 ```
 
 

@@ -338,7 +338,25 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 }
 
 void TestCall::onCallTransferStatus(OnCallTransferStatusParam &prm) {
+	PJ_UNUSED_ARG(prm);
+	CallInfo ci = getInfo();
 
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<prm.statusCode<<"]";
+
+	if (prm.statusCode == 200) {
+		LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"] transfer was successfully handled. Hanging up";
+		CallOpParam prm(true);
+		hangup(prm);
+	}
+}
+
+void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
+	PJ_UNUSED_ARG(prm);
+	CallInfo ci = getInfo();
+
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"] call is on hold";
 }
 
 
@@ -1156,5 +1174,3 @@ int main(int argc, char **argv){
 	LOG(logINFO) <<__FUNCTION__<<": Watch completed, exiting  /('l')" ;
 	return ret;
 }
-
-

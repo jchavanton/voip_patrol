@@ -235,49 +235,62 @@ config>
 </config>
 ```
 
-### Example: making a test call and blind transferring
+### Example: making a call and blind transferring
+
 ```xml
 <config>
   <actions>
-    <action type="call" label="us-east-va"
-            transport="tls"
-            expected_cause_code="200"
-            caller="15147371787@noreply.com"
-            callee="12012665228@target.com"
-            to_uri="+12012665228@target.com"
-            max_duration="20" hangup="16"
-            username="VP_ENV_USERNAME"
-            password="VP_ENV_PASSWORD"
-            realm="target.com"
-            rtp_stats
-    >
-        <x-header name="X-Foo" value="Bar"/>
-    </action>
-    <!-- note: blind_transfer (and attended_transfer) inherit variables from initial call -->
-    <action type="transfer" transfer_type="blind" to_uri="12012665228@target.com"/>
+    <action type="accept" label="CALLEE recieves call and blind transfer"
+      account="VP_ENV_CALLEE_USERNAME"
+      wait_until="DISCONNECTED"
+      play="../voice_ref_files/reference_8000.wav"
+      code="200" reason="OK"
+      ring_duration="5"
+      rtp_stats
+    />
+
+    <!-- note: call ends once transfer is complete -->
+    <action type="transfer" blind to_uri="VPN_ENV_TRANSFER_TARGET@VPN_ENV_PROXY"/>
+  </action>
+</config>
+```
+
+### Example: receiving a call and attended transferring
+
+```xml
+<config>
+  <actions>
+    <!-- note: default is the "catch all" account,
+      else account as to match called number -->
+    <action type="accept" label="CALLEE recieves call and blind transfer"
+      account="VP_ENV_CALLEE_USERNAME"
+      wait_until="DISCONNECTED"
+      play="../voice_ref_files/reference_8000.wav"
+      code="200" reason="OK"
+      ring_duration="5"
+      rtp_stats
+    />
+    <!-- note: attended_transfer inherit variables from initial call -->
+    <action type="transfer" attended to_uri="12012665228@target.com"/>
   </actions>
 </config>
 ```
 
-### Example: receiving a test call and attended transferring
-```xml
-<config>
-  <actions>
-     <!-- note: default is the "catch all" account,
-          else account as to match called number -->
-    <action type="accept"
-            account="default"
-            hangup="5"
-            play_dtmf="0123456789#*"
-            play="voice_ref_files/f.wav"
-            code="200" reason="YES"
-            ring_duration="5"
-    />
-    <!-- note: attended_transfer (and blind_transfer) inherit variables from initial call -->
-               forever and generate test results -->
-    <action type="transfer" transfer_type="attended" to_uri="12012665228@target.com"/>
-  </actions>
-</config>
+### Set up environment variables from file
+
+`voip_patrol.env`:
+
+```bash
+VP_ENV_DOMAIN=sip.example.com
+VP_ENV_PROXY=192.168.0.1:5060
+VP_ENV_CALLEE_EXTENSION=1000
+VP_ENV_CALLEE_USERNAME=1000
+VP_ENV_CALLEE_PASSWORD=password
+VP_ENV_TRANSFER_TARGET=15557776666
+```
+
+```bash
+export $(xargs <voip_patrol.env)
 ```
 
 ### accept command parameters (partial list)

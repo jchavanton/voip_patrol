@@ -241,6 +241,7 @@ class TestCall : public Call {
 		virtual void onCallTsxState(OnCallTsxStateParam &prm);
 		virtual void onCallState(OnCallStateParam &prm);
 		virtual void onCallTransferStatus(OnCallTransferStatusParam &prm);
+		virtual void onCallMediaState(OnCallMediaStateParam &prm);
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);
 		virtual void onStreamDestroyed(OnStreamDestroyedParam &prm);
 		virtual void onDtmfDigit(OnDtmfDigitParam &prm);

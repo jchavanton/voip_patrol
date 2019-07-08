@@ -698,7 +698,6 @@ void Action::do_transfer(vector<ActionParam> &params) {
 								call->setHold(prm); // put the current call on hold
 								call->makeCall("<sip:" + to_uri + ">", prm, "<sip:" + to_uri + ">");
 								call->xferReplaces("<sip:" + to_uri + ">", prm);
-								LOG(logERROR) <<__FUNCTION__<<": incorrect action parameter. attended type not implemented" ;
 								return;
 							} else if (blind) {
 								LOG(logINFO) <<__FUNCTION__<<": doing blind transfer" ;

@@ -125,8 +125,6 @@ void Action::init_actions_params() {
 	do_alert_params.push_back(ActionParam("email_from", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
 	// do_transfer
-	do_transfer_params.push_back(ActionParam("blind", false, APType::apt_bool));
-	do_transfer_params.push_back(ActionParam("attended", false, APType::apt_bool));
 	do_transfer_params.push_back(ActionParam("to_uri", false, APType::apt_string));
 }
 
@@ -624,21 +622,12 @@ void Action::do_transfer(vector<ActionParam> &params) {
 	bool status_update = true;
 	bool complete_all = false;
 
-	bool blind {false};
-	bool attended {false};
 	string to_uri {};
 
 	bool transferring = false;
 
 	for (auto param : params) {
-		if (param.name.compare("blind") == 0) blind = param.b_val;
-		if (param.name.compare("attended") == 0) attended = param.b_val;
 		if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
-	}
-
-	if (!blind && !attended ) {
-		LOG(logERROR) <<__FUNCTION__<<": missing action parameters for transfer type or blind or attended" ;
-		return;
 	}
 
 	if (to_uri.empty() ) {
@@ -692,21 +681,9 @@ void Action::do_transfer(vector<ActionParam> &params) {
 
 						if (!transferring) {
 							// check transfer_type
-							if (attended) {
-								LOG(logINFO) <<__FUNCTION__<<": doing attended transfer" ;
-								transferring = true;
-								call->setHold(prm); // put the current call on hold
-								call->makeCall("<sip:" + to_uri + ">", prm, "<sip:" + to_uri + ">");
-								call->xferReplaces("<sip:" + to_uri + ">", prm);
-								return;
-							} else if (blind) {
-								LOG(logINFO) <<__FUNCTION__<<": doing blind transfer" ;
-								transferring = true;
-								call->xfer("<sip:" + to_uri + ">", prm);
-							} else {
-								LOG(logERROR) <<__FUNCTION__<<": incorrect action parameter. Pass either blind or attended" ;
-								return;
-							}
+							LOG(logINFO) <<__FUNCTION__<<": doing transfer" ;
+							transferring = true;
+							call->xfer("<sip:" + to_uri + ">", prm);
 						}
 						
 					} catch (pj::Error e)  {

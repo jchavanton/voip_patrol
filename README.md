@@ -235,12 +235,12 @@ config>
 </config>
 ```
 
-### Example: making a call and blind transferring
+### Example: receive a call and transferring
 
 ```xml
 <config>
   <actions>
-    <action type="accept" label="CALLEE recieves call and blind transfer"
+    <action type="accept" label="receive_and_transfer"
       account="VP_ENV_CALLEE_USERNAME"
       wait_until="DISCONNECTED"
       play="../voice_ref_files/reference_8000.wav"
@@ -248,49 +248,28 @@ config>
       ring_duration="5"
       rtp_stats
     />
-
     <!-- note: call ends once transfer is complete -->
-    <action type="transfer" blind to_uri="VPN_ENV_TRANSFER_TARGET@VPN_ENV_PROXY"/>
+    <action type="transfer" to_uri="12015555555@target.com"/>
   </action>
 </config>
 ```
 
-### Example: receiving a call and attended transferring
+### Example: send a call and transferring
 
 ```xml
 <config>
   <actions>
-    <!-- note: default is the "catch all" account,
-      else account as to match called number -->
-    <action type="accept" label="CALLEE recieves call and blind transfer"
-      account="VP_ENV_CALLEE_USERNAME"
-      wait_until="DISCONNECTED"
-      play="../voice_ref_files/reference_8000.wav"
-      code="200" reason="OK"
-      ring_duration="5"
-      rtp_stats
+    <action type="call" label="make_and_transfer"
+            transport="udp"
+            wait_until="CONFIRMED"
+            expected_cause_code="200"
+            caller="15147777777@noreply.com"
+            callee="12012222222@target.com"
     />
-    <!-- note: attended_transfer inherit variables from initial call -->
-    <action type="transfer" attended to_uri="12012665228@target.com"/>
+    <!-- note: call ends once transfer is complete -->
+    <action type="transfer" to_uri="12015555555@target.com"/>
   </actions>
 </config>
-```
-
-### Set up environment variables from file
-
-`voip_patrol.env`:
-
-```bash
-VP_ENV_DOMAIN=sip.example.com
-VP_ENV_PROXY=192.168.0.1:5060
-VP_ENV_CALLEE_EXTENSION=1000
-VP_ENV_CALLEE_USERNAME=1000
-VP_ENV_CALLEE_PASSWORD=password
-VP_ENV_TRANSFER_TARGET=15557776666
-```
-
-```bash
-export $(xargs <voip_patrol.env)
 ```
 
 ### accept command parameters (partial list)
@@ -332,6 +311,23 @@ Example : `username="VP_ENV_USERNAME"`
 ```bash
 export VP_ENV_PASSWORD=????????
 export VP_ENV_USERNAME=username
+```
+
+### Set up environment variables from file
+
+`voip_patrol.env`:
+
+```bash
+VP_ENV_DOMAIN=sip.example.com
+VP_ENV_PROXY=192.168.0.1:5060
+VP_ENV_CALLEE_EXTENSION=1000
+VP_ENV_CALLEE_USERNAME=1000
+VP_ENV_CALLEE_PASSWORD=password
+VP_ENV_TRANSFER_TARGET=15557776666
+```
+
+```bash
+export $(xargs <voip_patrol.env)
 ```
 
 ### Docker

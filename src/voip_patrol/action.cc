@@ -670,9 +670,7 @@ void Action::do_transfer(vector<ActionParam> &params) {
 						}
 					}
 				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
-					std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 					CallOpParam prm(true);
-					LOG(logINFO) <<__FUNCTION__<<": call in PJSIP_INV_STATE_CONFIRMED" ;
 					try {
 						if (to_uri.empty() ) {
 							LOG(logERROR) <<__FUNCTION__<<": missing action parameters for to_uri" ;

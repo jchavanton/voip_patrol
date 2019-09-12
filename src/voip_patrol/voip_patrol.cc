@@ -758,7 +758,7 @@ TestAccount* Config::findAccount(std::string account_name) {
 }
 
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
-	ezxml_t xml_actions, xml_action, xml_xhdr;
+	ezxml_t xml_actions, xml_action, xml_xhdr, xml_param;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
@@ -766,6 +766,16 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 	if(!xml_conf){
 		LOG(logINFO) <<__FUNCTION__<< "[error] test can not load file :" << configFileName ;
 		return false;
+	}
+
+	for (xml_param = ezxml_child(xml_conf, "param"); xml_param; xml_param=xml_param->next) {
+		const char * n = ezxml_attr(xml_param, "name");
+		const char * v = ezxml_attr(xml_param, "value");
+		if (!n || !v) {
+			LOG(logERROR) <<__FUNCTION__<<" invalid config param !";
+			continue;
+		}
+		LOG(logINFO) <<__FUNCTION__<< " param ===> name["<<n<<"] value["<<v<<"]";
 	}
 
 	for (xml_actions = ezxml_child(xml_conf, "actions"); xml_actions; xml_actions=xml_actions->next) {
@@ -913,6 +923,13 @@ void VoipPatrolEnpoint::onSelectAccount(OnSelectAccountParam &param) {
 	param.accountIndex = acc_info.id;
 }
 
+void VoipPatrolEnpoint::setCodecs() {
+		// CODECS
+		const CodecInfoVector codecs =  codecEnum();
+		for (auto & c : codecs) {
+				LOG(logINFO) <<__FUNCTION__<< " codec id:" << c->codecId << " priority:" << unsigned(c->priority);
+		}
+}
 
 int main(int argc, char **argv){
 	int ret = 0;
@@ -1062,6 +1079,8 @@ int main(int argc, char **argv){
 
 		ep.libInit( ep_cfg );
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
+
+		ep.setCodecs();
 
 		tcfg.port = port;
 		config.transport_id_tcp = -1;

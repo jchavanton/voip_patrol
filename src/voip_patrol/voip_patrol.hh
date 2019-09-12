@@ -200,6 +200,7 @@ class Test {
 class VoipPatrolEnpoint : public Endpoint {
 	public:
 		Config *config;
+		void setCodecs();
 	private:
 		void onSelectAccount(OnSelectAccountParam &param);
 };

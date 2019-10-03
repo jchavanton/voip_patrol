@@ -241,13 +241,14 @@ config>
 
 ### accept command parameters (partial list)
 
-| Name | Type | Description | 
+| Name | Type | Description |
 | ---- | ---- | ----------- |
 | early_media | bool | if present 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | code | int | SIP cause code to return must be >100 and <700 |
 | account | string | Account will be used if it matches the user part of an incoming call RURI or "default" will catch all |
-| response_delay | int | ms delay before reponse is sent, useful to test timeouts and race conditions | 
+| response_delay | int | ms delay before reponse is sent, useful to test timeouts and race conditions |
+| call_count | int | The amount of calls to receive to consider the command completed, default -1 (considered completed) |
 
 
 ### call command parameters (partial list)

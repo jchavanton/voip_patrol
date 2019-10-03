@@ -9,10 +9,11 @@
             play="voice_ref_files/reference_8000.wav"
             code="200" reason="OK"
             ring_duration="5"
+            call_count="1"
             rtp_stats
         />
     <!-- wait for new call forever and generate
           test result for incomming calls -->
-        <action type="wait" ms="-1"/>
+        <action type="wait" ms="complete"/>
     </actions>
 </config>

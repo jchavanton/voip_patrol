@@ -223,6 +223,7 @@ class TestAccount : public Account {
 		bool rtp_stats;
 		bool early_media;
 		SipHeaderVector x_headers;
+		int call_count;
 		string play;
 		string play_dtmf;
 		string timer;

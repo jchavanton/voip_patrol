@@ -113,6 +113,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("call_count", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("reason", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("timer", false, APType::apt_string));
@@ -227,6 +228,7 @@ void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_heade
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
 	int code {200};
+	int call_count {-1};
 	int response_delay {0};
 	string reason {};
 
@@ -237,6 +239,7 @@ void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_heade
 		else if (param.name.compare("play_dtmf") == 0 && param.s_val.length() > 0) play_dtmf = param.s_val;
 		else if (param.name.compare("timer") == 0 && param.s_val.length() > 0) timer = param.s_val;
 		else if (param.name.compare("code") == 0) code = param.i_val;
+		else if (param.name.compare("call_count") == 0) call_count = param.i_val;
 		else if (param.name.compare("reason") == 0 && param.s_val.length() > 0) reason = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
@@ -300,6 +303,7 @@ void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_heade
 	acc->wait_state = wait_until;
 	acc->reason = reason;
 	acc->code = code;
+	acc->call_count = call_count;
 	acc->x_headers = x_headers;
 }
 
@@ -512,6 +516,9 @@ void Action::do_wait(vector<ActionParam> &params) {
 				delete account->test;
 				account->test = NULL;
 			} else if (account->test) {
+				tests_running++;
+			}
+			if (account->call_count > 0) {
 				tests_running++;
 			}
 		}

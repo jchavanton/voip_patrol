@@ -408,7 +408,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->sip_call_id = ci.callIdString;
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
 		call->test->peer_socket = iprm.rdata.srcAddress;
-		call->test->state = VPT_RUN;
+		call->test->state = VPT_RUN_WAIT;
 		call->test->rtp_stats = rtp_stats;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
@@ -419,6 +419,8 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->play_dtmf = play_dtmf;
 	}
 	calls.push_back(call);
+	if (call_count > 0)
+		call_count--;
 	config->calls.push_back(call);
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
 	if (code  >= 100 && code <= 699) {

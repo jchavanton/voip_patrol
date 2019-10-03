@@ -12,8 +12,7 @@
             call_count="1"
             rtp_stats
         />
-    <!-- wait for new call forever and generate
-          test result for incomming calls -->
+        <!-- wait for new calls until call_count is reached -->
         <action type="wait" ms="complete"/>
     </actions>
 </config>

@@ -60,23 +60,71 @@ string get_call_state_string (call_state_t state) {
  * TestCall implementation
  */
 
-struct call_param {
+/*
+ * Voip_patrol version of call_param since it was not exposed and we want more control over makeCall
+ */
+struct vp_call_param {
 	pjsua_msg_data      msg_data;
 	pjsua_msg_data     *p_msg_data;
 	pjsua_call_setting  opt;
 	pjsua_call_setting *p_opt;
 	pj_str_t            reason;
 	pj_str_t           *p_reason;
-
+	pjmedia_sdp_session *sdp;
 public:
-    /**
-     * Default constructors with specified parameters.
-     */
-	call_param(const SipTxOption &tx_option);
-	call_param(const SipTxOption &tx_option, const CallSetting &setting,
-               const string &reason_str);
+	vp_call_param(const SipTxOption &tx_option);
+	vp_call_param(const SipTxOption &tx_option, const CallSetting &setting,
+               const string &reason_str, pj_pool_t *pool = NULL,
+               const string &sdp_str = "");
 };
 
+vp_call_param::vp_call_param(const SipTxOption &tx_option) {
+	if (tx_option.isEmpty()) {
+		p_msg_data = NULL;
+	} else {
+		tx_option.toPj(msg_data);
+		p_msg_data = &msg_data;
+	}
+	p_opt = NULL;
+	p_reason = NULL;
+	sdp = NULL;
+}
+
+vp_call_param::vp_call_param(const SipTxOption &tx_option, const CallSetting &setting,
+                       const string &reason_str, pj_pool_t *pool,
+                       const string &sdp_str) {
+	if (tx_option.isEmpty()) {
+		p_msg_data = NULL;
+	} else {
+		tx_option.toPj(msg_data);
+		p_msg_data = &msg_data;
+	}
+
+	if (setting.isEmpty()) {
+		p_opt = NULL;
+	} else {
+		opt = setting.toPj();
+		p_opt = &opt;
+	}
+	reason = str2Pj(reason_str);
+	p_reason = (reason.slen == 0? NULL: &reason);
+
+	sdp = NULL;
+	if (sdp_str != "") {
+		pj_str_t dup_pj_sdp;
+		pj_str_t pj_sdp_str = {(char*)sdp_str.c_str(),
+			       (pj_ssize_t)sdp_str.size()};
+	pj_status_t status;
+
+		pj_strdup(pool, &dup_pj_sdp, &pj_sdp_str);
+		status = pjmedia_sdp_parse(pool, dup_pj_sdp.ptr,
+					dup_pj_sdp.slen, &sdp);
+	if (status != PJ_SUCCESS) {
+		PJ_PERROR(4,(THIS_FILE, status,
+			 "Failed to parse SDP for call param"));
+	}
+	}
+}
 
 void TestCall::hangup(const CallOpParam &prm) throw(Error) {
 		if (disconnecting) return;
@@ -87,9 +135,8 @@ void TestCall::hangup(const CallOpParam &prm) throw(Error) {
 
 
 void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error) {
-	// pjsua_call_make_call;
 	pj_str_t pj_to_uri = str2Pj(dst_uri);
-	call_param param(prm.txOption, prm.opt, prm.reason);
+	vp_call_param param(prm.txOption, prm.opt, prm.reason);
 
 	if (!to_uri.empty()) {
 		pjsua_msg_data_init(&param.msg_data);
@@ -927,10 +974,10 @@ void VoipPatrolEnpoint::onSelectAccount(OnSelectAccountParam &param) {
 
 void VoipPatrolEnpoint::setCodecs() {
 		// CODECS
-		const CodecInfoVector codecs =  codecEnum();
-		for (auto & c : codecs) {
-				LOG(logINFO) <<__FUNCTION__<< " codec id:" << c->codecId << " priority:" << unsigned(c->priority);
-		}
+	//	const CodecInfoVector codecs =  codecEnum();
+	//	for (auto & c : codecs) {
+	//			LOG(logINFO) <<__FUNCTION__<< " codec id:" << c->codecId << " priority:" << unsigned(c->priority);
+	//	}
 }
 
 int main(int argc, char **argv){
@@ -1085,8 +1132,8 @@ int main(int argc, char **argv){
 		ep.setCodecs();
 
 		tcfg.port = port;
-		config.transport_id_tcp = -1;
 		config.transport_id_udp = -1;
+		config.transport_id_tcp = -1;
 
 		// TCP and UDP transports
 		if (!udp_only) {

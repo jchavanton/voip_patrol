@@ -10,8 +10,8 @@ apk update \
     && mkdir /git && cd /git && git clone https://github.com/jchavanton/voip_patrol.git \
     && cd voip_patrol && git checkout master \
     && git submodule update --init \
-    && cp include/config_site.h  pjsua/pjlib/include/pj/config_site.h \
-    && cd pjsua && ./configure && make dep && make && make install \
+    && cp include/config_site.h  pjproject/pjlib/include/pj/config_site.h \
+    && cd pjproject && ./configure --disable-libwebrtc && make dep && make && make install \
     && cd .. && cmake CMakeLists.txt && mak
 ```
 
@@ -23,12 +23,12 @@ TLS
 ```
 apt-get install libssl-dev
 ```
-### build pjsua
+### build pjproject
 ```
 git clone https://github.com/jchavanton/voip_patrol.git
 cd voip_patrol && git submodule update --init
-cp include/config_site.h  pjsua/pjlib/include/pj/config_site.h # increase the max amount of account and calls
-cd pjsua && ./configure
+cp include/config_site.h pjproject/pjlib/include/pj/config_site.h # increase the max amount of account and calls
+cd pjproject && ./configure --disable-libwebrtc
 make dep && make && make install
 cd ..
 ```

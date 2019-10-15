@@ -1,3 +1,3 @@
-[submodule "pjsua"]
-	path = pjsua
-	url = https://github.com/jchavanton/pjsua.git
+[submodule "pjproject"]
+	path = pjproject
+	url = https://github.com/pjsip/pjproject.git

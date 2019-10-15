@@ -26,11 +26,11 @@ set(VOIP_PATROL_SRCS_C
 
 )
 
-include_directories(${ROOT_DIR}/pjsua/pjmedia/include)
-include_directories(${ROOT_DIR}/pjsua/pjsip/include)
-include_directories(${ROOT_DIR}/pjsua/pjlib/include)
-include_directories(${ROOT_DIR}/pjsua/pjnath/include)
-include_directories(${ROOT_DIR}/pjsua/pjlib-util/include)
+include_directories(${ROOT_DIR}/pjproject/pjmedia/include)
+include_directories(${ROOT_DIR}/pjproject/pjsip/include)
+include_directories(${ROOT_DIR}/pjproject/pjlib/include)
+include_directories(${ROOT_DIR}/pjproject/pjnath/include)
+include_directories(${ROOT_DIR}/pjproject/pjlib-util/include)
 
 include_directories(${ROOT_DIR}/include)
 
@@ -39,16 +39,16 @@ set(SOURCE_FILES ${VOIP_PATROL_SRCS_CPP} ${VOIP_PATROL_SRCS_C} ${CURL_SRCS} ${EZ
 add_executable(voip_patrol ${SOURCE_FILES})
 
 set(CMAKE_LIBRARY_PATH
-	"${ROOT_DIR}/pjsua/pjsip/lib"
-	"${ROOT_DIR}/pjsua/pjnath/lib"
-	"${ROOT_DIR}/pjsua/pjlib/lib"
-	"${ROOT_DIR}/pjsua/media/lib"
-	"${ROOT_DIR}/pjsua/pjlib-util/lib"
+	"${ROOT_DIR}/pjproject/pjsip/lib"
+	"${ROOT_DIR}/pjproject/pjnath/lib"
+	"${ROOT_DIR}/pjproject/pjlib/lib"
+	"${ROOT_DIR}/pjproject/media/lib"
+	"${ROOT_DIR}/pjproject/pjlib-util/lib"
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g")
 
-execute_process(COMMAND "./pjsua/config.guess" OUTPUT_VARIABLE AC_SYSTEM)
+execute_process(COMMAND "./pjproject/config.guess" OUTPUT_VARIABLE AC_SYSTEM)
 string(STRIP ${AC_SYSTEM} AC_SYSTEM)
 target_link_libraries(voip_patrol
 	pjsua2-${AC_SYSTEM}

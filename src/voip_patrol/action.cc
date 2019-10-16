@@ -260,10 +260,11 @@ void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_heade
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		AccountConfig acc_cfg;
-		acc_cfg.sipConfig.transportId = config->transport_id_udp;
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
+			} else if (transport.compare("udp") == 0) {
+				acc_cfg.sipConfig.transportId = config->transport_id_udp;
 			} else if (transport.compare("tls") == 0) {
 				if (config->transport_id_tls == -1) {
 					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";

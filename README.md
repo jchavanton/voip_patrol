@@ -249,6 +249,7 @@ config>
 | account | string | Account will be used if it matches the user part of an incoming call RURI or "default" will catch all |
 | response_delay | int | ms delay before reponse is sent, useful to test timeouts and race conditions |
 | call_count | int | The amount of calls to receive to consider the command completed, default -1 (considered completed) |
+| transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
 
 
 ### call command parameters (partial list)

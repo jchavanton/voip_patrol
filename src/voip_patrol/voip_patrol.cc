@@ -407,6 +407,7 @@ TestAccount::TestAccount() {
 	hangup_duration=0;
 	max_duration=0;
 	ring_duration=0;
+	call_count=-1;
 	accept_label="-";
 }
 

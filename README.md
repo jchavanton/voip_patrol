@@ -262,6 +262,7 @@ config>
 | from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
+| transport | string | force a specific transport <tcp,udp,tls> |
 
 
 ### register command parameters (partial list)
@@ -272,6 +273,7 @@ config>
 | username | string | authentication username, account name, From/To/Contact header user part |
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
+| transport | string | force a specific transport <tcp,udp,tls> |
 | realm | string | realm use for authentication |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
 

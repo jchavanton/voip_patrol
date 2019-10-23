@@ -273,6 +273,7 @@ config>
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
 | realm | string | realm use for authentication |
+| unregister | bool | unregister the account <usename@registrar;transport=x> |
 
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.

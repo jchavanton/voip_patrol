@@ -98,6 +98,7 @@ void Action::init_actions_params() {
 	do_register_params.push_back(ActionParam("username", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("account", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("password", false, APType::apt_string));
+	do_register_params.push_back(ActionParam("unregister", false, APType::apt_bool));
 	do_register_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	// do_accept
 	do_accept_params.push_back(ActionParam("account", false, APType::apt_string));
@@ -137,6 +138,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 	string account_name {};
 	string password {};
 	int expected_cause_code {200};
+	bool unregister {false};
 
 	for (auto param : params) {
 		if (param.name.compare("transport") == 0) transport = param.s_val;
@@ -147,6 +149,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 		else if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
+		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 	}
 
@@ -156,6 +159,34 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 	}
 
 	if (account_name.empty()) account_name = username;
+	account_name = account_name + "@" + registrar;
+	TestAccount *acc = config->findAccount(account_name);
+	if (unregister) {
+		if (acc) {
+			// We should probably create a new test ...
+			if (acc->test) acc->test->type = "unregister";
+			LOG(logINFO) <<__FUNCTION__<< " unregister ("<<account_name<<")";
+			AccountInfo acc_inf = acc->getInfo();
+			if (acc_inf.regIsActive) {
+				LOG(logINFO) <<__FUNCTION__<< " register is active";
+				try {
+					acc->setRegistration(false);
+				} catch (pj::Error e)  {
+					LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+				}
+			} else {
+				LOG(logINFO) <<__FUNCTION__<< " register is not active";
+			}
+			while (acc_inf.regIsActive) {
+				pj_thread_sleep(10);
+				acc_inf = acc->getInfo();
+			}
+			return;
+		} else {
+			LOG(logINFO) <<__FUNCTION__<< "unregister: account not found ("<<account_name<<")";
+		}
+	}
+
 	Test *test = new Test(config, type);
 	test->local_user = username;
 	test->remote_user = username;
@@ -164,7 +195,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 	test->from = username;
 	test->type = type;
 
-	LOG(logINFO) <<__FUNCTION__<< " sip:" + account_name + "@" + registrar  ;
+	LOG(logINFO) <<__FUNCTION__<< " >> sip:" + account_name;
 	AccountConfig acc_cfg;
 	SipHeader sh;
 	sh.hName = "User-Agent";
@@ -187,7 +218,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 		}
 	}
 	if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
-		acc_cfg.idUri = "sips:" + account_name + "@" + registrar;
+		acc_cfg.idUri = "sips:" + account_name;
 		acc_cfg.regConfig.registrarUri = "sips:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
@@ -195,7 +226,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 		LOG(logINFO) <<__FUNCTION__<< " SIPS URI Scheme";
 	} else {
 		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
-		acc_cfg.idUri = "sip:vp@" + registrar;
+		acc_cfg.idUri = "sip:" + account_name;
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
@@ -203,7 +234,6 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 
-	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);
 	} else {
@@ -366,7 +396,10 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		return;
 	}
 
-	TestAccount* acc = config->findAccount(caller);
+	string account_uri {caller};
+	if (transport.compare("udp") != 0)
+		account_uri = caller + ";transport=" + transport;
+	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
 		if (!proxy.empty())
@@ -395,9 +428,9 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 			}
 		}
 		if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
-			acc_cfg.idUri = "sips:" + caller;
+			acc_cfg.idUri = "sips:" + account_uri;
 		} else {
-			acc_cfg.idUri = "sip:" + caller;
+			acc_cfg.idUri = "sip:" + account_uri;
 		}
 		if (!from.empty())
 			acc_cfg.idUri = from;

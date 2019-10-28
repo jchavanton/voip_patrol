@@ -309,15 +309,16 @@ void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_heade
 			acc_cfg.idUri = "sip:" + account_name;
 		}
 		if (!timer.empty()) {
-			if (timer.compare("inactive")) {
+			if (timer.compare("inactive") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
-			} else if (timer.compare("optionnal")) {
+			} else if (timer.compare("optionnal") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_OPTIONAL;
-			} else if (timer.compare("required")) {
+			} else if (timer.compare("required") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_REQUIRED;
-			} else if (timer.compare("always")) {
+			} else if (timer.compare("always") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_ALWAYS;
 			}
+			LOG(logINFO) <<__FUNCTION__<<":session timer["<<timer<<"]: "<< acc_cfg.callConfig.timerUse ;
 		}
 		acc = config->createAccount(acc_cfg);
 	}
@@ -405,15 +406,16 @@ void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		if (!timer.empty()) {
-			if (timer.compare("inactive")) {
+			if (timer.compare("inactive") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
-			} else if (timer.compare("optionnal")) {
+			} else if (timer.compare("optionnal") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_OPTIONAL;
-			} else if (timer.compare("required")) {
+			} else if (timer.compare("required") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_REQUIRED;
-			} else if (timer.compare("always")) {
+			} else if (timer.compare("always") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_ALWAYS;
 			}
+			LOG(logERROR) <<__FUNCTION__<<": session timer["<<timer<<"] : "<< acc_cfg.callConfig.timerUse ;
 		}
 		acc_cfg.sipConfig.transportId = config->transport_id_udp;
 		if (!transport.empty()) {

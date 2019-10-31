@@ -286,6 +286,7 @@ static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char
 	call->recorder_id = recorder_id;
 	LOG(logINFO) <<__FUNCTION__<<": [recorder] created:" << recorder_id << " fn:"<< rec_fn;
 	status = pjsua_conf_connect( pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(recorder_id) );
+	return status;
 }
 
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
@@ -719,6 +720,7 @@ bool ResultFile::open() {
 		std::cerr <<__FUNCTION__<< " [error] test can not open log file :" << name ;
 		return false;
 	}
+	return true;
 }
 
 void ResultFile::close() {
@@ -860,6 +862,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 		}
 	}
+	return true;
 }
 
 

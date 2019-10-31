@@ -245,8 +245,8 @@ class TestCall : public Call {
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);
 		virtual void onStreamDestroyed(OnStreamDestroyedParam &prm);
 		virtual void onDtmfDigit(OnDtmfDigitParam &prm);
-		void makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error);
-		void hangup(const CallOpParam &prm) throw(Error);
+		void makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri);
+		void hangup(const CallOpParam &prm);
 		pjsua_recorder_id recorder_id;
 		pjsua_player_id player_id;
 		int role;

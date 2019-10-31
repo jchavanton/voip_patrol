@@ -126,7 +126,7 @@ vp_call_param::vp_call_param(const SipTxOption &tx_option, const CallSetting &se
 	}
 }
 
-void TestCall::hangup(const CallOpParam &prm) throw(Error) {
+void TestCall::hangup(const CallOpParam &prm) {
 		if (disconnecting) return;
 		disconnecting = true;
 		LOG(logINFO) <<__FUNCTION__<<": [hangup]";
@@ -134,7 +134,7 @@ void TestCall::hangup(const CallOpParam &prm) throw(Error) {
 }
 
 
-void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) throw(Error) {
+void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri) {
 	pj_str_t pj_to_uri = str2Pj(dst_uri);
 	vp_call_param param(prm.txOption, prm.opt, prm.reason);
 

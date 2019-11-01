@@ -1,6 +1,6 @@
 FROM debian
 
-ARG VERSION="v0.12"
+ARG VERSION="v0.13"
 RUN echo "building VoIP Patrol" && apt-get update \
 	&& apt-get install -y build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev \
 	&& apt-get -y install libssl-dev git \

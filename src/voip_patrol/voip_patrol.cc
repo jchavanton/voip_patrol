@@ -588,13 +588,18 @@ void Test::update_result() {
 		}
 
 		// JSON report
-		string jsonFrom = local_user;
-		jsonify(&jsonFrom);
+
 		string jsonLocalUri = local_uri;
 		jsonify(&jsonLocalUri);
 		string jsonLocalContact = local_contact;
 		jsonify(&jsonLocalContact);
+		string jsonFrom = local_user;
+		if (type == "accept")
+			jsonFrom = remote_user;
 		string jsonTo = remote_user;
+		if (type == "accept")
+			jsonTo = local_user;
+		jsonify(&jsonFrom);
 		jsonify(&jsonTo);
 		string jsonRemoteUri = remote_uri;
 		jsonify(&jsonRemoteUri);

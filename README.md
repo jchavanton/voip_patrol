@@ -163,6 +163,22 @@ cd ..
 </config>
 ```
 
+### Example: accpeting calls and checking for specific header
+```xml
+<config>
+  <actions>
+    <action type="accept"
+            account="default"
+            hangup="5"
+            code="200" reason="OK"
+    >
+        <check-header name="Min-SE"/>
+        <check-header name="X-Foo" value="Bar"/>
+    </action>
+    <action type="wait" ms="-1"/>
+  </actions>
+</config>
+```
 
 
 ### Example: making tests calls with wait_until

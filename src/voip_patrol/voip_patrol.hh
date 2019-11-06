@@ -192,6 +192,7 @@ class Test {
 		string play_dtmf;
 		bool rtp_stats_ready;
 		bool queued;
+		vector<ActionCheck> checks;
 	private:
 		Config *config;
 		std::mutex process_result;
@@ -231,6 +232,7 @@ class TestAccount : public Account {
 		std::string accept_label;
 		string reason;
 		int code;
+		vector<ActionCheck> checks;
 };
 
 class TestCall : public Call {

@@ -127,7 +127,7 @@ void Action::init_actions_params() {
 	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
 }
 
-void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers) {
+void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
 	string type {"register"};
 	string transport {};
 	string label {};
@@ -242,7 +242,7 @@ void Action::do_register(vector<ActionParam> &params, SipHeaderVector &x_headers
 	acc->setTest(test);
 }
 
-void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_headers) {
+void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers) {
 	string type {"accept"};
 	string account_name {};
 	string transport {};
@@ -337,10 +337,11 @@ void Action::do_accept(vector<ActionParam> &params, pj::SipHeaderVector &x_heade
 	acc->code = code;
 	acc->call_count = call_count;
 	acc->x_headers = x_headers;
+	acc->checks = checks;
 }
 
 
-void Action::do_call(vector<ActionParam> &params, SipHeaderVector &x_headers) {
+void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
 	string type {"call"};
 	string play {default_playback_file};
 	string play_dtmf {};

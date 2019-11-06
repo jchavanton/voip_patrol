@@ -431,10 +431,36 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	}
 }
 
+void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg) {
+	// action checks for headers
+	for (vector<ActionCheck> :: iterator check = checks.begin(); check != checks.end(); ++check){
+		if (check->hdr.hName == "") continue;
+		LOG(logINFO) <<__FUNCTION__<<" check-header:"<< check->hdr.hName<<" "<<check->hdr.hValue;
+		pj_str_t header_name = str2Pj(check->hdr.hName.c_str());
+		pjsip_hdr* s_hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(msg, (const pj_str_t *) &header_name, NULL);
+		if (s_hdr) {
+			SipHeader SHdr;
+			SHdr.fromPj(s_hdr);
+			if (check->hdr.hValue == "" || check->hdr.hValue == SHdr.hValue) {
+				LOG(logINFO) <<__FUNCTION__<< " header found and value is matching:" << SHdr.hName <<" "<< SHdr.hValue;
+				check->result = true;
+			} else {
+				LOG(logINFO) <<__FUNCTION__<< " header found and value is not matching:" << SHdr.hName <<" "<< SHdr.hValue;
+				check->result = false;
+			}
+		} else {
+			LOG(logINFO) <<__FUNCTION__<< " header not found";
+			check->result = false;
+		}
+	}
+}
+
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(this, iprm.callId);
-
 	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
+
+	check_checks(checks, pjsip_data->msg_info.msg);
+
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
@@ -443,6 +469,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		string type("accept");
 		LOG(logINFO)<<__FUNCTION__<<": max call duration["<< hangup_duration <<"]";
 		call->test = new Test(config, type);
+		call->test->checks = checks;
 		call->test->hangup_duration = hangup_duration;
 		call->test->max_duration = max_duration;
 		call->test->ring_duration = ring_duration;
@@ -587,8 +614,8 @@ void Test::update_result() {
 			success=true;
 		}
 
-		// JSON report
 
+		// JSON report
 		string jsonLocalUri = local_uri;
 		jsonify(&jsonLocalUri);
 		string jsonLocalContact = local_contact;
@@ -641,10 +668,27 @@ void Test::update_result() {
 							"\"remote_contact\": \""+jsonRemoteContact+"\" "
 							"}";
 
+		string result_checks_json {};
+		int x {0};
+		for (auto check : checks) {
+			LOG(logINFO)<<__FUNCTION__<<"check header["<< check.hdr.hName <<"] result["<< check.result <<"]";
+			if (x>0) result_checks_json += ",";
+			string result = check.result ? "pass": "fail";
+
+			result_checks_json += "\""+to_string(x)+"\":{"
+							"\"header_name\": \""+check.hdr.hName+"\", "
+							"\"header_value\": \""+check.hdr.hValue+"\", "
+							"\"result\": \""+ result +"\" "
+							"}";
+			x++;
+		}
+		if (!result_checks_json.empty())
+			result_line_json += ", \"check\":{" + result_checks_json + "}";
 
 		if (rtp_stats && rtp_stats_ready)
 			result_line_json += "," + rtp_stats_json;
 		result_line_json += "}}";
+
 		config->result_file.write(result_line_json);
 		LOG(logINFO)<<__FUNCTION__<<"["<<now<<"]" << result_line_json;
 		config->result_file.flush();
@@ -815,7 +859,7 @@ TestAccount* Config::findAccount(std::string account_name) {
 }
 
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
-	ezxml_t xml_actions, xml_action, xml_xhdr, xml_param;
+	ezxml_t xml_actions, xml_action, xml_xhdr, xml_check, xml_param;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
@@ -850,6 +894,20 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				sh.hValue = ezxml_attr(xml_xhdr, "value");
 				x_hdrs.push_back(sh);
 			}
+			vector<ActionCheck> checks;
+			for (xml_check = ezxml_child(xml_action, "check-header"); xml_check; xml_check=xml_check->next) {
+				ActionCheck check;
+				const char * val = ezxml_attr(xml_check, "name");
+				if (!val) {
+					LOG(logERROR) <<__FUNCTION__<<" missing action check header name !";
+					continue;
+				}
+				check.hdr.hName = val;
+				val = ezxml_attr(xml_check, "value");
+				if (val) check.hdr.hValue = val;
+				LOG(logINFO) <<__FUNCTION__<<" check-header:"<< check.hdr.hName<<" "<<check.hdr.hValue;
+				checks.push_back(check);
+			}
 			string action_type = ezxml_attr(xml_action,"type");;
 			LOG(logINFO) <<__FUNCTION__<< " ===> action/" << action_type;
 			vector<ActionParam> params = action.get_params(action_type);
@@ -861,9 +919,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
-			else if ( action_type.compare("call") == 0 ) action.do_call(params, x_hdrs);
-			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, x_hdrs);
-			else if ( action_type.compare("register") == 0 ) action.do_register(params, x_hdrs);
+			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
+			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 		}
 	}

@@ -433,8 +433,25 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(this, iprm.callId);
-
 	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
+	// fromPj
+	// void SipHeader::fromPj(const pjsip_hdr *hdr)
+	// struct *msg_info = &pjsip_data->msg_info;
+	//	SipHeader sh = SipHeader(msg_info->msg.hdr);
+	string hdr = "Min-SE";
+	pj_str_t header_name = str2Pj(hdr);
+	// pjsip_to_hdr* to_hdr = (pjsip_to_hdr*) pjsip_msg_find_hdr(pjsip_data->msg_info.msg, PJSIP_H_TO, NULL);
+	pjsip_hdr* s_hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(pjsip_data->msg_info.msg, &header_name, NULL);
+	if (s_hdr) {
+		SipHeader SHdr;
+		SHdr.fromPj(s_hdr);
+		LOG(logINFO) << "HEADER FOUND:" << SHdr.hName <<" "<< SHdr.hValue;
+	} else {
+		LOG(logINFO) << "HEADER not FOUND";
+	
+	}
+	// SipHeaderVector x_hdrs = SipHeaderVector();
+
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
@@ -815,7 +832,7 @@ TestAccount* Config::findAccount(std::string account_name) {
 }
 
 bool Config::process(std::string p_configFileName, std::string p_jsonResultFileName) {
-	ezxml_t xml_actions, xml_action, xml_xhdr, xml_param;
+	ezxml_t xml_actions, xml_action, xml_xhdr, xml_check, xml_param;
 	configFileName = p_configFileName;
 	ezxml_t xml_conf = ezxml_parse_file(configFileName.c_str());
 	xml_conf_head = xml_conf; // saving the head if the linked list
@@ -850,6 +867,14 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				sh.hValue = ezxml_attr(xml_xhdr, "value");
 				x_hdrs.push_back(sh);
 			}
+			vector<ActionCheck> checks;
+			for (xml_check = ezxml_child(xml_action, "check-header"); xml_check; xml_check=xml_check->next) {
+				ActionCheck check;
+				// SipHeader sh = SipHeader();
+				check.hdr.hName = ezxml_attr(xml_check, "name");
+				check.hdr.hValue = ezxml_attr(xml_check, "value");
+				checks.push_back(check);
+			}
 			string action_type = ezxml_attr(xml_action,"type");;
 			LOG(logINFO) <<__FUNCTION__<< " ===> action/" << action_type;
 			vector<ActionParam> params = action.get_params(action_type);
@@ -861,9 +886,9 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
-			else if ( action_type.compare("call") == 0 ) action.do_call(params, x_hdrs);
-			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, x_hdrs);
-			else if ( action_type.compare("register") == 0 ) action.do_register(params, x_hdrs);
+			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
+			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 		}
 	}

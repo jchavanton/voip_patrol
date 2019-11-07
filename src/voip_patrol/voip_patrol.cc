@@ -1167,8 +1167,13 @@ int main(int argc, char **argv){
 			tcfg.tlsConfig.verifyServer = config.tls_cfg.verify_server;
 			tcfg.tlsConfig.verifyClient = config.tls_cfg.verify_client;
 			// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
-			// tcfg.ciphers = ep->utilSslGetAvailableCiphers();
+			// tcfg.tlsConfig.ciphers = ep.utilSslGetAvailableCiphers();
 			config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
+			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.ca_list      :"<< tcfg.tlsConfig.CaListFile;
+			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.certFile     :"<< tcfg.tlsConfig.certFile;
+			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.privKeyFile  :"<< tcfg.tlsConfig.privKeyFile;
+			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.verifyServer :"<< tcfg.tlsConfig.verifyServer;
+			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.verifyClient :"<< tcfg.tlsConfig.verifyClient;
 			LOG(logINFO) <<__FUNCTION__<<": TLS supported :"<< config.tls_cfg.certificate;
 		} catch (Error & err) {
 			config.transport_id_tls = -1;

@@ -673,7 +673,7 @@ void Test::update_result() {
 		for (auto check : checks) {
 			LOG(logINFO)<<__FUNCTION__<<"check header["<< check.hdr.hName <<"] result["<< check.result <<"]";
 			if (x>0) result_checks_json += ",";
-			string result = check.result ? "pass": "fail";
+			string result = check.result ? "PASS": "FAIL";
 
 			result_checks_json += "\""+to_string(x)+"\":{"
 							"\"header_name\": \""+check.hdr.hName+"\", "

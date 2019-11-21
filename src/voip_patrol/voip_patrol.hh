@@ -253,6 +253,7 @@ class TestCall : public Call {
 		pjsua_player_id player_id;
 		int role;
 		int rtt;
+		bool is_disconnecting(){return disconnecting;};
 	private:
 		bool disconnecting;
 		TestAccount *acc;

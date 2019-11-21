@@ -179,8 +179,12 @@ void TestCall::onCallRxOffer(OnCallTsxStateParam &prm) {
 void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
-	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
-	// if (ci.stateText.compare("INCOMING")  == 0 ) pj_thread_sleep(10000);
+	std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"] "<<res;
+	if (test) {
+		test->result_cause_code = (int)ci.lastStatusCode;
+		test->reason = ci.lastReason;
+	}
 }
 
 /* Convenient function to convert transmission factor to MOS */
@@ -313,6 +317,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	LOG(logDEBUG) <<__FUNCTION__;
 	CallInfo ci = getInfo();
 
+	if (disconnecting == true && ci.state != PJSIP_INV_STATE_DISCONNECTED)
+		return;
+
 	int uri_prefix = 3; // sip:
 	std::string remote_user("");
 	std::string local_user("");
@@ -381,7 +388,8 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			record_call(this, ci.id, remote_user.c_str());
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
-		LOG(logINFO) <<__FUNCTION__<<": [Call disconnected]";
+		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
+		LOG(logINFO) <<__FUNCTION__<<": [Call disconnected] red:"<< res;
 		if (player_id != -1) {
 			pjsua_player_destroy(player_id);
 			player_id = -1;
@@ -1272,10 +1280,17 @@ int main(int argc, char **argv){
 	while (disconnecting) {
 		disconnecting = false;
 		for (auto & call : config.calls) {
+
 			pjsua_call_info pj_ci;
 			pjsua_call_id call_id;
 			CallInfo ci;
+			if (call->is_disconnecting()) { // wait for call disconnections
+					if (call->test && call->test->completed) config.removeCall(call);
+					disconnecting = true;
+					continue;
+			}
 			pj_status_t status = pjsua_call_get_info(call_id, &pj_ci); 
+			LOG(logINFO) << "disconnecting >>> call["<< call->getId() <<"]["<< call <<"] ";
 			if (status != PJ_SUCCESS) {
 				LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
 				continue;

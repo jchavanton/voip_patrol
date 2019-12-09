@@ -1,0 +1,24 @@
+<config>
+	<actions>
+		<action type="register" label="CALLEE REGISTRATION"
+			transport="udp"
+			account="VP_ENV_CALLEE_USERNAME"
+			username="VP_ENV_CALLEE_USERNAME"
+			password="VP_ENV_CALLEE_PASSWORD"
+			proxy="VPN_ENV_PROXY"
+			realm="VPN_ENV_DOMAIN"
+			registrar="VPN_ENV_DOMAIN"
+			expected_cause_code="200"
+		/>
+		<action type="wait" complete/>
+		<action type="accept" label="CALLEE recieves call and transfers"
+			account="VP_ENV_CALLEE_USERNAME"
+			wait_until="DISCONNECTED"
+			play="../voice_ref_files/reference_8000.wav"
+			code="200" reason="OK"
+			ring_duration="5"
+			rtp_stats
+		/>
+	<action type="transfer" to_uri="VPN_ENV_TRANSFER_TARGET@VPN_ENV_PROXY"/>
+	</action>
+</config>

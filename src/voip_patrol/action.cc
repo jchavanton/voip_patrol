@@ -30,6 +30,7 @@ vector<ActionParam> Action::get_params(string name) {
 	if (name.compare("wait") == 0) return do_wait_params;
 	if (name.compare("accept") == 0) return do_accept_params;
 	if (name.compare("alert") == 0) return do_alert_params;
+	if (name.compare("transfer") == 0) return do_transfer_params;
 	vector<ActionParam> empty_params;
 	return empty_params;
 }
@@ -125,6 +126,8 @@ void Action::init_actions_params() {
 	do_alert_params.push_back(ActionParam("email", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("email_from", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
+	// do_transfer
+	do_transfer_params.push_back(ActionParam("to_uri", false, APType::apt_string));
 }
 
 void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
@@ -224,6 +227,13 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 			acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
 
 		LOG(logINFO) <<__FUNCTION__<< " SIPS URI Scheme";
+	} else if (acc_cfg.sipConfig.transportId == config->transport_id_udp) {
+		acc_cfg.idUri = "sip:" + account_name + "@" + registrar;
+		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
+		if (!proxy.empty())
+			acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
+
+		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
 	} else {
 		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
 		acc_cfg.idUri = "sip:" + account_name;
@@ -646,6 +656,85 @@ void Action::do_wait(vector<ActionParam> &params) {
 
 			completed = true;
 			LOG(logINFO) <<__FUNCTION__<<": completed";
+		}
+	}
+}
+
+void Action::do_transfer(vector<ActionParam> &params) {
+	bool completed = false;
+	int tests_running = 0;
+	bool status_update = true;
+	bool complete_all = false;
+
+	string to_uri {};
+
+	bool transferring = false;
+
+	for (auto param : params) {
+		if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
+	}
+
+	if (to_uri.empty() ) {
+		LOG(logERROR) <<__FUNCTION__<<": missing action parameters for transfer. Must has to_uri" ;
+		return;
+	}
+
+	while (!completed) {
+		for (auto & account : config->accounts) {
+			AccountInfo acc_inf = account->getInfo();
+			if (account->test && account->test->state == VPT_DONE){
+				delete account->test;
+				account->test = NULL;
+			} else if (account->test) {
+				tests_running++;
+			}
+		}
+
+		for (auto & call : config->calls) {
+			if (call->test && call->test->state == VPT_DONE){
+				continue;
+			} else if (call->test) {
+				CallInfo ci = call->getInfo();
+				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY)  {
+					Test *test = call->test;
+					if (test->ring_duration > 0 && ci.totalDuration.sec >= test->ring_duration) {
+						CallOpParam prm;
+						if (test->reason.size() > 0) prm.reason = test->reason;
+						if (test->code) prm.statusCode = test->code;
+						call->answer(prm);
+					} else if (test->max_calling_duration && test->max_calling_duration <= ci.totalDuration.sec) {
+						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+						     << ci.totalDuration.sec <<">="<<test->max_calling_duration<<"]";
+						CallOpParam prm(true);
+						try {
+							call->hangup(prm);
+						} catch (pj::Error e)  {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
+						}
+					}
+				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
+					CallOpParam prm(true);
+					try {
+						if (to_uri.empty() ) {
+							LOG(logERROR) <<__FUNCTION__<<": missing action parameters for to_uri" ;
+							return;
+						}
+
+						if (!transferring) {
+							// check transfer_type
+							LOG(logINFO) <<__FUNCTION__<<": doing transfer" ;
+							transferring = true;
+							call->xfer("<sip:" + to_uri + ">", prm);
+						}
+						
+					} catch (pj::Error e)  {
+						if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+					}
+				}
+				if (complete_all || call->test->state == VPT_RUN_WAIT)
+					tests_running++;
+			} 
 		}
 	}
 }

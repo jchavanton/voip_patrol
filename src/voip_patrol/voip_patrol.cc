@@ -401,6 +401,28 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	}
 }
 
+void TestCall::onCallTransferStatus(OnCallTransferStatusParam &prm) {
+	PJ_UNUSED_ARG(prm);
+	CallInfo ci = getInfo();
+
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<prm.statusCode<<"]";
+
+	if (prm.statusCode == 200) {
+		LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"] transfer was successfully handled. Hanging up";
+		CallOpParam prm(true);
+		hangup(prm);
+	}
+}
+
+void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
+	PJ_UNUSED_ARG(prm);
+	CallInfo ci = getInfo();
+
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"] call is on hold";
+}
+
 
 /*
  * TestAccount implementation
@@ -931,6 +953,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
+			else if ( action_type.compare("transfer") == 0 ) action.do_transfer(params);
 		}
 	}
 	return true;
@@ -1328,5 +1351,3 @@ int main(int argc, char **argv){
 	LOG(logINFO) <<__FUNCTION__<<": Watch completed, exiting  /('l')" ;
 	return ret;
 }
-
-

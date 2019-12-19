@@ -40,9 +40,11 @@ struct ActionParam {
 	bool required;
 };
 
-// currently only used for checking the presence of an header and its valu if specified.
 struct ActionCheck {
 	pj::SipHeader hdr;
+	string regex;
+	string method;
+	int code;
 	bool result;
 };
 

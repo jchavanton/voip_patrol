@@ -20,6 +20,7 @@ set(VOIP_PATROL_SRCS_CPP
 	${VOIP_PATROL_SRC_DIR}/mod_voip_patrol.cc
 	${VOIP_PATROL_SRC_DIR}/voip_patrol.cc
 	${VOIP_PATROL_SRC_DIR}/action.cc
+	${VOIP_PATROL_SRC_DIR}/check.cc
 )
 
 set(VOIP_PATROL_SRCS_C

@@ -293,6 +293,25 @@ config>
 | realm | string | realm use for authentication |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
 
+### Example: codec configuration
+```xml
+<config>
+  <actions>
+    <action type="codec" disable="all"/>
+    <action type="codec" enable="pcmu" priority="250"/>
+    <action type="wait" complete/>
+  </actions>
+</config>
+```
+
+### codec command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| priority | int | 0-255, where zero means to disable the codec |
+| enable | string | Codec payload type ID, ex. "g722", "pcma", "opus" or "all" |
+| disable | string | Codec payload type ID, ex. "g722", "pcma", "opus" or "all" |
+
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.
 Example : `username="VP_ENV_USERNAME"`

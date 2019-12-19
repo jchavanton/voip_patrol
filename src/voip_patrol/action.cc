@@ -26,10 +26,11 @@ Action::Action(Config *cfg) : config{cfg} {
 
 vector<ActionParam> Action::get_params(string name) {
 	if (name.compare("call") == 0) return do_call_params;
-	if (name.compare("register") == 0) return do_register_params;
-	if (name.compare("wait") == 0) return do_wait_params;
-	if (name.compare("accept") == 0) return do_accept_params;
-	if (name.compare("alert") == 0) return do_alert_params;
+	else if (name.compare("register") == 0) return do_register_params;
+	else if (name.compare("wait") == 0) return do_wait_params;
+	else if (name.compare("accept") == 0) return do_accept_params;
+	else if (name.compare("alert") == 0) return do_alert_params;
+	else if (name.compare("codec") == 0) return do_codec_params;
 	vector<ActionParam> empty_params;
 	return empty_params;
 }
@@ -125,6 +126,10 @@ void Action::init_actions_params() {
 	do_alert_params.push_back(ActionParam("email", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("email_from", false, APType::apt_string));
 	do_alert_params.push_back(ActionParam("smtp_host", false, APType::apt_string));
+	// do_codec
+	do_codec_params.push_back(ActionParam("priority", false, APType::apt_integer));
+	do_codec_params.push_back(ActionParam("enable", false, APType::apt_string));
+	do_codec_params.push_back(ActionParam("disable", false, APType::apt_string));
 }
 
 void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
@@ -518,6 +523,26 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		}
 		repeat--;
 	} while (repeat >= 0);
+}
+
+void Action::do_codec(vector<ActionParam> &params) {
+	string enable {};
+	int priority {0};
+	string disable {};
+	for (auto param : params) {
+		if (param.name.compare("enable") == 0) enable = param.s_val;
+		else if (param.name.compare("priority") == 0) priority = param.i_val;
+		else if (param.name.compare("disable") == 0) disable = param.s_val;
+	}
+	LOG(logINFO) << __FUNCTION__ << " enable["<<enable<<"] with priority["<<priority<<"] disable["<<disable<<"]";
+	if (!config->ep) {
+		LOG(logERROR) << __FUNCTION__ << " PJSIP endpoint not available";
+		return;
+	}
+	if (!disable.empty())
+		config->ep->setCodecs(disable, 0);
+	if (!enable.empty())
+		config->ep->setCodecs(enable, priority);
 }
 
 void Action::do_alert(vector<ActionParam> &params) {

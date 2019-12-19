@@ -26,6 +26,7 @@
 #include <pj/ctype.h>
 #include "util.hpp"
 #include <pjsua-lib/pjsua_internal.h>
+#include <algorithm>
 
 using namespace pj;
 
@@ -931,6 +932,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
+			else if ( action_type.compare("codec") == 0 ) action.do_codec(params);
 		}
 	}
 	return true;
@@ -1047,12 +1049,20 @@ void VoipPatrolEnpoint::onSelectAccount(OnSelectAccountParam &param) {
 	param.accountIndex = acc_info.id;
 }
 
-void VoipPatrolEnpoint::setCodecs() {
-		// CODECS
-	//	const CodecInfoVector codecs =  codecEnum();
-	//	for (auto & c : codecs) {
-	//			LOG(logINFO) <<__FUNCTION__<< " codec id:" << c->codecId << " priority:" << unsigned(c->priority);
-	//	}
+void VoipPatrolEnpoint::setCodecs(string &name, int priority) {
+	const CodecInfoVector2 codecs = codecEnum2();
+	transform(name.begin(), name.end(), name.begin(), ::tolower);
+	for (auto & c : codecs) {
+		string id = c.codecId;
+		transform(id.begin(), id.end(), id.begin(), ::tolower);
+		std::size_t found = id.find(name);
+		if (found!=std::string::npos ||  name.compare("all") == 0) {
+			LOG(logINFO) <<__FUNCTION__<<" codec id:"<< c.codecId << " new priority:" << priority;
+			codecSetPriority(c.codecId, priority);
+		} else {
+			LOG(logINFO) <<__FUNCTION__<< " codec id:" << c.codecId << " priority:" << unsigned(c.priority);
+		}
+	}
 }
 
 int main(int argc, char **argv){
@@ -1077,6 +1087,7 @@ int main(int argc, char **argv){
 	int timer_ms = 0;
 
 	ep.config = &config;
+	config.ep = &ep;
 
 	// command line argument
 	for (int i = 1; i < argc; ++i) {
@@ -1201,10 +1212,8 @@ int main(int argc, char **argv){
 		ep_cfg.medConfig.noVad = 1;
 		// ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
 
-		ep.libInit( ep_cfg );
+		ep.libInit(ep_cfg);
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
-
-		ep.setCodecs();
 
 		tcfg.port = port;
 		config.transport_id_udp = -1;

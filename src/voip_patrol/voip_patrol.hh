@@ -80,6 +80,15 @@ class ResultFile {
 };
 
 
+class VoipPatrolEnpoint : public Endpoint {
+	public:
+		Config *config;
+		void setCodecs(string &list, int priority);
+	private:
+		void onSelectAccount(OnSelectAccountParam &param);
+};
+
+
 class Config {
 	public:
 		Config(std::string result_file_name);
@@ -117,6 +126,7 @@ class Config {
 			int verify_client;
 		} tls_cfg;
 		std::vector<Test *> tests_with_rtp_stats;
+		VoipPatrolEnpoint *ep;
 	private:
 		std::string configFileName;
 };
@@ -198,13 +208,6 @@ class Test {
 		std::mutex process_result;
 };
 
-class VoipPatrolEnpoint : public Endpoint {
-	public:
-		Config *config;
-		void setCodecs();
-	private:
-		void onSelectAccount(OnSelectAccountParam &param);
-};
 
 class TestAccount : public Account {
 	public:

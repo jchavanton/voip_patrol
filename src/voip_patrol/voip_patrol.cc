@@ -19,6 +19,7 @@
 #include "voip_patrol.hh"
 #include "mod_voip_patrol.hh"
 #include "action.hh"
+#include "check.hh"
 #define THIS_FILE "voip_patrol.cc"
 #include <pjsua2/account.hpp>
 #include <pjsua2/call.hpp>
@@ -440,35 +441,15 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	}
 }
 
-void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg) {
-	// action checks for headers
-	for (vector<ActionCheck> :: iterator check = checks.begin(); check != checks.end(); ++check){
-		if (check->hdr.hName == "") continue;
-		LOG(logINFO) <<__FUNCTION__<<" check-header:"<< check->hdr.hName<<" "<<check->hdr.hValue;
-		pj_str_t header_name = str2Pj(check->hdr.hName.c_str());
-		pjsip_hdr* s_hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(msg, (const pj_str_t *) &header_name, NULL);
-		if (s_hdr) {
-			SipHeader SHdr;
-			SHdr.fromPj(s_hdr);
-			if (check->hdr.hValue == "" || check->hdr.hValue == SHdr.hValue) {
-				LOG(logINFO) <<__FUNCTION__<< " header found and value is matching:" << SHdr.hName <<" "<< SHdr.hValue;
-				check->result = true;
-			} else {
-				LOG(logINFO) <<__FUNCTION__<< " header found and value is not matching:" << SHdr.hName <<" "<< SHdr.hValue;
-				check->result = false;
-			}
-		} else {
-			LOG(logINFO) <<__FUNCTION__<< " header not found";
-			check->result = false;
-		}
-	}
-}
+
 
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(this, iprm.callId);
 	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
 
-	check_checks(checks, pjsip_data->msg_info.msg);
+	std::string message;
+	message.append(pjsip_data->msg_info.msg_buf, pjsip_data->msg_info.len);
+	check_checks(checks, pjsip_data->msg_info.msg, message);
 
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
@@ -684,11 +665,17 @@ void Test::update_result() {
 			if (x>0) result_checks_json += ",";
 			string result = check.result ? "PASS": "FAIL";
 
-			result_checks_json += "\""+to_string(x)+"\":{"
-							"\"header_name\": \""+check.hdr.hName+"\", "
-							"\"header_value\": \""+check.hdr.hValue+"\", "
-							"\"result\": \""+ result +"\" "
-							"}";
+			result_checks_json += "\""+to_string(x)+"\":{";
+			if (check.regex.empty()) {
+				result_checks_json += "\"header_name\": \""+check.hdr.hName+"\", "
+							"\"header_value\": \""+check.hdr.hValue+"\", ";
+			} else {
+				string json_val {check.regex};
+				jsonify(&json_val);
+				result_checks_json += "\"method\": \""+check.method+"\", "
+							"\"regex\": \""+json_val+"\", ";
+			}
+			result_checks_json += "\"result\": \""+ result +"\"}";
 			x++;
 		}
 		if (!result_checks_json.empty())
@@ -904,6 +891,31 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				x_hdrs.push_back(sh);
 			}
 			vector<ActionCheck> checks;
+			// TO DO: these checks sould use get/set params like we do with action params
+			// <check-message>
+			for (xml_check = ezxml_child(xml_action, "check-message"); xml_check; xml_check=xml_check->next) {
+				ActionCheck check;
+				const char * val;
+				val = ezxml_attr(xml_check, "method");
+				if (val) {
+					check.method = string(val);
+				} else {
+					LOG(logERROR) <<__FUNCTION__<<"<check-message> missing [method] param !";
+					continue;
+				}
+				val = ezxml_attr(xml_check, "regex");
+				if (val) {
+					check.regex = string(val);
+				} else {
+					LOG(logERROR) <<__FUNCTION__<<"<check-message> missing [regex] param !";
+					continue;
+				}
+				val = ezxml_attr(xml_check, "code");
+				if (val) check.code = atoi(val);
+				LOG(logINFO) <<__FUNCTION__<<" check-message: method["<<check.method<<"] regex["<< check.regex<<"]";
+				checks.push_back(check);
+			}
+			// <checks-header>
 			for (xml_check = ezxml_child(xml_action, "check-header"); xml_check; xml_check=xml_check->next) {
 				ActionCheck check;
 				const char * val = ezxml_attr(xml_check, "name");

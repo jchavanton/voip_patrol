@@ -163,7 +163,7 @@ cd ..
 </config>
 ```
 
-### Example: accpeting calls and checking for specific header
+### Example: accepting calls and checking for specific header
 ```xml
 <config>
   <actions>
@@ -180,6 +180,22 @@ cd ..
 </config>
 ```
 
+### Example: accepting calls and searching the message with a regular expression
+```xml
+<config>
+  <actions>
+    <action type="accept"
+            account="default"
+            hangup="5"
+            code="200" reason="OK"
+    >
+        <check-message method="INVITE" regex="m=audio(.*)RTP/AVP 0 8.*"/>
+        <!-- searching for pcmu pcma in the SDP -->
+    </action>
+    <action type="wait" ms="-1"/>
+  </actions>
+</config>
+```
 
 ### Example: making tests calls with wait_until
 Scenario execution is sequential and non-blocking.
@@ -255,7 +271,7 @@ config>
 </config>
 ```
 
-### accept command parameters (partial list)
+### accept command parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -268,7 +284,7 @@ config>
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
 
 
-### call command parameters (partial list)
+### call command parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -281,7 +297,7 @@ config>
 | transport | string | force a specific transport <tcp,udp,tls> |
 
 
-### register command parameters (partial list)
+### register command parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -299,6 +315,7 @@ config>
   <actions>
     <action type="codec" disable="all"/>
     <action type="codec" enable="pcmu" priority="250"/>
+    <!-- more actions ... -->
     <action type="wait" complete/>
   </actions>
 </config>

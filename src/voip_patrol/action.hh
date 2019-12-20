@@ -20,9 +20,11 @@
 #define VOIP_PATROL_ACTION_H
 
 #include "voip_patrol.hh"
+#include "check.hh"
 #include <pjsua2.hpp>
 
 class Config;
+class ActionCheck;
 
 using namespace std;
 
@@ -40,13 +42,6 @@ struct ActionParam {
 	bool required;
 };
 
-struct ActionCheck {
-	pj::SipHeader hdr;
-	string regex;
-	string method;
-	int code;
-	bool result;
-};
 
 class Action {
 	public:

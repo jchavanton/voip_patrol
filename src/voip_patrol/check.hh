@@ -20,11 +20,20 @@
 #define VOIP_PATROL_CHECK_H
 
 #include "voip_patrol.hh"
+#include <pjsua2.hpp>
 
 using namespace std;
 
+class ActionCheck {
+	public:
+		pj::SipHeader hdr;
+		string regex;
+		string method;
+		int code{0};
+		bool result{false};
+};
+
 bool check_regex(string m, string e);
 void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message);
-
 
 #endif

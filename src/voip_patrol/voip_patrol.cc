@@ -48,6 +48,56 @@ call_state_t get_call_state_from_string (string state) {
 	return INV_STATE_NULL;
 }
 
+string get_call_state_from_id (int state) {
+	if (state == INV_STATE_CALLING) return "CALLING";
+	if (state == INV_STATE_INCOMING) return "INCOMING";
+	if (state == INV_STATE_EARLY) return "EARLY";
+	if (state == INV_STATE_CONNECTING) return "CONNECTING";
+	if (state == INV_STATE_CONFIRMED) return "CONFIRMED";
+	if (state == INV_STATE_DISCONNECTED) return "DISCONNECTED";
+	return "UKNOWN";
+}
+
+static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
+	pj_status_t status = PJ_SUCCESS;
+	// Create a player if none.
+	if (call->player_id < 0) {
+		char * fn = new char [call->test->play.length()+1];
+		strcpy (fn, call->test->play.c_str());
+		const pj_str_t file_name = pj_str(fn);
+		status = pjsua_player_create(&file_name, 0, &call->player_id);
+		delete[] fn;
+		if (status != PJ_SUCCESS) {
+			LOG(logINFO) <<__FUNCTION__<<": [error] creating player";
+			return status;
+		}
+	}
+	LOG(logINFO) <<__FUNCTION__<<": connecting player_id["<<call->player_id<<"]";
+	status = pjsua_conf_connect(pjsua_player_get_conf_port(call->player_id), pjsua_call_get_conf_port(call_id));
+	LOG(logINFO) <<__FUNCTION__<<": player connected";
+	return status;
+}
+
+static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
+	pj_status_t status = PJ_SUCCESS;
+	// Create a recorder if none.
+	if (call->recorder_id < 0) {
+		char rec_fn[1024] = "voice_ref_files/recording.wav";
+		CallInfo ci = call->getInfo();
+		sprintf(rec_fn,"voice_files/%s_%s_rec.wav", ci.callIdString.c_str(), caller_contact);
+		call->test->record_fn = string(&rec_fn[0]);
+		const pj_str_t rec_file_name = pj_str(rec_fn);
+		status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &call->recorder_id);
+		if (status != PJ_SUCCESS) {
+			LOG(logINFO) <<__FUNCTION__<<": [error] tecord_call \n";
+			return status;
+		}
+		LOG(logINFO) <<__FUNCTION__<<": [recorder] created:" << call->recorder_id << " fn:"<< rec_fn;
+	}
+	status = pjsua_conf_connect(pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(call->recorder_id));
+	return status;
+}
+
 string get_call_state_string (call_state_t state) {
 	if (state == INV_STATE_CALLING) return "CALLING";
 	if (state == INV_STATE_INCOMING) return "INCOMING";
@@ -207,13 +257,26 @@ void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 	test->dtmf_recv.append(prm.digit);
 }
 
+void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
+	CallInfo ci = getInfo();
+	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id;
+}
+
+void TestCall::onCallMediaUpdate(OnCallMediaStateParam &prm) {
+	CallInfo ci = getInfo();
+	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id;
+}
+
 void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
-	LOG(logDEBUG) <<__FUNCTION__<<": idx["<<prm.streamIdx<<"]";
+	CallInfo ci = getInfo();
+	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id<<" idx["<<prm.streamIdx<<"]";
 	pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
 	pjmedia_stream_info *pj_stream_info;
 
-	CallInfo ci = getInfo();
-	if  (ci.state == PJSIP_INV_STATE_EARLY) return;
+	if (ci.state == PJSIP_INV_STATE_EARLY) return;
+
+	LOG(logINFO) << __FUNCTION__ << ": " << get_call_state_from_id((int)(ci.state));
+
 
 	try {
 		StreamStat const &stats = getStreamStat(prm.streamIdx);
@@ -244,7 +307,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 		LOG(logINFO) << __FUNCTION__ <<" rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
 		rtt = rtcp.rttUsec.mean/1000;
-		test->rtp_stats_json = " \"rtp_stats\":{\"rtt\":"+to_string(rtt)+","
+		test->rtp_stats_json = test->rtp_stats_json + " \"rtp_stats\":{\"rtt\":"+to_string(rtt)+","
 						"\"Tx\":{"
 							"\"jitter_avg\": "+to_string(txStat.jitterUsec.mean/1000)+", "
 							"\"jitter_max\": "+to_string(txStat.jitterUsec.max/1000)+", "
@@ -262,6 +325,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"discard\": "+to_string(rxStat.discard)+", "
 							"\"mos_lq\": "+to_string(mos_rx)+"} "
 						"}";
+		if (ci.state == PJSIP_INV_STATE_CONFIRMED) return;
 		test->rtp_stats_ready = true;
 		test->update_result();
 	} catch (pj::Error e)  {
@@ -270,48 +334,9 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 }
 
 void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
-	LOG(logDEBUG) <<__FUNCTION__<< " idx["<<prm.streamIdx<<"]\n";
-	//pjmedia_stream const *pj_stream = (pjmedia_stream *)&prm.stream;
-	//pjmedia_stream_info *pj_stream_info;
-	//pjmedia_stream_get_info(pj_stream, pj_stream_info);
+	CallInfo ci = getInfo();
+	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id<<" idx["<<prm.streamIdx<<"]";
 }
-
-static pj_status_t record_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
-	pj_status_t status = PJ_SUCCESS;
-	pjsua_recorder_id recorder_id;
-	char rec_fn[1024] = "voice_ref_files/recording.wav";
-	CallInfo ci = call->getInfo();
-	sprintf(rec_fn,"voice_files/%s_%s_rec.wav", ci.callIdString.c_str(), caller_contact);
-	call->test->record_fn = string(&rec_fn[0]);
-	const pj_str_t rec_file_name = pj_str(rec_fn);
-	status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &recorder_id);
-	if (status != PJ_SUCCESS) {
-		LOG(logINFO) <<__FUNCTION__<<": [error] tecord_call \n";
-		return status;
-	}
-	call->recorder_id = recorder_id;
-	LOG(logINFO) <<__FUNCTION__<<": [recorder] created:" << recorder_id << " fn:"<< rec_fn;
-	status = pjsua_conf_connect( pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(recorder_id) );
-	return status;
-}
-
-static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
-	pj_status_t status = PJ_SUCCESS;
-	pjsua_player_id player_id;
-	char * fn = new char [call->test->play.length()+1];
-	strcpy (fn, call->test->play.c_str());
-	const pj_str_t file_name = pj_str(fn);
-	status = pjsua_player_create(&file_name, 0, &player_id);
-	delete[] fn;
-	if (status != PJ_SUCCESS) {
-		LOG(logINFO) <<__FUNCTION__<<": [error] creating player\n";
-		return status;
-	}
-	call->player_id = player_id;
-	status = pjsua_conf_connect( pjsua_player_get_conf_port(player_id), pjsua_call_get_conf_port(call_id) );
-	return status;
-}
-
 
 void TestCall::onCallState(OnCallStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
@@ -326,7 +351,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	std::string remote_user("");
 	std::string local_user("");
 	std::size_t pos = ci.localUri.find("@");
-	LOG(logINFO) <<__FUNCTION__<<": ["<< ci.localUri <<"]\n";
+	LOG(logINFO) <<__FUNCTION__<<": ["<< ci.localUri <<"]";
 	if (ci.localUri[0] == '<')
 		uri_prefix++;
 	if (pos!=std::string::npos) {
@@ -385,9 +410,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			dialDtmf(test->play_dtmf);
 			LOG(logINFO) <<__FUNCTION__<<": [dtmf]" << test->play_dtmf;
 		}
-		stream_to_call(this, ci.id, remote_user.c_str());
+		stream_to_call(this, ci.id, test->remote_user.c_str());
 		if (test->min_mos)
-			record_call(this, ci.id, remote_user.c_str());
+			record_call(this, ci.id, test->remote_user.c_str());
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
@@ -463,6 +488,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->hangup_duration = hangup_duration;
 		call->test->max_duration = max_duration;
 		call->test->ring_duration = ring_duration;
+		call->test->re_invite_interval = re_invite_interval;
 		call->test->expected_cause_code = 200;
 		LOG(logINFO)<<__FUNCTION__<<": local["<< ci.localUri <<"]";
 
@@ -576,7 +602,7 @@ void Test::update_result() {
 		state = VPT_DONE;
 		std::string res = "FAIL";
 
-		LOG(logINFO)<<__FUNCTION__<<"\n";
+		LOG(logINFO)<<__FUNCTION__;
 		if (min_mos > 0 && mos == 0) {
 				return;
 		}

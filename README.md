@@ -107,8 +107,11 @@ cd ..
     "expected_duration": 0,
     "max_duration": 20,
     "hangup_duration": 16,
-    "rtp_stats": {
+    "rtp_stats_0": {
       "rtt": 0,
+      "remote_rtp_socket": "10.250.7.88:4028",
+      "codec_name": "PCMU",
+      "clock_rate": "8000",
       "Tx": {
         "jitter_avg": 0,
         "jitter_max": 0,
@@ -213,7 +216,7 @@ CONFIRMED : After ACK is sent/received.
 DISCONNECTED
 ```
 ```xml
-config>
+<config>
   <actions>
     <action type="call" label="call#1"
             transport="udp"
@@ -256,6 +259,90 @@ config>
 </config>
 ```
 
+### Example: re-invite with new codec
+```xml
+<config>
+    <action>
+        <action type="codec" disable="all"/>
+        <action type="codec" enable="pcma" priority="250"/>
+        <action type="codec" enable="pcmu" priority="248"/>
+
+        <!-- call that will last 12 seconds and re-invite every 2 seconds -->
+        <action type="call"
+            wait_until="CONFIRMED"
+            expected_cause_code="200"
+            caller="16364990640@125.22.198.115"
+            callee="12349099229@sip.mydomain.com"
+            max_duration="55" hangup="12"
+            username="65454659288" password="adaadzWidD7T"
+            realm="sip.mydomain.com"
+            re_invite_interval="2"
+            rtp_stats="true"
+        />
+        <action type="wait"/> <!-- this will wait until the call is confirmed -->
+        <action type="codec" disable="pcma"/>
+        <!-- re-invite will now use pcmu forcing a new session -->
+        <action type="wait" ms="3000"/> <!-- this will wait 3 seconds -->
+        <action type="codec" enable="pcma" priority="250"/>
+        <!-- re-invite will now use pcma forcing a new session -->
+
+        <action type="wait" complete="1"> <!-- Wait until hje call is disconnected -->
+    <actions/>
+<config/>
+```
+#### RTP stats report with multiples sessions, one block is generated everytime a session is created
+```json
+{
+ "rtp_stats_0": {
+      "rtt": 0,
+      "remote_rtp_socket": "10.250.7.88:4028",
+      "codec_name": "PCMA",
+      "clock_rate": "8000",
+      "Tx": {
+        "jitter_avg": 0,
+        "jitter_max": 0,
+        "pkt": 105,
+        "kbytes": 16,
+        "loss": 0,
+        "discard": 0,
+        "mos_lq": 4.5
+      },
+      "Rx": {
+        "jitter_avg": 0,
+        "jitter_max": 0,
+        "pkt": 104,
+        "kbytes": 16,
+        "loss": 0,
+        "discard": 0,
+        "mos_lq": 4.5
+      }
+    },
+    "rtp_stats_1": {
+      "rtt": 0,
+      "remote_rtp_socket": "10.250.7.89:40230",
+      "codec_name": "PCMU",
+      "clock_rate": "8000",
+      "Tx": {
+        "jitter_avg": 0,
+        "jitter_max": 0,
+        "pkt": 501,
+        "kbytes": 78,
+        "loss": 0,
+        "discard": 0,
+        "mos_lq": 4.5
+      },
+      "Rx": {
+        "jitter_avg": 0,
+        "jitter_max": 0,
+        "pkt": 501,
+        "kbytes": 78,
+        "loss": 0,
+        "discard": 0,
+        "mos_lq": 4.5
+      }
+    }
+}
+```
 ### Example: email reporting
 ```xml
 <config>
@@ -282,6 +369,7 @@ config>
 | response_delay | int | ms delay before reponse is sent, useful to test timeouts and race conditions |
 | call_count | int | The amount of calls to receive to consider the command completed, default -1 (considered completed) |
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
+| re_invite_interval | Interval in seconds at which a re-invite with SDP will be sent |
 
 
 ### call command parameters
@@ -295,6 +383,7 @@ config>
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
 | transport | string | force a specific transport <tcp,udp,tls> |
+| re_invite_interval | Interval in seconds at which a re-invite with SDP will be sent |
 
 
 ### register command parameters

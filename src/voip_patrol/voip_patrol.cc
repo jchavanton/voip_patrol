@@ -190,6 +190,11 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 	pj_str_t pj_to_uri = str2Pj(dst_uri);
 	vp_call_param param(prm.txOption, prm.opt, prm.reason);
 
+	// pjsua_call_setting
+	LOG(logINFO) <<__FUNCTION__<< " flag:"<< param.p_opt->flag << "PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+	param.p_opt->flag |= PJSUA_CALL_NO_SDP_OFFER;
+	LOG(logINFO) <<__FUNCTION__<< " flag:"<< param.p_opt->flag << "PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+
 	if (!to_uri.empty()) {
 		pjsua_msg_data_init(&param.msg_data);
 		param.p_msg_data = &param.msg_data;

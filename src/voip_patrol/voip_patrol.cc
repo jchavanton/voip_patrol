@@ -279,6 +279,8 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 
 	try {
+		StreamInfo const &infos = getStreamInfo(prm.streamIdx);
+		LOG(logINFO) << __FUNCTION__ << " codec name:"<< infos.codecName <<" clock rate:"<< infos.codecClockRate <<" RTP IP:"<< infos.remoteRtpAddress;
 		StreamStat const &stats = getStreamStat(prm.streamIdx);
 		RtcpStat rtcp = stats.rtcp;
 		RtcpStreamStat rxStat = rtcp.rxStat;
@@ -307,7 +309,12 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 		LOG(logINFO) << __FUNCTION__ <<" rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
 		rtt = rtcp.rttUsec.mean/1000;
-		test->rtp_stats_json = test->rtp_stats_json + " \"rtp_stats\":{\"rtt\":"+to_string(rtt)+","
+		if (test->rtp_stats_count > 0)
+			test->rtp_stats_json = test->rtp_stats_json + ',';
+		test->rtp_stats_json = test->rtp_stats_json + " \"rtp_stats_"+to_string(test->rtp_stats_count)+"\":{\"rtt\":"+to_string(rtt)+","
+						"\"remote_rtp_socket\": \""+infos.remoteRtpAddress+"\", "
+						"\"codec_name\": \""+infos.codecName+"\", "
+						"\"clock_rate\": \""+to_string(infos.codecClockRate)+"\", "
 						"\"Tx\":{"
 							"\"jitter_avg\": "+to_string(txStat.jitterUsec.mean/1000)+", "
 							"\"jitter_max\": "+to_string(txStat.jitterUsec.max/1000)+", "
@@ -325,6 +332,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"discard\": "+to_string(rxStat.discard)+", "
 							"\"mos_lq\": "+to_string(mos_rx)+"} "
 						"}";
+		test->rtp_stats_count++;
 		if (ci.state == PJSIP_INV_STATE_CONFIRMED) return;
 		test->rtp_stats_ready = true;
 		test->update_result();

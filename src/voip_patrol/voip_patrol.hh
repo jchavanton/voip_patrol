@@ -178,6 +178,7 @@ class Test {
 		int expected_duration;
 		int max_duration;
 		int ring_duration;
+		int rtp_stats_count{0};
 		int max_calling_duration;
 		void get_mos();
 		std::string local_user;

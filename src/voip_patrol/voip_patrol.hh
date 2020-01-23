@@ -172,10 +172,13 @@ class Test {
 		std::string reason;
 		int connect_duration;
 		int hangup_duration;
+		int re_invite_next{0};
+		int re_invite_interval{0};
 		int setup_duration;
 		int expected_duration;
 		int max_duration;
 		int ring_duration;
+		int rtp_stats_count{0};
 		int max_calling_duration;
 		void get_mos();
 		std::string local_user;
@@ -221,6 +224,7 @@ class TestAccount : public Account {
 		virtual void onRegState(OnRegStateParam &prm);
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
 		int hangup_duration;
+		int re_invite_interval{0};
 		int max_duration;
 		int ring_duration;
 		int response_delay;
@@ -248,12 +252,14 @@ class TestCall : public Call {
 		virtual void onCallTsxState(OnCallTsxStateParam &prm);
 		virtual void onCallState(OnCallStateParam &prm);
 		virtual void onStreamCreated(OnStreamCreatedParam &prm);
+		virtual void onCallMediaState(OnCallMediaStateParam &prm);
+		virtual void onCallMediaUpdate(OnCallMediaStateParam &prm);
 		virtual void onStreamDestroyed(OnStreamDestroyedParam &prm);
 		virtual void onDtmfDigit(OnDtmfDigitParam &prm);
 		void makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri);
 		void hangup(const CallOpParam &prm);
-		pjsua_recorder_id recorder_id;
-		pjsua_player_id player_id;
+		pjsua_recorder_id recorder_id{-1};
+		pjsua_player_id player_id{-1};
 		int role;
 		int rtt;
 		bool is_disconnecting(){return disconnecting;};

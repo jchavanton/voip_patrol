@@ -86,6 +86,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("timer", false, APType::apt_string));
@@ -111,6 +112,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("early_media", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup", false, APType::apt_integer));
+	do_accept_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
@@ -260,6 +262,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	int ring_duration {0};
 	int early_media {false};
 	int hangup_duration {0};
+	int re_invite_interval {0};
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
 	int code {200};
@@ -284,6 +287,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
+		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
 		else if (param.name.compare("response_delay") == 0) response_delay = param.i_val;
 	}
 
@@ -328,6 +332,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		acc = config->createAccount(acc_cfg);
 	}
 	acc->hangup_duration = hangup_duration;
+	acc->re_invite_interval = re_invite_interval;
 	acc->response_delay = response_delay;
 	acc->max_duration = max_duration;
 	acc->ring_duration = ring_duration;
@@ -368,6 +373,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	int max_calling_duration {0};
 	int expected_duration {0};
 	int hangup_duration {0};
+	int re_invite_interval {0};
 	int repeat {0};
 	bool recording {false};
 	bool rtp_stats {false};
@@ -394,6 +400,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("max_calling_duration") == 0) max_calling_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
+		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
 		else if (param.name.compare("repeat") == 0) repeat = param.i_val;
 		else if (param.name.compare("recording") == 0) recording = true;
 	}
@@ -466,6 +473,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->max_duration = max_duration;
 		test->max_calling_duration = max_calling_duration;
 		test->hangup_duration = hangup_duration;
+		test->re_invite_interval = re_invite_interval;
+		test->re_invite_next = re_invite_interval;
 		test->recording = recording;
 		test->rtp_stats = rtp_stats;
 		std::size_t pos = caller.find("@");
@@ -621,6 +630,22 @@ void Action::do_wait(vector<ActionParam> &params) {
 					call->test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
 					call->test->result_cause_code = (int)ci.lastStatusCode;
 					call->test->reason = ci.lastReason;
+					// check re-invite
+					if (call->test->re_invite_interval && ci.connectDuration.sec >= call->test->re_invite_next){
+						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
+							CallOpParam prm(true);
+							prm.opt.audioCount = 1;
+							prm.opt.videoCount = 0;
+							LOG(logINFO) <<__FUNCTION__<<" re-invite : call in PJSIP_INV_STATE_CONFIRMED" ;
+							try {
+								call->reinvite(prm);
+								call->test->re_invite_next = call->test->re_invite_next + call->test->re_invite_interval;
+							} catch (pj::Error e)  {
+								if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+							}
+						}
+					}
+					// check hangup
 					if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
 						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 							CallOpParam prm(true);

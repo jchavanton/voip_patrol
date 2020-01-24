@@ -168,6 +168,7 @@ class Test {
 		std::string end_time;
 		float min_mos;
 		bool rtp_stats;
+		bool late_start;
 		float mos;
 		std::string reason;
 		int connect_duration;
@@ -229,6 +230,7 @@ class TestAccount : public Account {
 		int ring_duration;
 		int response_delay;
 		bool rtp_stats;
+		bool late_start;
 		bool early_media;
 		SipHeaderVector x_headers;
 		int call_count;

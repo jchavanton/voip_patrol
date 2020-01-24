@@ -85,6 +85,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
@@ -115,6 +116,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("call_count", false, APType::apt_integer));
@@ -265,6 +267,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	int re_invite_interval {0};
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
+	bool late_start {false};
 	int code {200};
 	int call_count {-1};
 	int response_delay {0};
@@ -285,6 +288,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("early_media") == 0) early_media = param.b_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
+		else if (param.name.compare("late_start") == 0) late_start= param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
@@ -338,6 +342,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->ring_duration = ring_duration;
 	acc->accept_label = label;
 	acc->rtp_stats = rtp_stats;
+	acc->late_start= late_start;
 	acc->play = play;
 	acc->play_dtmf = play_dtmf;
 	acc->timer = timer;
@@ -377,6 +382,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	int repeat {0};
 	bool recording {false};
 	bool rtp_stats {false};
+	bool late_start {false};
 
 	for (auto param : params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
@@ -396,6 +402,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
+		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("max_calling_duration") == 0) max_calling_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;
@@ -477,6 +484,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->re_invite_next = re_invite_interval;
 		test->recording = recording;
 		test->rtp_stats = rtp_stats;
+		test->late_start= late_start;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);

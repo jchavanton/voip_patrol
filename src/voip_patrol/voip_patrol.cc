@@ -192,9 +192,12 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 
 	// pjsua_call_setting
 	if (test->late_start) {
-		LOG(logINFO) <<__FUNCTION__<< " flag:"<< param.p_opt->flag << "PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
 		param.p_opt->flag |= PJSUA_CALL_NO_SDP_OFFER;
-		LOG(logINFO) <<__FUNCTION__<< " flag:"<< param.p_opt->flag << "PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+		LOG(logINFO) <<__FUNCTION__<< " Late-Start: flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+	}
+	else {
+		param.p_opt->flag &= ~PJSUA_CALL_NO_SDP_OFFER;
+		LOG(logINFO) <<__FUNCTION__<< " Fast Start flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
 	}
 
 	if (!to_uri.empty()) {

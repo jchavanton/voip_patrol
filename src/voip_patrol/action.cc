@@ -18,6 +18,7 @@
 
 #include "voip_patrol.hh"
 #include "action.hh"
+#include "string.h"
 
 Action::Action(Config *cfg) : config{cfg} {
 	init_actions_params();
@@ -47,7 +48,8 @@ string Action::get_env(string env) {
 bool Action::set_param(ActionParam &param, const char *val) {
 			if (!val) return false;
 			if (param.type == APType::apt_bool) {
-				param.b_val = true;
+				if( strcmp(val, "true") ==  0 )  param.b_val = true;
+				else param.b_val = false;
 			} else if (param.type == APType::apt_integer) {
 				param.i_val = atoi(val);
 			} else if (param.type == APType::apt_float) {
@@ -288,7 +290,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("early_media") == 0) early_media = param.b_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
-		else if (param.name.compare("late_start") == 0) late_start= param.b_val;
+		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
@@ -484,7 +486,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->re_invite_next = re_invite_interval;
 		test->recording = recording;
 		test->rtp_stats = rtp_stats;
-		test->late_start= late_start;
+		test->late_start = late_start;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);

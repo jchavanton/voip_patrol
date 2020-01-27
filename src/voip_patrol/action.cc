@@ -47,9 +47,10 @@ string Action::get_env(string env) {
 
 bool Action::set_param(ActionParam &param, const char *val) {
 			if (!val) return false;
+			LOG(logINFO) <<__FUNCTION__<< " param name:" << param.name << " val:" << val; 
 			if (param.type == APType::apt_bool) {
-				if( strcmp(val, "true") ==  0 )  param.b_val = true;
-				else param.b_val = false;
+				if( strcmp(val, "false") ==  0 )  param.b_val = false;
+				else param.b_val = true;
 			} else if (param.type == APType::apt_integer) {
 				param.i_val = atoi(val);
 			} else if (param.type == APType::apt_float) {

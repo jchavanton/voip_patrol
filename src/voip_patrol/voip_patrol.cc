@@ -190,6 +190,16 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 	pj_str_t pj_to_uri = str2Pj(dst_uri);
 	vp_call_param param(prm.txOption, prm.opt, prm.reason);
 
+	// pjsua_call_setting
+	if (test->late_start) {
+		param.p_opt->flag |= PJSUA_CALL_NO_SDP_OFFER;
+		LOG(logINFO) <<__FUNCTION__<< " Late-Start: flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+	}
+	else {
+		param.p_opt->flag &= ~PJSUA_CALL_NO_SDP_OFFER;
+		LOG(logINFO) <<__FUNCTION__<< " Fast Start flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+	}
+
 	if (!to_uri.empty()) {
 		pjsua_msg_data_init(&param.msg_data);
 		param.p_msg_data = &param.msg_data;
@@ -510,6 +520,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN_WAIT;
 		call->test->rtp_stats = rtp_stats;
+		call->test->late_start = late_start;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
 		if (wait_state != INV_STATE_NULL)
@@ -574,6 +585,7 @@ Test::Test(Config *config, string type) : config(config), type(type) {
 	playing=false;
 	rtp_stats_ready=false;
 	rtp_stats=false;
+	late_start=false;
 	queued=false;
 	completed=false;
 	LOG(logINFO)<<__FUNCTION__<<LOG_COLOR_INFO<<": New test created:"<<type<<LOG_COLOR_END;

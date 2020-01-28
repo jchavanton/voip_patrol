@@ -236,6 +236,7 @@ void TestCall::onCallRxOffer(OnCallTsxStateParam &prm) {
 void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 	CallInfo ci = getInfo();
+
 	std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 	LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"]id["<<ci.callIdString<<"] "<<res;
 	if (test) {
@@ -354,6 +355,21 @@ void TestCall::onStreamCreated(OnStreamCreatedParam &prm) {
 void TestCall::onCallState(OnCallStateParam &prm) {
 	PJ_UNUSED_ARG(prm);
 
+	if (prm.e.type == PJSIP_EVENT_TX_MSG) {
+		pjsip_tx_data *pjsip_txdata = (pjsip_tx_data *) prm.e.body.txMsg.tdata.pjTxData;
+		if (pjsip_txdata && pjsip_txdata->msg && pjsip_txdata->msg->type == PJSIP_REQUEST_MSG) {
+			LOG(logINFO) <<__FUNCTION__<<": "+ pj2Str(pjsip_txdata->msg->line.req.method.name);
+		}
+	} else if (prm.e.type == PJSIP_EVENT_RX_MSG) {
+		pjsip_rx_data *pjsip_rxdata = (pjsip_rx_data *) prm.e.body.rxMsg.rdata.pjRxData;
+		if (pjsip_rxdata && pjsip_rxdata->msg_info.msg && pjsip_rxdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
+			LOG(logINFO) <<__FUNCTION__<<": "+ pj2Str(pjsip_rxdata->msg_info.msg->line.req.method.name);
+			std::string message;
+			message.append(pjsip_rxdata->msg_info.msg_buf, pjsip_rxdata->msg_info.len);
+			if (acc) check_checks(acc->checks, pjsip_rxdata->msg_info.msg, message);
+		}
+	}
+
 	LOG(logDEBUG) <<__FUNCTION__;
 	CallInfo ci = getInfo();
 
@@ -385,6 +401,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 
 	if (test) {
 		pjsip_tx_data *pjsip_data = (pjsip_tx_data *) prm.e.body.txMsg.tdata.pjTxData;
+
 		if (pjsip_data && pjsip_data->tp_info.transport) {
 			test->transport = pjsip_data->tp_info.transport->type_name;
 			test->peer_socket = pjsip_data->tp_info.dst_name;

@@ -1,5 +1,5 @@
 # VoIP Patrol
-![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small.jpg)
+![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small2.jpg)
 
 ## VoIP signaling and media test automaton
 

@@ -33,6 +33,7 @@ bool check_regex(string m, string e) {
 			return true;
 		}
 	}
+	LOG(logINFO) <<__FUNCTION__<<": not matching ! ["<<e<<"]";
 	return false;
 }
 

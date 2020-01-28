@@ -371,7 +371,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			LOG(logINFO) <<__FUNCTION__<<": "+ pj2Str(pjsip_rxdata->msg_info.msg->line.req.method.name);
 			std::string message;
 			message.append(pjsip_rxdata->msg_info.msg_buf, pjsip_rxdata->msg_info.len);
-			if (acc) check_checks(acc->checks, pjsip_rxdata->msg_info.msg, message);
+			if (test) check_checks(test->checks, pjsip_rxdata->msg_info.msg, message);
 		}
 	}
 

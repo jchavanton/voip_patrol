@@ -265,10 +265,9 @@ class TestCall : public Call {
 		int role;
 		int rtt;
 		bool is_disconnecting(){return disconnecting;};
+		TestAccount *acc;
 	private:
 		bool disconnecting;
-		TestAccount *acc;
-
 };
 
 

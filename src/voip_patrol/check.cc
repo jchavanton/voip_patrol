@@ -36,10 +36,14 @@ bool check_regex(string m, string e) {
 	return false;
 }
 
+
 void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message) {
+	std::string method = pj2Str(msg->line.req.method.name);
+	LOG(logINFO) <<__FUNCTION__<<": "+ method;
 	// action checks for headers
 	for (vector<ActionCheck> :: iterator check = checks.begin(); check != checks.end(); ++check){
 		if (!check->regex.empty()) {
+			if (method != check->method) continue;
 			if (check_regex(message, check->regex)) {
 				check->result = true;
 			}

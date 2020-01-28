@@ -75,7 +75,7 @@ cd ..
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
             realm="target.com"
-            rtp_stats
+            rtp_stats="true"
     >
         <x-header name="X-Foo" value="Bar"/>
     </action>
@@ -362,7 +362,7 @@ DISCONNECTED
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| early_media | bool | if present 183 with SDP and early media is used |
+| early_media | bool | if "true" 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | code | int | SIP cause code to return must be >100 and <700 |
 | account | string | Account will be used if it matches the user part of an incoming call RURI or "default" will catch all |
@@ -370,6 +370,7 @@ DISCONNECTED
 | call_count | int | The amount of calls to receive to consider the command completed, default -1 (considered completed) |
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
 | re_invite_interval | Interval in seconds at which a re-invite with SDP will be sent |
+| rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 
 
 ### call command parameters
@@ -384,6 +385,8 @@ DISCONNECTED
 | to_uri | string | used@host part of the URI in the To header |
 | transport | string | force a specific transport <tcp,udp,tls> |
 | re_invite_interval | Interval in seconds at which a re-invite with SDP will be sent |
+| rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 
 
 ### register command parameters

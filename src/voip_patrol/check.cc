@@ -50,6 +50,7 @@ void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message) {
 			}
 			continue;
 		}
+		if (method != check->method) continue;
 		if (check->hdr.hName == "") continue;
 		LOG(logINFO) <<__FUNCTION__<<" check-header:"<< check->hdr.hName<<" "<<check->hdr.hValue;
 		pj_str_t header_name = str2Pj(check->hdr.hName.c_str());
@@ -62,11 +63,9 @@ void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message) {
 				check->result = true;
 			} else {
 				LOG(logINFO) <<__FUNCTION__<< " header found and value is not matching:" << SHdr.hName <<" "<< SHdr.hValue;
-				check->result = false;
 			}
 		} else {
 			LOG(logINFO) <<__FUNCTION__<< " header not found";
-			check->result = false;
 		}
 	}
 }

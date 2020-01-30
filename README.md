@@ -82,7 +82,7 @@ cd ..
     <!-- note: param value starting with VP_ENV_ will be replaced by environment variables -->
     <!-- note: rtp_stats will include RTP transmission statistics -->
     <!-- note: x-header tag inside an action will append an header -->
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -234,7 +234,7 @@ DISCONNECTED
             caller="15147777777@noreply.com"
             callee="12012222222@target.com"
     />
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -254,7 +254,7 @@ DISCONNECTED
             registrar="target.com"
             expected_cause_code="200"
     />
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -286,7 +286,7 @@ DISCONNECTED
         <action type="codec" enable="pcma" priority="250"/>
         <!-- re-invite will now use pcma forcing a new session -->
 
-        <action type="wait" complete="1"> <!-- Wait until hje call is disconnected -->
+        <action type="wait" complete="true"> <!-- Wait until the calls are disconnected -->
     <actions/>
 <config/>
 ```
@@ -353,7 +353,7 @@ DISCONNECTED
      smtp_host="smtp://gmail-smtp-in.l.google.com:25"
     />
     <!-- add more test actions here ...  -->
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -400,6 +400,13 @@ DISCONNECTED
 | transport | string | force a specific transport <tcp,udp,tls> |
 | realm | string | realm use for authentication |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
+
+### wait command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| complete | bool | if "true" wait for all the test to complete (or reach their wait_until state) before executing next action or disconnecting calls and exiting, needed in most cases |
+| ms | int | the amount of milliseconds to wait before executing next action or disconnecting calls and exiting, if -1 wait forever |
 
 ### Example: codec configuration
 ```xml

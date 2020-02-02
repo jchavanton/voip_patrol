@@ -621,8 +621,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 					Test *test = call->test;
 					if (test->ring_duration > 0 && ci.totalDuration.sec >= test->ring_duration) {
 						CallOpParam prm;
-						if (test->reason.size() > 0) prm.reason = test->reason;
+						//if (test->reason.size() > 0) prm.reason = test->reason;
+						prm.reason = "OK";
 						if (test->code) prm.statusCode = test->code;
+						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
 					} else if (test->max_calling_duration && test->max_calling_duration <= ci.totalDuration.sec) {
 						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["

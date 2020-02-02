@@ -579,32 +579,6 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 Test::Test(Config *config, string type) : config(config), type(type) {
 	char now[20] = {'\0'};
 	get_time_string(now);
-	from="";
-	to="";
-	wait_state = INV_STATE_NULL;
-	state = VPT_RUN;
-	start_time = now;
-	min_mos = 0.0;
-	mos = 0.0;
-	expected_cause_code = -1;
-	result_cause_code = -1;
-	reason = "";
-	connect_duration = 0;
-	expected_duration = 0;
-	setup_duration = 0;
-	max_duration = 0;
-	ring_duration = 0;
-	hangup_duration = 0;
-	call_id = 0;
-	sip_call_id = "";
-	label = "-";
-	recording = false;
-	playing=false;
-	rtp_stats_ready=false;
-	rtp_stats=false;
-	late_start=false;
-	queued=false;
-	completed=false;
 	LOG(logINFO)<<__FUNCTION__<<LOG_COLOR_INFO<<": New test created:"<<type<<LOG_COLOR_END;
 }
 

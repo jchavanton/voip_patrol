@@ -290,6 +290,35 @@ DISCONNECTED
     <actions/>
 <config/>
 ```
+
+### Example: Overwriting local contact header
+```xml
+<config><actions>
+    <action type="codec" disable="all"/>
+    <action type="codec" enable="pcma" priority="250"/>
+    <action type="codec" enable="gsm" priority="249"/>
+    <action type="codec" enable="pcmu" priority="248"/>
+
+    <action type="call"
+        transport="udp"
+        caller="+15147371787@fakecustomer.xyz"
+        callee="+911@edgeproxy1"
+        transport="udp"
+        username="20255655"
+        password="qntzhpbl"
+        realm="sip.flowroute.com"
+        rtp_stats="true"
+        late_start="false"
+        force_contact="sip:+15147371787@10.10.2.5:5777"
+        play="/git/voip_patrol/voice_ref_files/reference_8000_12s.wav"
+        hangup="5">
+
+    <x-header name="Foo" value="Bar"/>
+    </action>
+    <action type="wait" complete/>
+</actions></config>
+```
+
 #### RTP stats report with multiples sessions, one block is generated everytime a session is created
 ```json
 {
@@ -388,6 +417,7 @@ DISCONNECTED
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
+| force_contact | string | local contact header will be overwritten by the given string |
 
 
 ### register command parameters

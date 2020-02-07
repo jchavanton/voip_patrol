@@ -197,7 +197,7 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 	}
 	else {
 		param.p_opt->flag &= ~PJSUA_CALL_NO_SDP_OFFER;
-		LOG(logINFO) <<__FUNCTION__<< " Fast Start flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+		LOG(logINFO) <<__FUNCTION__<< " Fast-Start: flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
 	}
 
 	if (!to_uri.empty()) {
@@ -538,6 +538,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->state = VPT_RUN_WAIT;
 		call->test->rtp_stats = rtp_stats;
 		call->test->late_start = late_start;
+		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
 		if (wait_state != INV_STATE_NULL)

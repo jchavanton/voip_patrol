@@ -89,6 +89,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
@@ -386,6 +387,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	bool recording {false};
 	bool rtp_stats {false};
 	bool late_start {false};
+	string force_contact {};
 
 	for (auto param : params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
@@ -406,6 +408,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
+		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("max_calling_duration") == 0) max_calling_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;
@@ -426,6 +429,10 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		if ( force_contact.compare("") != 0){
+			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
+			acc_cfg.sipConfig.contactForced = force_contact;
+		}
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		if (!timer.empty()) {
@@ -488,6 +495,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->recording = recording;
 		test->rtp_stats = rtp_stats;
 		test->late_start = late_start;
+		test->force_contact = force_contact;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);

@@ -25,25 +25,32 @@ pj_status_t vp_on_tx_msg(pjsip_tx_data *tdata) {
 	packet[0] = '\0';
 	char *packet_ptr = packet;
 
+	LOG(logINFO) <<__FUNCTION__<<">>IN>> :\n" << tdata->buf.start << "\n" ;
+
 	char *m = tdata->buf.start;
-	const char t[12] = ";transport=";
-	if (m[0] == 'A') {
+//	const char t[12] = ";transport=";
+	const char t[12] = "Contact: ";
+	if (m[0] == 'I') {
 		char *ret = strstr(m, t);
 		if (ret) {
-			memcpy(packet_ptr, tdata->buf.start, ret - tdata->buf.start);
-			packet_ptr += ret - tdata->buf.start;
-			*packet_ptr = ' ';
-			packet_ptr++;
-			while (ret && ret[0] != 'S' && ret[1] != 'I') {
-				ret[0] = ' ';
+			//memcpy(packet_ptr, tdata->buf.start, ret - tdata->buf.start);
+			//packet_ptr += ret - tdata->buf.start;
+			//*packet_ptr = ' ';
+			//packet_ptr++;
+			while (ret && ret[0] != '@') {
 				ret++;
 			}
-			memcpy(packet_ptr, ret, tdata->buf.cur - ret);
-			packet_ptr +=  tdata->buf.cur - ret;
-			tdata->buf.cur = tdata->buf.start;
-			memcpy(tdata->buf.cur, packet, packet_ptr - packet);
-			tdata->buf.cur += (packet_ptr - packet);
-//			LOG(logINFO) <<__FUNCTION__<<">>OUT>> :\n" << tdata->buf.start << "\n" ;
+			ret[1] = '1';
+			ret[2] = '0';
+			ret[3] = '.';
+			ret[4] = '1';
+			ret[5] = '0';
+			//memcpy(packet_ptr, ret, tdata->buf.cur - ret);
+			//packet_ptr +=  tdata->buf.cur - ret;
+			//tdata->buf.cur = tdata->buf.start;
+			//memcpy(tdata->buf.cur, packet, packet_ptr - packet);
+			//tdata->buf.cur += (packet_ptr - packet);
+			LOG(logINFO) <<__FUNCTION__<<">>OUT>> :\n" << tdata->buf.start << "\n" ;
 		}
 	}
 

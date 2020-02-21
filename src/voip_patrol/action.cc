@@ -600,7 +600,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 			} else if (account->test) {
 				tests_running++;
 			}
-			if (account->call_count > 0) {
+			if (account->call_count > 0 && duration_ms > 0) {
 				tests_running++;
 			}
 		}

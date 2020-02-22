@@ -538,6 +538,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->state = VPT_RUN_WAIT;
 		call->test->rtp_stats = rtp_stats;
 		call->test->late_start = late_start;
+		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
 		if (wait_state != INV_STATE_NULL)

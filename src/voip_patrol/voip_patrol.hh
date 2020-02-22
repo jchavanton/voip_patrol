@@ -170,6 +170,7 @@ class Test {
 		float mos{0.0};
 		bool rtp_stats{false};
 		bool late_start{false};
+		bool force_contact{false};
 		std::string reason{""};
 		int connect_duration{0};
 		int hangup_duration{0};
@@ -231,6 +232,7 @@ class TestAccount : public Account {
 		int response_delay;
 		bool rtp_stats;
 		bool late_start;
+		bool force_contact;
 		bool early_media;
 		SipHeaderVector x_headers;
 		int call_count;

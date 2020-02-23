@@ -197,7 +197,7 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 	}
 	else {
 		param.p_opt->flag &= ~PJSUA_CALL_NO_SDP_OFFER;
-		LOG(logINFO) <<__FUNCTION__<< " Fast Start flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
+		LOG(logINFO) <<__FUNCTION__<< " Fast-Start: flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
 	}
 
 	if (!to_uri.empty()) {

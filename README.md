@@ -310,9 +310,7 @@ DISCONNECTED
         rtp_stats="true"
         late_start="false"
         force_contact="sip:+15147371787@10.10.2.5:5777"
-        rewrite_ack_transport="true"
         play="/git/voip_patrol/voice_ref_files/reference_8000_12s.wav"
-        re_invite_interval="2"
         hangup="5">
 
     <x-header name="Foo" value="Bar"/>

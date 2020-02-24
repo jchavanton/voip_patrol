@@ -608,7 +608,8 @@ void Action::do_wait(vector<ActionParam> &params) {
 			} else if (account->test) {
 				tests_running++;
 			}
-			if (account->call_count > 0 && duration_ms > 0) {
+			// accept/call_count, are considered "tests_running" when maximum duration is either not specified or reached.
+			if (account->call_count > 0 && (duration_ms > 0 || duration_ms == -1)) {
 				tests_running++;
 			}
 		}

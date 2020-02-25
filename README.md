@@ -2,6 +2,15 @@
 ![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small2.jpg)
 
 ## VoIP signaling and media test automaton
+Designed to automate end2end and or integrations tests.
+
+VoIP will follow a scenario in XML format and will output results in JSON.
+
+Each line in the output file is a separate JSON structure, note that the entire file is not a valid JSON file,
+this is because VoIP patrol will output results as they become available.
+
+It is possible to test many scenarios that are not easy to test manually like a re-invite with a new codec.
+
 
 ### Linux Alpine dependencies
 ```bash

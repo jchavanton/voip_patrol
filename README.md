@@ -66,6 +66,8 @@ cd ..
  --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent
  --graceful-shutdown               Wait a few seconds when shuting down
  --tcp / --udp                     Only listen to TCP/UDP
+ --ip-addr <IP>                    Use the specifed address as SIP and RTP addresses
+ --bound-addr <IP>                 Bind transports to this IP interface
 ```
 
 

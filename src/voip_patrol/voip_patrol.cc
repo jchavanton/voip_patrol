@@ -514,6 +514,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
+
 	LOG(logINFO) <<__FUNCTION__<<":"<<" ["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
 	if (!call->test) {
 		string type("accept");
@@ -869,6 +870,10 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	TestAccount *account = new TestAccount();
 	accounts.push_back(account);
 	account->config = this;
+	acc_cfg.mediaConfig.transportConfig.boundAddress = ip_cfg.bound_address;
+	acc_cfg.mediaConfig.transportConfig.publicAddress = ip_cfg.public_address;
+	if (ip_cfg.public_address != "")
+		acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
 	account->create(acc_cfg);
 	AccountInfo acc_inf = account->getInfo();
 	LOG(logINFO) <<__FUNCTION__<< ": ["<< acc_inf.id << "]["<<acc_inf.uri<<"]";
@@ -1158,9 +1163,11 @@ int main(int argc, char **argv){
             " --tls-verify-server               TLS verify server certificate \n"\
             " --tls-verify-client               TLS verify client certificate \n"\
             " --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent \n"\
-            " --graceful-shutdown               Wait a few seconds when shuting down \n"\
+            " --graceful-shutdown               Wait a few seconds when shuting down\n"\
             " --tcp / --udp                     Only listen to TCP/UDP    \n"\
-			"                                                             \n";
+            " --ip-addr <IP>                    Use the specifed address as SIP and RTP addresses\n"\
+            " --bound-addr <IP>                 Bind transports to this IP interface\n"\
+            "                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
 			LOG(logINFO) <<"version: voip_patrol "<<VERSION<<std::endl;
@@ -1193,6 +1200,12 @@ int main(int argc, char **argv){
 			if (i + 1 < argc) {
 				log_fn = argv[++i];
 			}
+		} else if (arg == "--ip-addr") {
+			config.ip_cfg.public_address = argv[++i];
+			if (config.ip_cfg.bound_address == "")
+				config.ip_cfg.bound_address = "0.0.0.0";
+		} else if (arg == "--bound-addr") {
+			config.ip_cfg.bound_address = argv[++i];
 		} else if (arg == "--tls-privkey") {
 			config.tls_cfg.private_key = argv[++i];
 		} else if (arg == "--tls-verify-client") {
@@ -1229,6 +1242,8 @@ int main(int argc, char **argv){
 		"log file (voip_patrol): "<<log_fn<<"\n"
 		"log file (pjsua): "<<log_fn_pjsua<<"\n"
 		"output file: "<<log_test_fn<<"\n"
+		"public_address: "<<config.ip_cfg.public_address<<"\n"
+		"bound_address: "<<config.ip_cfg.bound_address<<"\n"
 		"* * * * * * *\n";
 
 	if (udp_only && tcp_only) {
@@ -1241,9 +1256,9 @@ int main(int argc, char **argv){
 	//pjsip_cfg()->tsx.t4 = 1000;
 	if (timer_ms > 0)
 		pjsip_cfg()->tsx.td = timer_ms;
+
 	TransportConfig tcfg;
 	try {
-
 		ep.libCreate();
 		if (config.rewrite_ack_transport) {
 			/* Register stateless server module */
@@ -1266,15 +1281,15 @@ int main(int argc, char **argv){
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
 		tcfg.port = port;
-		config.transport_id_udp = -1;
-		config.transport_id_tcp = -1;
+		tcfg.publicAddress = config.ip_cfg.public_address;
+		tcfg.boundAddress = config.ip_cfg.bound_address;
 
 		// TCP and UDP transports
-		if (!udp_only) {
-			config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
-		}
 		if (!tcp_only) {
 			config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+		}
+		if (!udp_only) {
+			config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
 		}
 	} catch (Error & err) {
 		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;

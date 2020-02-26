@@ -219,6 +219,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	}
 
 	acc_cfg.sipConfig.transportId = config->transport_id_udp;
+
 	if (!transport.empty()) {
 		if (transport.compare("tcp") == 0) {
 			acc_cfg.sipConfig.transportId = config->transport_id_tcp;
@@ -243,7 +244,6 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
-
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 
@@ -307,6 +307,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		AccountConfig acc_cfg;
+
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
@@ -429,6 +430,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
+
 		if ( force_contact.compare("") != 0){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
 			acc_cfg.sipConfig.contactForced = force_contact;

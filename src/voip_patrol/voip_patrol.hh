@@ -112,9 +112,9 @@ class Config {
 		std::string alert_email_to;
 		std::string alert_email_from;
 		std::string alert_server_url;
-		TransportId transport_id_udp;
-		TransportId transport_id_tcp;
-		TransportId transport_id_tls;
+		TransportId transport_id_udp{-1};
+		TransportId transport_id_tcp{-1};
+		TransportId transport_id_tls{-1};
 		int json_result_count;
 		Action action;
 		ResultFile result_file;
@@ -125,6 +125,10 @@ class Config {
 			int verify_server;
 			int verify_client;
 		} tls_cfg;
+		struct {
+			string public_address{};
+			string bound_address{};
+		} ip_cfg;
 		std::vector<Test *> tests_with_rtp_stats;
 		VoipPatrolEnpoint *ep;
 	private:

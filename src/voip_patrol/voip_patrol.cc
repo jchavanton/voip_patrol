@@ -1260,12 +1260,15 @@ int main(int argc, char **argv){
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
+		// ep_cfg.sdpNatRewriteUse = true;
 		// ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
 
 		ep.libInit(ep_cfg);
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
 		tcfg.port = port;
+		tcfg.publicAddress = "54.212.98.15";
+		tcfg.boundAddress = "0.0.0.0";
 		config.transport_id_udp = -1;
 		config.transport_id_tcp = -1;
 
@@ -1275,6 +1278,7 @@ int main(int argc, char **argv){
 		}
 		if (!tcp_only) {
 			config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+
 		}
 	} catch (Error & err) {
 		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;

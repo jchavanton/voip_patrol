@@ -210,6 +210,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 
 	LOG(logINFO) <<__FUNCTION__<< " >> sip:" + account_name;
 	AccountConfig acc_cfg;
+	acc_cfg.natConfig.sdpNatRewriteUse = true;
 	SipHeader sh;
 	sh.hName = "User-Agent";
 	sh.hValue = "<voip_patrol>";
@@ -307,6 +308,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		acc_cfg.natConfig.sdpNatRewriteUse = true;
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
@@ -429,6 +431,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		acc_cfg.natConfig.sdpNatRewriteUse = true;
 		if ( force_contact.compare("") != 0){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
 			acc_cfg.sipConfig.contactForced = force_contact;

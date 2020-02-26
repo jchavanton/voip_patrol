@@ -514,6 +514,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
+
 	LOG(logINFO) <<__FUNCTION__<<":"<<" ["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
 	if (!call->test) {
 		string type("accept");
@@ -859,6 +860,16 @@ void Config::createDefaultAccount() {
 	AccountConfig acc_cfg;
 	acc_cfg.idUri = "sip:default";
 	acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
+	// acc_cfg.natConfig.sdpNatRewriteUse = true;
+	// acc_cfg.natConfig.iceEnabled = false;
+	// acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
+	// LOG(logINFO) <<__FUNCTION__<<": media public IP :"<<acc_cfg.mediaConfig.transportConfig.publicAddress;
+	// LOG(logINFO) <<__FUNCTION__<<": media bound IP :"<<acc_cfg.mediaConfig.transportConfig.boundAddress;
+	// LOG(logINFO) <<__FUNCTION__<<":  :"<<acc_cfg.sipConfig.config.transport_id_udp;
+	// acc_cfg.sipConfig.transportConfig.publicAddress = "54.212.98.15";
+	acc_cfg.mediaConfig.transportConfig.boundAddress = "0.0.0.0";
+	acc_cfg.mediaConfig.transportConfig.publicAddress = "54.212.98.15";
+	// acc_cfg.sipConfig.transportId = transport_id_udp;
 
 	TestAccount *acc = createAccount(acc_cfg);
 	acc->play = default_playback_file;

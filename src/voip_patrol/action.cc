@@ -210,7 +210,9 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 
 	LOG(logINFO) <<__FUNCTION__<< " >> sip:" + account_name;
 	AccountConfig acc_cfg;
-	acc_cfg.natConfig.sdpNatRewriteUse = true;
+	// acc_cfg.natConfig.sdpNatRewriteUse = true;
+	// acc_cfg.natConfig.iceEnabled = false;
+	// acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
 	SipHeader sh;
 	sh.hName = "User-Agent";
 	sh.hValue = "<voip_patrol>";
@@ -247,7 +249,13 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
-
+	// acc_cfg.natConfig.sdpNatRewriteUse = true;
+	// acc_cfg.natConfig.iceEnabled = false;
+	// acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
+	// LOG(logINFO) <<__FUNCTION__<<": media public IP :"<<acc_cfg.mediaConfig.transportConfig.publicAddress;
+	// LOG(logINFO) <<__FUNCTION__<<": media bound IP :"<<acc_cfg.mediaConfig.transportConfig.boundAddress;
+	acc_cfg.mediaConfig.transportConfig.publicAddress = "54.212.98.15";
+	acc_cfg.mediaConfig.transportConfig.boundAddress = "0.0.0.0";
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);
 	} else {
@@ -308,7 +316,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		AccountConfig acc_cfg;
-		acc_cfg.natConfig.sdpNatRewriteUse = true;
+
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
@@ -339,6 +347,13 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 			}
 			LOG(logINFO) <<__FUNCTION__<<":session timer["<<timer<<"]: "<< acc_cfg.callConfig.timerUse ;
 		}
+		// acc_cfg.natConfig.sdpNatRewriteUse = true;
+		// acc_cfg.natConfig.iceEnabled = false;
+		// acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
+		// LOG(logINFO) <<__FUNCTION__<<": media public IP :"<<acc_cfg.mediaConfig.transportConfig.publicAddress;
+		// LOG(logINFO) <<__FUNCTION__<<": media bound IP :"<<acc_cfg.mediaConfig.transportConfig.boundAddress;
+		acc_cfg.mediaConfig.transportConfig.publicAddress = "54.212.98.15";
+		acc_cfg.mediaConfig.transportConfig.boundAddress = "0.0.0.0";
 		acc = config->createAccount(acc_cfg);
 	}
 	acc->hangup_duration = hangup_duration;
@@ -431,7 +446,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
-		acc_cfg.natConfig.sdpNatRewriteUse = true;
+
 		if ( force_contact.compare("") != 0){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
 			acc_cfg.sipConfig.contactForced = force_contact;
@@ -477,6 +492,13 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			}
 			acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 		}
+		// acc_cfg.natConfig.sdpNatRewriteUse = true;
+		// acc_cfg.natConfig.iceEnabled = false;
+		// acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
+		// LOG(logINFO) <<__FUNCTION__<<": media public IP :"<<acc_cfg.mediaConfig.transportConfig.publicAddress;
+		// LOG(logINFO) <<__FUNCTION__<<": media bound IP :"<<acc_cfg.mediaConfig.transportConfig.boundAddress;
+		acc_cfg.mediaConfig.transportConfig.publicAddress = "54.212.98.15";
+		acc_cfg.mediaConfig.transportConfig.boundAddress = "0.0.0.0";
 		acc = config->createAccount(acc_cfg);
 	}
 

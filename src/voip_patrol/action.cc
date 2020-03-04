@@ -695,6 +695,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 				config->tests_with_rtp_stats.erase(config->tests_with_rtp_stats.begin()+pos);
 				LOG(logINFO) << __FUNCTION__ << " erase pos:" << pos;
 			} else {
+				tests_running++;
 				pos++;
  			}
 		}

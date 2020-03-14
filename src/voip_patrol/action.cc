@@ -142,7 +142,7 @@ void Action::init_actions_params() {
 
 void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
 	string type {"register"};
-	string transport {};
+	string transport {"udp"};
 	string label {};
 	string registrar {};
 	string proxy {};
@@ -218,35 +218,31 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		acc_cfg.regConfig.headers.push_back(x_hdr);
 	}
 
-	acc_cfg.sipConfig.transportId = config->transport_id_udp;
-
-	if (!transport.empty()) {
-		if (transport.compare("tcp") == 0) {
-			acc_cfg.sipConfig.transportId = config->transport_id_tcp;
-		} else if (transport.compare("tls") == 0) {
-			if (config->transport_id_tls == -1) {
-				LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
-				return;
-			}
-			acc_cfg.sipConfig.transportId = config->transport_id_tls;
+	if (transport == "tcp") {
+		LOG(logINFO) <<__FUNCTION__<< " SIP TCP";
+		acc_cfg.idUri = "sip:" + account_name + ";transport=tcp";
+		acc_cfg.regConfig.registrarUri = "sip:" + registrar + ";transport=tcp";
+		if (!proxy.empty())
+			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
+	} else if (transport == "tls") {
+		if (config->transport_id_tls == -1) {
+			LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
+			return;
 		}
-	}
-	if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
 		acc_cfg.idUri = "sips:" + account_name;
 		acc_cfg.regConfig.registrarUri = "sips:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
-
-		LOG(logINFO) <<__FUNCTION__<< " SIPS URI Scheme";
+		LOG(logINFO) <<__FUNCTION__<< " SIPS/TLS URI Scheme";
 	} else {
-		LOG(logINFO) <<__FUNCTION__<< " SIP URI Scheme";
+		LOG(logINFO) <<__FUNCTION__<< " SIP UDP";
 		acc_cfg.idUri = "sip:" + account_name;
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
+
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
-
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);
 	} else {
@@ -370,7 +366,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	string from {};
 	string callee {};
 	string to_uri {};
-	string transport {};
+	string transport {"udp"};
 	string username {};
 	string password {};
 	string realm {};
@@ -425,18 +421,17 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	}
 
 	string account_uri {caller};
-	if (transport.compare("udp") != 0)
+	if (transport != "udp")
 		account_uri = caller + ";transport=" + transport;
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
 
-		if ( force_contact.compare("") != 0){
+		if (force_contact != ""){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
 			acc_cfg.sipConfig.contactForced = force_contact;
 		}
-		if (!proxy.empty())
-			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
+
 		if (!timer.empty()) {
 			if (timer.compare("inactive") == 0) {
 				acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
@@ -449,23 +444,23 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			}
 			LOG(logERROR) <<__FUNCTION__<<": session timer["<<timer<<"] : "<< acc_cfg.callConfig.timerUse ;
 		}
-		acc_cfg.sipConfig.transportId = config->transport_id_udp;
-		if (!transport.empty()) {
-			if (transport.compare("tcp") == 0) {
-				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
-			} else if (transport.compare("tls") == 0) {
-				if (config->transport_id_tls == -1) {
-					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
-					return;
-				}
-				acc_cfg.sipConfig.transportId = config->transport_id_tls;
+
+		if (transport == "tcp") {
+			acc_cfg.idUri = "sip:" + account_uri;
+			if (!proxy.empty())
+				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
+		} else if (transport == "tls") {
+			if (config->transport_id_tls == -1) {
+				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
+				return;
 			}
-		}
-		if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
 			acc_cfg.idUri = "sips:" + account_uri;
+			if (!proxy.empty())
+				acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
 		} else {
 			acc_cfg.idUri = "sip:" + account_uri;
 		}
+
 		if (!from.empty())
 			acc_cfg.idUri = from;
 		if (!realm.empty()) {
@@ -526,7 +521,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		prm.opt.videoCount = 0;
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
-		if (transport.compare("tls") == 0) {
+		if (transport == "tls") {
 			if (!to_uri.empty())
 					to_uri = "sips:"+to_uri;
 			try {
@@ -534,9 +529,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
-		} else if (transport.compare("tcp") == 0) {
+		} else if (transport == "tcp") {
 			if (!to_uri.empty())
-					to_uri = "sip:"+to_uri+";transport=tcp";
+				to_uri = "sip:"+to_uri+";transport=tcp";
 			try {
 				call->makeCall("sip:"+callee+";transport=tcp", prm, to_uri);
 			} catch (pj::Error e)  {

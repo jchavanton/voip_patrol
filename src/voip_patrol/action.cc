@@ -170,6 +170,9 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		LOG(logERROR) <<__FUNCTION__<<" missing action parameter" ;
 		return;
 	}
+	if (transport == "TCP") transport = "tcp";
+	if (transport == "UDP") transport = "udp";
+	if (transport == "TLS") transport = "tls";
 
 	if (account_name.empty()) account_name = username;
 	account_name = account_name + "@" + registrar;
@@ -184,16 +187,21 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 				LOG(logINFO) <<__FUNCTION__<< " register is active";
 				try {
 					acc->setRegistration(false);
+					acc->unregistering = true;
 				} catch (pj::Error e)  {
 					LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 				}
 			} else {
 				LOG(logINFO) <<__FUNCTION__<< " register is not active";
 			}
-			while (acc_inf.regIsActive) {
+			int max_wait_ms = 2000;
+			while (acc->unregistering && max_wait_ms >= 0) {
 				pj_thread_sleep(10);
+				max_wait_ms -= 10;
 				acc_inf = acc->getInfo();
 			}
+			if (acc->unregistering)
+				LOG(logERROR) <<__FUNCTION__<<" error : unregister failed/timeout"<< std::endl;
 			return;
 		} else {
 			LOG(logINFO) <<__FUNCTION__<< "unregister: account not found ("<<account_name<<")";
@@ -299,6 +307,9 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		LOG(logERROR) <<__FUNCTION__<<" missing action parameters <account>" ;
 		return;
 	}
+	if (transport == "TCP") transport = "tcp";
+	if (transport == "UDP") transport = "udp";
+	if (transport == "TLS") transport = "tls";
 
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
@@ -419,6 +430,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logERROR) <<__FUNCTION__<<": missing action parameters for callee/caller" ;
 		return;
 	}
+	if (transport == "TCP") transport = "tcp";
+	if (transport == "UDP") transport = "udp";
+	if (transport == "TLS") transport = "tls";
 
 	string account_uri {caller};
 	if (transport != "udp")

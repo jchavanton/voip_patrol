@@ -236,6 +236,7 @@ class TestAccount : public Account {
 		int response_delay {0};
 		bool rtp_stats {false};
 		bool late_start {false};
+		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};
 		SipHeaderVector x_headers;

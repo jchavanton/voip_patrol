@@ -11,6 +11,9 @@ this is because VoIP patrol will output results as they become available.
 
 It is possible to test many scenarios that are not easy to test manually like a re-invite with a new codec.
 
+### Docker quick start
+[quick start with docker](QUICK_START.md)
+
 
 ### Linux Alpine dependencies
 ```bash

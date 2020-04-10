@@ -2,9 +2,9 @@
 ![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small2.jpg)
 
 ## VoIP signaling and media test automaton
-Designed to automate end2end and or integrations tests.
+Designed to automate end2end and or integration tests.
 
-VoIP will follow a scenario in XML format and will output results in JSON.
+VoIP patrol will follow a scenario in XML format and will output results in JSON.
 
 Each line in the output file is a separate JSON structure, note that the entire file is not a valid JSON file,
 this is because VoIP patrol will output results as they become available.
@@ -15,40 +15,9 @@ It is possible to test many scenarios that are not easy to test manually like a 
 [quick start with docker](QUICK_START.md)
 
 
-### Linux Alpine dependencies
-```bash
-apk update \
-    && apk add git cmake g++ cmake make curl-dev alsa-lib-dev \
-    && mkdir /git && cd /git && git clone https://github.com/jchavanton/voip_patrol.git \
-    && cd voip_patrol && git checkout master \
-    && git submodule update --init \
-    && cp include/config_site.h  pjproject/pjlib/include/pj/config_site.h \
-    && cd pjproject && ./configure --disable-libwebrtc && make dep && make && make install \
-    && cd .. && cmake CMakeLists.txt && mak
-```
+### Linux Debian building from sources
+[see commands in Dockerfile](docker/Dockerfile)
 
-### Linux Debian dependencies
-```
-apt-get install build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev
-```
-TLS
-```
-apt-get install libssl-dev
-```
-### build pjproject
-```
-git clone https://github.com/jchavanton/voip_patrol.git
-cd voip_patrol && git submodule update --init
-cp include/config_site.h pjproject/pjlib/include/pj/config_site.h # increase the max amount of account and calls
-cd pjproject && ./configure --disable-libwebrtc
-make dep && make && make install
-cd ..
-```
-### build voip_patrol
-```
- cmake CMakeLists.txt 
- make
-```
 
 ### run
 ```

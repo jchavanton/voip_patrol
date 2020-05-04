@@ -431,6 +431,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			if (test->state != VPT_DONE) {
 				test->update_result();
 			}
+			if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
+				disconnecting = true;
+			}
 			if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 				CallOpParam prm(true);
 				LOG(logINFO) <<__FUNCTION__<<": hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
@@ -582,6 +585,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 Test::Test(Config *config, string type) : config(config), type(type) {
 	char now[20] = {'\0'};
 	get_time_string(now);
+	start_time = now;
 	LOG(logINFO)<<__FUNCTION__<<LOG_COLOR_INFO<<": New test created:"<<type<<LOG_COLOR_END;
 }
 

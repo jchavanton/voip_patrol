@@ -11,7 +11,8 @@ RUN echo "building VoIP Patrol" \
 	&& cd voip_patrol && git checkout ${VERSION} \
 	&& git submodule update --init \
 	&& cp include/config_site.h  pjproject/pjlib/include/pj/config_site.h \
-	&& cd pjproject && ./configure --disable-libwebrtc && make dep && make && make install \
+	&& cd pjproject && ./configure --disable-libwebrtc --disable-opencore-amr \
+	&& make dep && make && make install \
 	&& cd .. && cmake CMakeLists.txt && make
 
 RUN ln -s /git/voip_patrol/voice_ref_files /voice_ref_files

@@ -248,7 +248,6 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar;
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
-
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 	if (!acc) {
@@ -473,6 +472,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
 		} else {
 			acc_cfg.idUri = "sip:" + account_uri;
+			if (!proxy.empty())
+				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		}
 
 		if (!from.empty())

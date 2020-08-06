@@ -53,7 +53,10 @@ void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message) {
 		if (method != check->method) continue;
 		if (check->hdr.hName == "") continue;
 		LOG(logINFO) <<__FUNCTION__<<" check-header:"<< check->hdr.hName<<" "<<check->hdr.hValue;
-		pj_str_t header_name = str2Pj(check->hdr.hName.c_str());
+		pj_str_t header_name;
+		header_name.slen = strlen(check->hdr.hName.c_str());
+		header_name.ptr = (char*) check->hdr.hName.c_str();
+
 		pjsip_hdr* s_hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(msg, (const pj_str_t *) &header_name, NULL);
 		if (s_hdr) {
 			SipHeader SHdr;

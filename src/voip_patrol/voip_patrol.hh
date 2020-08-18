@@ -185,7 +185,7 @@ class Test {
 		int max_duration{0};
 		int ring_duration{0};
 		int rtp_stats_count{0};
-		int max_calling_duration{0};
+		int max_ringing_duration{0};
 		void get_mos();
 		std::string local_user;
 		std::string local_uri;

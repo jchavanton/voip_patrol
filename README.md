@@ -384,6 +384,7 @@ DISCONNECTED
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| hangup | int | call duration in second before hangup |
 
 
 ### call command parameters
@@ -401,6 +402,8 @@ DISCONNECTED
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | force_contact | string | local contact header will be overwritten by the given string |
+| max_ringing_duration | int | max ringing duration in seconds before cancel |
+| hangup | int | call duration in second before hangup |
 
 
 ### register command parameters

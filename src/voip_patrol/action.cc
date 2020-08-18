@@ -86,11 +86,13 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("max_ringing_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("cancel", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
@@ -271,6 +273,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	int ring_duration {0};
 	int early_media {false};
 	int hangup_duration {0};
+	int cancel_duration {0};
 	int re_invite_interval {0};
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
@@ -298,6 +301,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
+		else if (param.name.compare("cancel") == 0) cancel_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
 		else if (param.name.compare("response_delay") == 0) response_delay = param.i_val;
 	}
@@ -386,9 +390,10 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	call_state_t wait_until {INV_STATE_NULL};
 	float min_mos {0.0};
 	int max_duration {0};
-	int max_calling_duration {0};
+	int max_ringing_duration {0};
 	int expected_duration {0};
 	int hangup_duration {0};
+	int cancel_duration {0};
 	int re_invite_interval {0};
 	int repeat {0};
 	bool recording {false};
@@ -417,7 +422,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
-		else if (param.name.compare("max_calling_duration") == 0) max_calling_duration = param.i_val;
+		else if (param.name.compare("max_ringing_duration") == 0) max_ringing_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
@@ -500,7 +505,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->play_dtmf = play_dtmf;
 		test->min_mos = min_mos;
 		test->max_duration = max_duration;
-		test->max_calling_duration = max_calling_duration;
+		test->max_ringing_duration = max_ringing_duration;
 		test->hangup_duration = hangup_duration;
 		test->re_invite_interval = re_invite_interval;
 		test->re_invite_next = re_invite_interval;
@@ -647,10 +652,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
-					} else if (test->max_calling_duration && test->max_calling_duration <= ci.totalDuration.sec) {
+					} else if (test->max_ringing_duration && test->max_ringing_duration <= ci.totalDuration.sec) {
 						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
-						     << ci.totalDuration.sec <<">="<<test->max_calling_duration<<"]";
+						     << ci.totalDuration.sec <<">="<<test->max_ringing_duration<<"]";
 						CallOpParam prm(true);
 						try {
 							call->hangup(prm);

@@ -29,7 +29,7 @@ It is possible to test many scenarios that are not easy to test manually like a 
  -c,--conf <conf.xml>              XML scenario file         
  -l,--log <logfilename>            voip_patrol log file name 
  -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s
- -o,--output <result.json>         json result file name, another file prefixed with ".pjsua" will
+ -o,--output <result.json>         json result file name, another file suffixed with ".pjsua" will
                                    also be created with all the logs from PJ-SIP 
  --tls-calist <path/file_name>     TLS CA list (pem format)     
  --tls-privkey <path/file_name>    TLS private key (pem format) 

@@ -1161,7 +1161,7 @@ int main(int argc, char **argv){
             " -c,--conf <conf.xml>              XML scenario file         \n"\
             " -l,--log <logfilename>            voip_patrol log file name \n"\
             " -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s\n"\
-            " -o,--output <result.json>         json result file name, another file prefixed with \".pjsua\" will also be created with all the logs from PJ-SIP \n"\
+            " -o,--output <result.json>         json result file name, another file suffixed with \".pjsua\" will also be created with all the logs from PJ-SIP \n"\
             " --tls-calist <path/file_name>     TLS CA list (pem format)     \n"\
             " --tls-privkey <path/file_name>    TLS private key (pem format) \n"\
             " --tls-cert <path/file_name>       TLS certificate (pem format) \n"\

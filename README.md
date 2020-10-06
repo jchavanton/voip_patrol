@@ -21,23 +21,24 @@ It is possible to test many scenarios that are not easy to test manually like a 
 
 ### run
 ```
-./voip_patrol
- -v --version                      voip_patrol version
- --log-level-file <0-10>           file log level
- --log-level-console <0-10>        console log level
- -p --port <5060>                  local port
- -c,--conf <conf.xml>              XML scenario file
- -l,--log <logfilename>            voip_patrol log file name
+./voip_patrol                                
+ -v --version                      voip_patrol version       
+ --log-level-file <0-10>           file log level            
+ --log-level-console <0-10>        console log level         
+ -p --port <5060>                  local port                
+ -c,--conf <conf.xml>              XML scenario file         
+ -l,--log <logfilename>            voip_patrol log file name 
  -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s
- -o,--output <result.json>         json result file name
- --tls-calist <path/file_name>     TLS CA list (pem format)
- --tls-privkey <path/file_name>    TLS private key (pem format)
- --tls-cert <path/file_name>       TLS certificate (pem format)
- --tls-verify-server               TLS verify server certificate
- --tls-verify-client               TLS verify client certificate
- --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent
+ -o,--output <result.json>         json result file name, another file prefixed with ".pjsua" will
+                                   also be created with all the logs from PJ-SIP 
+ --tls-calist <path/file_name>     TLS CA list (pem format)     
+ --tls-privkey <path/file_name>    TLS private key (pem format) 
+ --tls-cert <path/file_name>       TLS certificate (pem format) 
+ --tls-verify-server               TLS verify server certificate 
+ --tls-verify-client               TLS verify client certificate 
+ --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent 
  --graceful-shutdown               Wait a few seconds when shuting down
- --tcp / --udp                     Only listen to TCP/UDP
+ --tcp / --udp                     Only listen to TCP/UDP    
  --ip-addr <IP>                    Use the specifed address as SIP and RTP addresses
  --bound-addr <IP>                 Bind transports to this IP interface
 ```
@@ -69,7 +70,7 @@ It is possible to test many scenarios that are not easy to test manually like a 
   </actions>
 </config>
 ```
-### Sample output
+### Sample JSON output
 ```json
 {
   "2": {
@@ -302,7 +303,25 @@ DISCONNECTED
 </actions></config>
 ```
 
-#### RTP stats report with multiples sessions, one block is generated everytime a session is created
+### Example: WAIT action
+#### wait forever:
+```xml
+<action type="wait" ms="-1"/>
+```
+#### wait until you receive a certain amount of calls
+```xml
+<action type="accept" call_count="x" ... />
+<action type="wait" complete="true"/>
+```
+#### wait 5 seconds or one call
+```xml
+<action type="accept" call_count="1" ... />
+<action type="wait" ms="5000"/>
+```
+
+
+### Sample JSON output RTP stats report with multiples sessions
+#### one block is generated everytime a session is created
 ```json
 {
  "rtp_stats_0": {

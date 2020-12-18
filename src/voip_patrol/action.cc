@@ -32,6 +32,7 @@ vector<ActionParam> Action::get_params(string name) {
 	else if (name.compare("accept") == 0) return do_accept_params;
 	else if (name.compare("alert") == 0) return do_alert_params;
 	else if (name.compare("codec") == 0) return do_codec_params;
+	else if (name.compare("turn") == 0) return do_turn_params;
 	vector<ActionParam> empty_params;
 	return empty_params;
 }
@@ -140,6 +141,38 @@ void Action::init_actions_params() {
 	do_codec_params.push_back(ActionParam("priority", false, APType::apt_integer));
 	do_codec_params.push_back(ActionParam("enable", false, APType::apt_string));
 	do_codec_params.push_back(ActionParam("disable", false, APType::apt_string));
+	// do_turn
+	do_turn_params.push_back(ActionParam("enabled", false, APType::apt_bool));
+	do_turn_params.push_back(ActionParam("server", false, APType::apt_string));
+	do_turn_params.push_back(ActionParam("username", false, APType::apt_string));
+	do_turn_params.push_back(ActionParam("password", false, APType::apt_string));
+}
+
+void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
+	turn_config_t *turn_config = &cfg->turn_config;
+	LOG(logINFO) <<__FUNCTION__<<" enabled:"<<turn_config->enabled;
+	if (turn_config->enabled) {
+		acc_cfg.natConfig.turnEnabled = true;
+		// acc_cfg.natConfig.turnServer = "35.246.94.213:3478";
+		acc_cfg.natConfig.turnServer = turn_config->server;
+		acc_cfg.natConfig.turnConnType = PJ_TURN_TP_UDP;
+		acc_cfg.natConfig.turnUserName = "";
+		acc_cfg.natConfig.turnPasswordType = PJ_STUN_PASSWD_PLAIN;
+		acc_cfg.natConfig.turnPassword = "";
+		acc_cfg.natConfig.iceEnabled = true;
+	} else {
+		acc_cfg.natConfig.turnEnabled = false;
+		acc_cfg.natConfig.iceEnabled = false;
+	}
+
+// ret.ice_cfg_use = PJSUA_ICE_CONFIG_USE_CUSTOM;
+// ret.ice_cfg.enable_ice = natConfig.iceEnabled;
+// ret.ice_cfg.ice_max_host_cands = natConfig.iceMaxHostCands;
+// ret.ice_cfg.ice_opt.aggressive = natConfig.iceAggressiveNomination;
+// ret.ice_cfg.ice_opt.nominated_check_delay = natConfig.iceNominatedCheckDelayMsec;
+// ret.ice_cfg.ice_opt.controlled_agent_want_nom_timeout = natConfig.iceWaitNominationTimeoutMsec;
+// ret.ice_cfg.ice_no_rtcp = natConfig.iceNoRtcp;
+// ret.ice_cfg.ice_always_update = natConfig.iceAlwaysUpdate;
 }
 
 void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
@@ -224,6 +257,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	sh.hName = "User-Agent";
 	sh.hValue = "<voip_patrol>";
 	acc_cfg.regConfig.headers.push_back(sh);
+	setTurnConfig(acc_cfg, config);
 	for (auto x_hdr : x_headers) {
 		acc_cfg.regConfig.headers.push_back(x_hdr);
 	}
@@ -252,6 +286,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 	}
 	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
+
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);
 	} else {
@@ -317,6 +352,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		setTurnConfig(acc_cfg, config);
 
 		if (!transport.empty()) {
 			if (transport.compare("tcp") == 0) {
@@ -444,6 +480,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
+		LOG(logINFO) <<__FUNCTION__<< ":do_call:turn:"<< config->turn_config.enabled << "\n"; 
+		setTurnConfig(acc_cfg, config);
 
 		if (force_contact != ""){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
@@ -492,6 +530,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 		}
 		acc = config->createAccount(acc_cfg);
+		LOG(logERROR) <<__FUNCTION__<<": session timer["<<timer<<"] : "<< acc_cfg.callConfig.timerUse << " TURN:"<< acc_cfg.natConfig.turnEnabled;
 	}
 
 	do {
@@ -568,6 +607,26 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		}
 		repeat--;
 	} while (repeat >= 0);
+}
+
+void Action::do_turn(vector<ActionParam> &params) {
+	bool enabled {false};
+	string server {};
+	string username {};
+	string password {};
+	for (auto param : params) {
+		if (param.name.compare("enabled") == 0) enabled = param.b_val;
+		else if (param.name.compare("server") == 0) server = param.s_val;
+		else if (param.name.compare("username") == 0) username = param.s_val;
+		else if (param.name.compare("password") == 0) password = param.s_val;
+	}
+	LOG(logINFO) << __FUNCTION__ << " enabled["<<enabled<<"] server["<<server<<"] username["<<username<<"] password["<<password<<"]";
+	config->turn_config.enabled = enabled;
+	config->turn_config.server = server;
+	if (!username.empty())
+		config->turn_config.username = username;
+	if (!password.empty())
+		config->turn_config.password = password;
 }
 
 void Action::do_codec(vector<ActionParam> &params) {

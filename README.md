@@ -466,6 +466,26 @@ DISCONNECTED
 | enable | string | Codec payload type ID, ex. "g722", "pcma", "opus" or "all" |
 | disable | string | Codec payload type ID, ex. "g722", "pcma", "opus" or "all" |
 
+### Example: TURN configuration
+```xml
+<config>
+  <actions>
+    <action type="turn" enabled="true" server="x.x.x.x:3478" username="foo" password="bar"/>
+    <!-- more actions ... -->
+    <action type="wait" complete/>
+  </actions>
+</config>
+```
+
+### turn command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| enabled | bool | if "true" turn server usage will be enabled |
+| server | string | turn server URI or IP:port |
+| username | string | turn server username |
+| password | string | turn server password |
+
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.
 Example : `username="VP_ENV_USERNAME"`

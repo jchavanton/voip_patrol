@@ -541,7 +541,8 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->transport = pjsip_data->tp_info.transport->type_name;
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN_WAIT;
-		call->test->rtp_stats = rtp_stats;
+		call->test->rtp_stats = rtp_stats = true;
+		LOG(logINFO) <<__FUNCTION__<<"rtp_stats:" << rtp_stats;
 		call->test->late_start = late_start;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
@@ -830,6 +831,7 @@ Config::Config(string result_fn) : result_file(result_fn), action(this) {
 	json_result_count = 0;
 	graceful_shutdown = false;
 	rewrite_ack_transport = false;
+	memset(&this->turn_config, 0, sizeof(turn_config_t));
 }
 
 void Config::set_output_file(string file_name) {
@@ -868,7 +870,7 @@ void Config::createDefaultAccount() {
 
 	TestAccount *acc = createAccount(acc_cfg);
 	acc->play = default_playback_file;
-	LOG(logINFO) <<__FUNCTION__<<" created:"<<default_playback_file;
+	LOG(logINFO) <<__FUNCTION__<<" created:"<<default_playback_file <<" TURN:"<< acc_cfg.natConfig.turnEnabled;
 }
 
 TestAccount* Config::createAccount(AccountConfig acc_cfg) {
@@ -993,6 +995,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 			else if ( action_type.compare("codec") == 0 ) action.do_codec(params);
+			else if ( action_type.compare("turn") == 0 ) action.do_turn(params);
 		}
 	}
 	return true;

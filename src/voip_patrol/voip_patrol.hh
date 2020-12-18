@@ -79,7 +79,6 @@ class ResultFile {
 		std::fstream file;
 };
 
-
 class VoipPatrolEnpoint : public Endpoint {
 	public:
 		Config *config;
@@ -88,6 +87,12 @@ class VoipPatrolEnpoint : public Endpoint {
 		void onSelectAccount(OnSelectAccountParam &param);
 };
 
+typedef struct turn_config {
+	bool enabled;
+	std::string server;
+	std::string username;
+	std::string password;
+} turn_config_t;
 
 class Config {
 	public:
@@ -99,6 +104,7 @@ class Config {
 		TestAccount* findAccount(std::string);
 		TestAccount* createAccount(AccountConfig acc_cfg);
 		void createDefaultAccount();
+		turn_config_t turn_config;
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
 		std::vector<Test *> tests;

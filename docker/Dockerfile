@@ -1,6 +1,6 @@
 FROM python:3.7-buster
 
-ARG VERSION="0.2.6"
+ARG VERSION="0.2.7"
 
 RUN echo "installing dependencies" \
 	&& apt-get update && apt-get install -y build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev \

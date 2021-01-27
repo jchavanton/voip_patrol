@@ -92,6 +92,7 @@ typedef struct turn_config {
 	std::string server;
 	std::string username;
 	std::string password;
+	bool password_hashed;
 } turn_config_t;
 
 class Config {

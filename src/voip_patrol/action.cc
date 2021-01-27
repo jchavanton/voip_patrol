@@ -146,19 +146,23 @@ void Action::init_actions_params() {
 	do_turn_params.push_back(ActionParam("server", false, APType::apt_string));
 	do_turn_params.push_back(ActionParam("username", false, APType::apt_string));
 	do_turn_params.push_back(ActionParam("password", false, APType::apt_string));
+	do_turn_params.push_back(ActionParam("password_hashed", false, APType::apt_bool));
 }
 
 void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
 	turn_config_t *turn_config = &cfg->turn_config;
-	LOG(logINFO) <<__FUNCTION__<<" enabled:"<<turn_config->enabled;
+	LOG(logINFO) <<__FUNCTION__<<" enabled:"<<turn_config->enabled<<"["<<turn_config->username<<":"<<turn_config->password<<"]hashed:"<<turn_config->password_hashed;
 	if (turn_config->enabled) {
 		acc_cfg.natConfig.turnEnabled = true;
-		// acc_cfg.natConfig.turnServer = "35.246.94.213:3478";
 		acc_cfg.natConfig.turnServer = turn_config->server;
 		acc_cfg.natConfig.turnConnType = PJ_TURN_TP_UDP;
-		acc_cfg.natConfig.turnUserName = "";
-		acc_cfg.natConfig.turnPasswordType = PJ_STUN_PASSWD_PLAIN;
-		acc_cfg.natConfig.turnPassword = "";
+		acc_cfg.natConfig.turnUserName = turn_config->username;
+		if (turn_config->password_hashed) {
+			acc_cfg.natConfig.turnPasswordType = PJ_STUN_PASSWD_HASHED;
+		} else {
+			acc_cfg.natConfig.turnPasswordType = PJ_STUN_PASSWD_PLAIN;
+		}
+		acc_cfg.natConfig.turnPassword = turn_config->password;
 		acc_cfg.natConfig.iceEnabled = true;
 	} else {
 		acc_cfg.natConfig.turnEnabled = false;
@@ -614,15 +618,18 @@ void Action::do_turn(vector<ActionParam> &params) {
 	string server {};
 	string username {};
 	string password {};
+	bool password_hashed {false};
 	for (auto param : params) {
 		if (param.name.compare("enabled") == 0) enabled = param.b_val;
 		else if (param.name.compare("server") == 0) server = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
+		else if (param.name.compare("password_hashed") == 0) password_hashed = param.b_val;
 	}
-	LOG(logINFO) << __FUNCTION__ << " enabled["<<enabled<<"] server["<<server<<"] username["<<username<<"] password["<<password<<"]";
+	LOG(logINFO) << __FUNCTION__ << " enabled["<<enabled<<"] server["<<server<<"] username["<<username<<"] password["<<password<<"]:"<<password_hashed;
 	config->turn_config.enabled = enabled;
 	config->turn_config.server = server;
+	config->turn_config.password_hashed = password_hashed;
 	if (!username.empty())
 		config->turn_config.username = username;
 	if (!password.empty())

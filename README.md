@@ -485,6 +485,7 @@ DISCONNECTED
 | server | string | turn server URI or IP:port |
 | username | string | turn server username |
 | password | string | turn server password |
+| password_hashed | bool | if "true" us hashed password, default plain password |
 
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.

@@ -33,7 +33,7 @@ using namespace pj;
 
 
 void get_time_string(char * str_now) {
-	time_t t = time(0);   // get time now
+	time_t t = time(0);
 	struct tm * now = localtime( & t );
 	sprintf(str_now,"%02d-%02d-%04d %02d:%02d:%02d", now->tm_mday, now->tm_mon+1, now->tm_year+1900, now->tm_hour, now->tm_min, now->tm_sec);
 }
@@ -542,15 +542,16 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->peer_socket = iprm.rdata.srcAddress;
 		call->test->state = VPT_RUN_WAIT;
 		call->test->rtp_stats = rtp_stats = true;
-		LOG(logINFO) <<__FUNCTION__<<"rtp_stats:" << rtp_stats;
+		LOG(logINFO) <<__FUNCTION__<<": rtp_stats:" << rtp_stats;
 		call->test->late_start = late_start;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
+		if (play)
+			call->test->play = play;
 		if (wait_state != INV_STATE_NULL)
 			call->test->state = VPT_RUN_WAIT;
-		LOG(logINFO) <<__FUNCTION__<<"account play:" << play;
-		call->test->play = play;
+		LOG(logINFO) <<__FUNCTION__<<":account play:" << play;
 		call->test->play_dtmf = play_dtmf;
 	}
 	calls.push_back(call);

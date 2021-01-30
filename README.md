@@ -425,6 +425,7 @@ DISCONNECTED
 | force_contact | string | local contact header will be overwritten by the given string |
 | max_ringing_duration | int | max ringing duration in seconds before cancel |
 | hangup | int | call duration in second before hangup |
+| repeat | int | do this call multiple times |
 
 
 ### register command parameters

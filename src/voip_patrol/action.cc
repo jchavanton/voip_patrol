@@ -87,6 +87,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("repeat", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("max_ringing_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
@@ -408,6 +409,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->call_count = call_count;
 	acc->x_headers = x_headers;
 	acc->checks = checks;
+	acc->play = play;
 }
 
 

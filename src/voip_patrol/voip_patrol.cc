@@ -505,8 +505,6 @@ void TestAccount::onRegState(OnRegStateParam &prm) {
 	}
 }
 
-
-
 void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	TestCall *call = new TestCall(this, iprm.callId);
 	pjsip_rx_data *pjsip_data = (pjsip_rx_data *) iprm.rdata.pjRxData;
@@ -547,11 +545,11 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
-		if (play != "")
-			call->test->play = play;
+		call->test->play = play;
+		LOG(logINFO) <<__FUNCTION__<<": play file:" << play;
 		if (wait_state != INV_STATE_NULL)
 			call->test->state = VPT_RUN_WAIT;
-		LOG(logINFO) <<__FUNCTION__<<":account play:" << play;
+
 		call->test->play_dtmf = play_dtmf;
 	}
 	calls.push_back(call);
@@ -885,6 +883,7 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	account->create(acc_cfg);
 	AccountInfo acc_inf = account->getInfo();
 	LOG(logINFO) <<__FUNCTION__<< ": ["<< acc_inf.id << "]["<<acc_inf.uri<<"]";
+	account->play = default_playback_file;
 	return account;
 }
 

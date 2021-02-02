@@ -278,10 +278,10 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 			LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
 			return;
 		}
-		acc_cfg.idUri = "sips:" + account_name;
-		acc_cfg.regConfig.registrarUri = "sips:" + registrar;
+		acc_cfg.idUri = "sip:" + account_name;
+		acc_cfg.regConfig.registrarUri = "sip:" + registrar + ";transport=tls" ;
 		if (!proxy.empty())
-			acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
+			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		LOG(logINFO) <<__FUNCTION__<< " SIPS/TLS URI Scheme";
 	} else {
 		LOG(logINFO) <<__FUNCTION__<< " SIP UDP";
@@ -516,9 +516,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
 				return;
 			}
-			acc_cfg.idUri = "sips:" + account_uri;
+			acc_cfg.idUri = "sip:" + account_uri;
 			if (!proxy.empty())
-				acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
+				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		} else {
 			acc_cfg.idUri = "sip:" + account_uri;
 			if (!proxy.empty())
@@ -588,9 +588,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logINFO) << "calling :" +callee;
 		if (transport == "tls") {
 			if (!to_uri.empty())
-					to_uri = "sips:"+to_uri;
+					to_uri = "sip:"+to_uri;
 			try {
-				call->makeCall("sips:"+callee, prm, to_uri);
+				call->makeCall("sip:"+callee + ";transport=tls", prm, to_uri);
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}

@@ -880,8 +880,6 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	acc_cfg.mediaConfig.transportConfig.publicAddress = ip_cfg.public_address;
 	if (ip_cfg.public_address != "")
 		acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
-	LOG(logINFO) <<__FUNCTION__<< "acc_cfg.natConfig.contactRewriteUse set to zero";
-	acc_cfg.natConfig.contactRewriteUse=0;		
 	account->create(acc_cfg);
 	AccountInfo acc_inf = account->getInfo();
 	LOG(logINFO) <<__FUNCTION__<< ": ["<< acc_inf.id << "]["<<acc_inf.uri<<"]";

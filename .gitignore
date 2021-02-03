@@ -1,0 +1,10 @@
+Makefile
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+voip_patrol
+tls/*
+xml/makecall*
+test_makecall*
+results.json*
+

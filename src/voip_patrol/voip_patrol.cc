@@ -1283,7 +1283,7 @@ int main(int argc, char **argv){
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
-		// ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
+		ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
 
 		ep.libInit(ep_cfg);
 		// pjsua_set_null_snd_dev() before calling pjsua_start().

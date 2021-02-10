@@ -914,7 +914,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 		LOG(logINFO) <<__FUNCTION__<< "[error] test can not load file :" << configFileName ;
 		return false;
 	}
-
+replay:
 	for (xml_param = ezxml_child(xml_conf, "param"); xml_param; xml_param=xml_param->next) {
 		const char * n = ezxml_attr(xml_param, "name");
 		const char * v = ezxml_attr(xml_param, "value");
@@ -933,6 +933,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 				LOG(logERROR) <<__FUNCTION__<<" invalid action !";
 				continue;
 			}
+
 			SipHeaderVector x_hdrs = SipHeaderVector();
 			for (xml_xhdr = ezxml_child(xml_action, "x-header"); xml_xhdr; xml_xhdr=xml_xhdr->next) {
 				SipHeader sh = SipHeader();
@@ -981,11 +982,13 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			}
 			string action_type = ezxml_attr(xml_action,"type");;
 			LOG(logINFO) <<__FUNCTION__<< " ===> action/" << action_type;
+			if (action_type == "replay") goto replay;
 			vector<ActionParam> params = action.get_params(action_type);
 			if (params.size() == 0) {
 				LOG(logERROR) <<__FUNCTION__<< ": params not found for action:" << action_type << std::endl;
 				continue;
 			}
+
 			for (auto &param : params) {
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
@@ -996,6 +999,7 @@ bool Config::process(std::string p_configFileName, std::string p_jsonResultFileN
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 			else if ( action_type.compare("codec") == 0 ) action.do_codec(params);
 			else if ( action_type.compare("turn") == 0 ) action.do_turn(params);
+
 		}
 	}
 	return true;

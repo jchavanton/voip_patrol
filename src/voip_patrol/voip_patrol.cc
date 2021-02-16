@@ -939,6 +939,12 @@ replay:
 				SipHeader sh = SipHeader();
 				sh.hName = ezxml_attr(xml_xhdr, "name");
 				sh.hValue = ezxml_attr(xml_xhdr, "value");
+				if (sh.hValue.compare(0, 7, "VP_ENV_") == 0){
+					if (const char* val = std::getenv(sh.hValue.c_str())) {
+						sh.hValue = val;
+						LOG(logINFO) <<__FUNCTION__<< "VP_ENV_ substitution x-header:"<< sh.hName<<" "<<sh.hValue << endl;
+					}
+				}
 				x_hdrs.push_back(sh);
 			}
 			vector<ActionCheck> checks;

@@ -25,7 +25,7 @@
 #include <pjsua2/call.hpp>
 #include <pjsua2/endpoint.hpp>
 #include <pj/ctype.h>
-#include "util.hpp"
+#include "pj_util.hpp"
 #include <pjsua-lib/pjsua_internal.h>
 #include <algorithm>
 

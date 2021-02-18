@@ -822,9 +822,9 @@ void ResultFile::close() {
  */
 
 Config::Config(string result_fn) : result_file(result_fn), action(this) {
-	tls_cfg.ca_list = "tls/ca_list.pem";
-	tls_cfg.private_key = "tls/key.pem";
-	tls_cfg.certificate = "tls/certificate.pem";
+	tls_cfg.ca_list = "";
+	tls_cfg.private_key = "";
+	tls_cfg.certificate = "";
 	tls_cfg.verify_server = 0;
 	tls_cfg.verify_client = 0;
 	json_result_count = 0;

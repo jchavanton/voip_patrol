@@ -18,6 +18,7 @@
 
 #include "voip_patrol.hh"
 #include "action.hh"
+#include "util.hh"
 #include "string.h"
 
 Action::Action(Config *cfg) : config{cfg} {
@@ -210,9 +211,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		LOG(logERROR) <<__FUNCTION__<<" missing action parameter" ;
 		return;
 	}
-	if (transport == "TCP") transport = "tcp";
-	if (transport == "UDP") transport = "udp";
-	if (transport == "TLS") transport = "tls";
+	vp::tolower(transport);
 
 	if (account_name.empty()) account_name = username;
 	account_name = account_name + "@" + registrar;
@@ -274,6 +273,15 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
 	} else if (transport == "tls") {
+		if (config->transport_id_tls == -1) {
+			LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
+			return;
+		}
+		acc_cfg.idUri = "sip:" + account_name + ";transport=tls";
+		acc_cfg.regConfig.registrarUri = "sip:" + registrar + ";transport=tls";
+		if (!proxy.empty())
+			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
+	} else if (transport == "sips") {
 		if (config->transport_id_tls == -1) {
 			LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
 			return;
@@ -350,9 +358,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		LOG(logERROR) <<__FUNCTION__<<" missing action parameters <account>" ;
 		return;
 	}
-	if (transport == "TCP") transport = "tcp";
-	if (transport == "UDP") transport = "udp";
-	if (transport == "TLS") transport = "tls";
+	vp::tolower(transport);
 
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc) {
@@ -360,11 +366,11 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		setTurnConfig(acc_cfg, config);
 
 		if (!transport.empty()) {
-			if (transport.compare("tcp") == 0) {
+			if (transport == "tcp") {
 				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
-			} else if (transport.compare("udp") == 0) {
+			} else if (transport == "udp") {
 				acc_cfg.sipConfig.transportId = config->transport_id_udp;
-			} else if (transport.compare("tls") == 0) {
+			} else if (transport == "tls" || transport == "sips") {
 				if (config->transport_id_tls == -1) {
 					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
 					return;
@@ -372,7 +378,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 				acc_cfg.sipConfig.transportId = config->transport_id_tls;
 			}
 		}
-		if (acc_cfg.sipConfig.transportId == config->transport_id_tls) {
+		if (acc_cfg.sipConfig.transportId == config->transport_id_tls && transport == "sips") {
 			acc_cfg.idUri = "sips:" + account_name;
 		} else {
 			acc_cfg.idUri = "sip:" + account_name;
@@ -476,9 +482,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logERROR) <<__FUNCTION__<<": missing action parameters for callee/caller" ;
 		return;
 	}
-	if (transport == "TCP") transport = "tcp";
-	if (transport == "UDP") transport = "udp";
-	if (transport == "TLS") transport = "tls";
+	vp::tolower(transport);
 
 	string account_uri {caller};
 	if (transport != "udp")
@@ -514,6 +518,14 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		} else if (transport == "tls") {
 			if (config->transport_id_tls == -1) {
 				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
+				return;
+			}
+			acc_cfg.idUri = "tls:" + account_uri;
+			if (!proxy.empty())
+				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
+		} else if (transport == "sips") {
+			if (config->transport_id_tls == -1) {
+				LOG(logERROR) <<__FUNCTION__<<": sips(TLS) transport not supported" ;
 				return;
 			}
 			acc_cfg.idUri = "sips:" + account_uri;
@@ -587,6 +599,14 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
 		if (transport == "tls") {
+			if (!to_uri.empty())
+					to_uri = "sip:"+to_uri+";transport=tls";
+			try {
+				call->makeCall("sip:"+callee+";transport=tls", prm, to_uri);
+			} catch (pj::Error e)  {
+				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
+			}
+		} else if (transport == "sips") {
 			if (!to_uri.empty())
 					to_uri = "sips:"+to_uri;
 			try {

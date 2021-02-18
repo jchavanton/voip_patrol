@@ -23,28 +23,8 @@ It is possible to test many scenarios that are not easy to test manually like a 
 
 ### run
 ```
-./voip_patrol                                
- -v --version                      voip_patrol version       
- --log-level-file <0-10>           file log level            
- --log-level-console <0-10>        console log level         
- -p --port <5060>                  local port                
- -c,--conf <conf.xml>              XML scenario file         
- -l,--log <logfilename>            voip_patrol log file name 
- -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s
- -o,--output <result.json>         json result file name, another file suffixed with ".pjsua" will
-                                   also be created with all the logs from PJ-SIP 
- --tls-calist <path/file_name>     TLS CA list (pem format)     
- --tls-privkey <path/file_name>    TLS private key (pem format) 
- --tls-cert <path/file_name>       TLS certificate (pem format) 
- --tls-verify-server               TLS verify server certificate 
- --tls-verify-client               TLS verify client certificate 
- --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent 
- --graceful-shutdown               Wait a few seconds when shuting down
- --tcp / --udp                     Only listen to TCP/UDP    
- --ip-addr <IP>                    Use the specifed address as SIP and RTP addresses
- --bound-addr <IP>                 Bind transports to this IP interface
+./voip_patrol --help
 ```
-
 
 
 ### Example: making a test call
@@ -418,7 +398,7 @@ DISCONNECTED
 | from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
-| transport | string | force a specific transport <tcp,udp,tls> |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
@@ -436,7 +416,7 @@ DISCONNECTED
 | username | string | authentication username, account name, From/To/Contact header user part |
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
-| transport | string | force a specific transport <tcp,udp,tls> |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
 | realm | string | realm use for authentication |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
 

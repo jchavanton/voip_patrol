@@ -59,8 +59,10 @@ bool Action::set_param(ActionParam &param, const char *val) {
 				param.f_val = atof(val);
 			} else {
 				param.s_val = val;
-				if (param.s_val.compare(0, 7, "VP_ENV_") == 0)
-						param.s_val = get_env(val);
+				if (param.s_val.compare(0, 7, "VP_ENV_") == 0) {
+					LOG(logINFO) <<__FUNCTION__<<": "<<param.name<<" "<<param.s_val<<" substitution:"<<get_env(val);
+					param.s_val = get_env(val);
+				}
 			}
 			return true;
 }

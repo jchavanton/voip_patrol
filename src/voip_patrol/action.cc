@@ -114,6 +114,8 @@ void Action::init_actions_params() {
 	do_register_params.push_back(ActionParam("password", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("unregister", false, APType::apt_bool));
 	do_register_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
+	do_register_params.push_back(ActionParam("reg_id", false, APType::apt_string));
+	do_register_params.push_back(ActionParam("instance_id", false, APType::apt_string));
 	// do_accept
 	do_accept_params.push_back(ActionParam("account", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("transport", false, APType::apt_string));
@@ -193,6 +195,8 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	string username {};
 	string account_name {};
 	string password {};
+	string reg_id {};
+	string instance_id {};
 	int expected_cause_code {200};
 	bool unregister {false};
 
@@ -205,6 +209,8 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
+		else if (param.name.compare("reg_id") == 0) reg_id = param.s_val;
+		else if (param.name.compare("instance_id") == 0) instance_id = param.s_val;
 		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 	}
@@ -264,6 +270,21 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	sh.hValue = "<voip_patrol>";
 	acc_cfg.regConfig.headers.push_back(sh);
 	setTurnConfig(acc_cfg, config);
+
+	if (reg_id != "" || instance_id != "") {
+		LOG(logINFO) <<__FUNCTION__<<" reg_id:"<<reg_id<<" instance_id:"<<instance_id;
+		if (transport == "udp") {
+			LOG(logINFO) <<__FUNCTION__<< " oubound rfc5626 not supported on transport UDP";
+		} else {
+			acc_cfg.natConfig.sipOutboundUse = true;
+			if (reg_id != "")
+				acc_cfg.natConfig.sipOutboundRegId = reg_id;
+			if (instance_id != "")
+				acc_cfg.natConfig.sipOutboundInstanceId = instance_id;
+		}
+	} else {
+		acc_cfg.natConfig.sipOutboundUse = false;
+	}
 	for (auto x_hdr : x_headers) {
 		acc_cfg.regConfig.headers.push_back(x_hdr);
 	}

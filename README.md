@@ -419,6 +419,8 @@ DISCONNECTED
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | realm | string | realm use for authentication |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
+| reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
+| instance_id | int | same as reg_id, if not present, it will be generated automatically |
 
 ### wait command parameters
 

@@ -34,6 +34,7 @@ vector<ActionParam> Action::get_params(string name) {
 	else if (name.compare("alert") == 0) return do_alert_params;
 	else if (name.compare("codec") == 0) return do_codec_params;
 	else if (name.compare("turn") == 0) return do_turn_params;
+	else if (name.compare("transport") == 0) return do_transport_params;
 	vector<ActionParam> empty_params;
 	return empty_params;
 }
@@ -154,6 +155,9 @@ void Action::init_actions_params() {
 	do_turn_params.push_back(ActionParam("username", false, APType::apt_string));
 	do_turn_params.push_back(ActionParam("password", false, APType::apt_string));
 	do_turn_params.push_back(ActionParam("password_hashed", false, APType::apt_bool));
+	// do_transport
+	do_transport_params.push_back(ActionParam("protocol", false, APType::apt_string));
+	do_transport_params.push_back(ActionParam("port", false, APType::apt_integer));
 }
 
 void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
@@ -292,6 +296,25 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		acc_cfg.regConfig.headers.push_back(x_hdr);
 	}
 
+	if (transport != "tcp" || transport != "udp" || transport != "tls" || transport != "sips") {
+		IntVector tids = config->ep->transportEnum();
+		string m = string(":") + transport;
+		LOG(logINFO) <<__FUNCTION__<< " using a specific transport [searching] transport["<<m<<"]"<<transport;
+		for (auto tid : tids) {
+			TransportInfo tinfo = config->ep->transportGetInfo(tid);
+			if (tinfo.info.find(m) != std::string::npos){
+				LOG(logINFO) <<__FUNCTION__<< "[found] transport:id"<<tid<<" transport port:"<<tinfo.info<<" type:"<<tinfo.typeName;
+				acc_cfg.sipConfig.transportId = tid;
+				if (acc) {
+					// Forcing the creation of a new account with the forced transport, since the existing one may need its previous one.
+					acc = nullptr;
+				}
+				transport = tinfo.typeName;
+				vp::tolower(transport);
+				break;
+			}
+		}
+	}
 	if (transport == "tcp") {
 		LOG(logINFO) <<__FUNCTION__<< " SIP TCP";
 		acc_cfg.idUri = "sip:" + account_name + ";transport=tcp";
@@ -660,6 +683,44 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		}
 		repeat--;
 	} while (repeat >= 0);
+}
+
+void Action::do_transport(vector<ActionParam> &params) {
+	string protocol {};
+	int port {};
+	int id {};
+	for (auto param : params) {
+		if (param.name.compare("id") == 0) id = param.i_val;
+		else if (param.name.compare("port") == 0) port = param.i_val;
+		else if (param.name.compare("protocol") == 0) protocol = param.s_val;
+	}
+	LOG(logINFO) << __FUNCTION__ << " id["<<id<<"] protocol["<<protocol<<"] port["<<port<<"]";
+	TransportConfig tcfg;
+
+	tcfg.port = port;
+	tcfg.publicAddress = config->ip_cfg.public_address;
+	tcfg.boundAddress = config->ip_cfg.bound_address;
+
+	try {
+		pjsip_transport_type_e type = PJSIP_TRANSPORT_UDP;
+		if (protocol == "tcp") {
+			type = PJSIP_TRANSPORT_TCP;
+		} else if (protocol == "tls") {
+			tcfg.tlsConfig.CaListFile = config->tls_cfg.ca_list;
+			tcfg.tlsConfig.certFile = config->tls_cfg.certificate;
+			tcfg.tlsConfig.privKeyFile = config->tls_cfg.private_key;
+			tcfg.tlsConfig.verifyServer = config->tls_cfg.verify_server;
+			tcfg.tlsConfig.verifyClient = config->tls_cfg.verify_client;
+			type = PJSIP_TRANSPORT_TLS;
+		} else if (protocol == "udp") {
+			type = PJSIP_TRANSPORT_UDP;
+		}
+		config->ep->transportCreate(type, tcfg);
+	} catch (Error & err) {
+		LOG(logERROR) <<__FUNCTION__<<": error creating transport"<<err.info();
+		return;
+	}
+	LOG(logINFO) << __FUNCTION__ <<":[created] id["<<id<<"] protocol["<<protocol<<"] port["<<port<<"]";
 }
 
 void Action::do_turn(vector<ActionParam> &params) {

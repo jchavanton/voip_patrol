@@ -56,6 +56,7 @@ class Action {
 			void do_alert(vector<ActionParam> &params);
 			void do_codec(vector<ActionParam> &params);
 			void do_turn(vector<ActionParam> &params);
+			void do_transport(vector<ActionParam> &params);
 			void set_config(Config *);
 			Config* get_config();
 	private:
@@ -68,6 +69,7 @@ class Action {
 			vector<ActionParam> do_alert_params;
 			vector<ActionParam> do_codec_params;
 			vector<ActionParam> do_turn_params;
+			vector<ActionParam> do_transport_params;
 			Config* config;
 };
 

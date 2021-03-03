@@ -116,6 +116,7 @@ void Action::init_actions_params() {
 	do_register_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	do_register_params.push_back(ActionParam("reg_id", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("instance_id", false, APType::apt_string));
+	do_register_params.push_back(ActionParam("rewrite_contact", true, APType::apt_bool));
 	// do_accept
 	do_accept_params.push_back(ActionParam("account", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("transport", false, APType::apt_string));
@@ -199,6 +200,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	string instance_id {};
 	int expected_cause_code {200};
 	bool unregister {false};
+	bool rewrite_contact {false};
 
 	for (auto param : params) {
 		if (param.name.compare("transport") == 0) transport = param.s_val;
@@ -212,6 +214,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("reg_id") == 0) reg_id = param.s_val;
 		else if (param.name.compare("instance_id") == 0) instance_id = param.s_val;
 		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
+		else if (param.name.compare("rewrite_contact") == 0) rewrite_contact = param.b_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 	}
 
@@ -321,7 +324,8 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 	}
-	acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
+	acc_cfg.sipConfig.authCreds.push_back(AuthCredInfo("digest", realm, username, 0, password));
+	acc_cfg.natConfig.contactRewriteUse = rewrite_contact;
 
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);

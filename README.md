@@ -421,6 +421,7 @@ DISCONNECTED
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
 | reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
 | instance_id | int | same as reg_id, if not present, it will be generated automatically |
+| rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
 
 ### wait command parameters
 

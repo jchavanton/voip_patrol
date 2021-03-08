@@ -20,6 +20,8 @@ It is possible to test many scenarios that are not easy to test manually like a 
 ### Linux Debian building from sources
 [see commands in Dockerfile](docker/Dockerfile)
 
+### Load test example
+[load test example](load_test/LOAD_TEST.md)
 
 ### run
 ```

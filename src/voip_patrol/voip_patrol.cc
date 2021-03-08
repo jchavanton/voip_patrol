@@ -876,6 +876,8 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	TestAccount *account = new TestAccount();
 	accounts.push_back(account);
 	account->config = this;
+	acc_cfg.mediaConfig.transportConfig.port = rtp_cfg.port;
+	LOG(logINFO) <<__FUNCTION__<<" rtp start port:"<< rtp_cfg.port;
 	acc_cfg.mediaConfig.transportConfig.boundAddress = ip_cfg.bound_address;
 	acc_cfg.mediaConfig.transportConfig.publicAddress = ip_cfg.public_address;
 	if (ip_cfg.public_address != "")
@@ -1158,7 +1160,7 @@ int main(int argc, char **argv){
 	bool tcp_only = false;
 	bool udp_only = false;
 	int timer_ms = 0;
-
+	config.rtp_cfg.port = 4000;
 	ep.config = &config;
 	config.ep = &ep;
 
@@ -1185,7 +1187,8 @@ int main(int argc, char **argv){
             " --tcp / --udp                     Only listen to TCP/UDP    \n"\
             " --ip-addr <IP>                    Use the specifed address as SIP and RTP addresses\n"\
             " --bound-addr <IP>                 Bind transports to this IP interface\n"\
-            "                                                             \n";
+	    " --rtp-port <1-65535>              Starting port of the range used for RTP\n"\
+	    "                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
 			LOG(logINFO) <<"version: voip_patrol "<<VERSION<<std::endl;
@@ -1224,6 +1227,8 @@ int main(int argc, char **argv){
 				config.ip_cfg.bound_address = "0.0.0.0";
 		} else if (arg == "--bound-addr") {
 			config.ip_cfg.bound_address = argv[++i];
+		} else if (arg == "--rtp-port") {
+			config.rtp_cfg.port = atoi(argv[++i]);
 		} else if (arg == "--tls-privkey") {
 			config.tls_cfg.private_key = argv[++i];
 		} else if (arg == "--tls-verify-client") {
@@ -1372,7 +1377,6 @@ int main(int argc, char **argv){
 	while (disconnecting) {
 		disconnecting = false;
 		for (auto & call : config.calls) {
-
 			pjsua_call_info pj_ci;
 			pjsua_call_id call_id;
 			CallInfo ci;

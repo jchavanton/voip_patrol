@@ -136,6 +136,9 @@ class Config {
 			string public_address{};
 			string bound_address{};
 		} ip_cfg;
+		struct {
+			int port;
+		} rtp_cfg;
 		std::vector<Test *> tests_with_rtp_stats;
 		VoipPatrolEnpoint *ep;
 	private:

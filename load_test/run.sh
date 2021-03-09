@@ -66,4 +66,4 @@ tmux select-window -t $SESSION:3
 # Attach to session
 tmux -2 attach-session -t $SESSION
 
-echo "grep \"action\\\": \\\"call\\\"\" --no-filename  perf[2-5].json | jq . | grep mos_lq | sort | uniq -c"
+echo "grep \"action\\\": \\\"call\\\"\" --no-filename  perf[1-4].json | jq . | grep mos_lq | sort | uniq -c"

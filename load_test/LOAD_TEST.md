@@ -1,7 +1,7 @@
 ## Example of load tests with voip_patrol
 
-
 ### this will start a multi window tmux with four instances of voip_patrol
+[run.sh](run.sh)
 ```
 ./run.sh  "10.0.0.1:5060"
 ```
@@ -9,7 +9,7 @@
 ### validating results
 Voip_patrol json test results can be use to confirm that the transmission quality was not degraded.
 ```
-grep "action\": \"call\"" --no-filename  perf[2-5].json | jq . | grep mos_lq | sort | uniq -c
+grep "action\": \"call\"" --no-filename  perf[1-5].json | jq . | grep mos_lq | sort | uniq -c
 ```
 
 ### notes

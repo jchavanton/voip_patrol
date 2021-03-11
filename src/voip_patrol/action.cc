@@ -745,6 +745,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 				tests_running++;
 			}
 		}
+
+		// prevent calls destruction while parsing looking at them
+		config->checking_calls.lock();
+
 		for (auto & call : config->calls) {
 			if (call->test && call->test->state == VPT_DONE){
 				//CallInfo ci = call->getInfo();
@@ -829,6 +833,9 @@ void Action::do_wait(vector<ActionParam> &params) {
 				pos++;
  			}
 		}
+
+		// calls, can now be destroyed
+		config->checking_calls.unlock();
 
 		if (tests_running > 0) {
 			if (status_update) {

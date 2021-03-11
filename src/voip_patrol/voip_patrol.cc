@@ -223,6 +223,7 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 
 TestCall::~TestCall() {
 	if (test) {
+		const std::lock_guard<std::mutex> lock(test->config->checking_calls);
 		delete test;
 	}
 }

@@ -125,6 +125,7 @@ class Config {
 		int json_result_count;
 		Action action;
 		ResultFile result_file;
+		std::mutex checking_calls;
 		struct {
 			string ca_list;
 			string private_key;
@@ -222,8 +223,8 @@ class Test {
 		bool rtp_stats_ready{false};
 		bool queued{false};
 		vector<ActionCheck> checks;
-	private:
 		Config *config;
+	private:
 		std::mutex process_result;
 };
 

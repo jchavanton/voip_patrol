@@ -1386,7 +1386,7 @@ int main(int argc, char **argv){
 					disconnecting = true;
 					continue;
 			}
-			pj_status_t status = pjsua_call_get_info(call_id, &pj_ci); 
+			pj_status_t status = pjsua_call_get_info(call_id, &pj_ci);
 			LOG(logINFO) << "disconnecting >>> call["<< call->getId() <<"]["<< call <<"] ";
 			if (status != PJ_SUCCESS) {
 				LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
@@ -1403,7 +1403,9 @@ int main(int argc, char **argv){
 					LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
 				}
 			} else {
-				LOG(logINFO) << "removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+				// LOG(logINFO) << "removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+				LOG(logINFO) << "disconnected call["<< call->getId() <<"]["<< call <<"]";
+				pj_thread_sleep(500);
 			}
 		}
 		pj_thread_sleep(50);

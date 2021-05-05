@@ -321,9 +321,10 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 		LOG(logINFO) << __FUNCTION__ <<" rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
 		rtt = rtcp.rttUsec.mean/1000;
+
 		if (test->rtp_stats_count > 0)
 			test->rtp_stats_json = test->rtp_stats_json + ',';
-		test->rtp_stats_json = test->rtp_stats_json + " \"rtp_stats_"+to_string(test->rtp_stats_count)+"\":{\"rtt\":"+to_string(rtt)+","
+		test->rtp_stats_json = test->rtp_stats_json + "{\"rtt\":"+to_string(rtt)+","
 						"\"remote_rtp_socket\": \""+infos.remoteRtpAddress+"\", "
 						"\"codec_name\": \""+infos.codecName+"\", "
 						"\"clock_rate\": \""+to_string(infos.codecClockRate)+"\", "
@@ -727,7 +728,7 @@ void Test::update_result() {
 			result_line_json += ", \"check\":{" + result_checks_json + "}";
 
 		if (rtp_stats && rtp_stats_ready)
-			result_line_json += "," + rtp_stats_json;
+			result_line_json += ", \"rtp_stats\":[" + rtp_stats_json + "]";
 		result_line_json += "}}";
 
 		config->result_file.write(result_line_json);

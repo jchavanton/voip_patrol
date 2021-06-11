@@ -295,19 +295,23 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		LOG(logINFO) << __FUNCTION__ << " codec name:"<< infos.codecName <<" clock rate:"<< infos.codecClockRate <<" RTP IP:"<< infos.remoteRtpAddress;
 		StreamStat const &stats = getStreamStat(prm.streamIdx);
 		RtcpStat rtcp = stats.rtcp;
+		JbufState jbuf = stats.jbuf;
 		RtcpStreamStat rxStat = rtcp.rxStat;
 		RtcpStreamStat txStat = rtcp.txStat;
 
 		LOG(logINFO) << __FUNCTION__ << ": RTCP Rx jitter:"<<rxStat.jitterUsec.n<<"|"<<rxStat.jitterUsec.mean/1000<<"|"<<rxStat.jitterUsec.max/1000
-                     <<"Usec pkt:"<<rxStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<<rxStat.loss<<" discard:"<<rxStat.discard;
+                     <<"Usec pkt:"<<rxStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<<rxStat.loss<<" discard:"<<jbuf.discard;
 		LOG(logINFO) << __FUNCTION__ << ": RTCP Tx jitter:"<<txStat.jitterUsec.n<<"|"<<txStat.jitterUsec.mean/1000<<"|"<<txStat.jitterUsec.max/1000
                      <<"Usec pkt:"<<txStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<< txStat.loss<<" discard:"<<txStat.discard;
+
+
+		// MOS-LQ - Listening Quality
 		/* represent loss dependent effective equipment impairment factor and percentage loss probability */
 		const int Bpl = 25; /* packet-loss robustness factor Bpl is defined as a codec-specific value. */
 		float Ie_eff_rx, Ppl_rx, Ppl_cut_rx, Ie_eff_tx, Ppl_tx, Ppl_cut_tx;
 		const int Ie = 0; /* Not used : Refer to Appendix I of [ITU-T G.113] for the currently recommended values of Ie.*/
 		float Ta = 0.0; /* Absolute Delay */
-		Ppl_rx = (rxStat.loss+rxStat.discard) * 100.0 / (rxStat.pkt + rxStat.loss);
+		Ppl_rx = (rxStat.loss+jbuf.discard) * 100.0 / (rxStat.pkt + rxStat.loss);
 		Ppl_tx = (txStat.loss+txStat.discard) * 100.0 / (txStat.pkt + txStat.loss);
 
 		float BurstR_rx = 1.0;
@@ -321,6 +325,34 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 		LOG(logINFO) << __FUNCTION__ <<" rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
 		rtt = rtcp.rttUsec.mean/1000;
+
+		// MOS-CQ - Conversational Quality
+		int mT = 100; // minimum  perceivable  delay "mT", 100ms is Applicable to all types of telephone conversations
+		int sT = 1;   // delay  sensitivity "sT", 1 is Applicable to all types of telephone conversations
+		float LOG2 = 0.301;
+		float Id = 0; // impairment delay
+
+		// G.107 : 7.4 Delay impairment factor, Id
+		Ta = rtt/2 + jbuf.avgDelayMsec;
+		if(Ta >= mT) {
+			float X = (log10(Ta/mT)/LOG2);
+			Id = 25.0 * (pow((1+pow(X,6.0*sT)),(1.0/(6.0*sT)))-3.0*pow((1.0+pow(X/3.0,6.0*sT)),(1.0/(6.0*sT)))+2);
+		}
+		int rfactor_rx_cq = rfactor_rx - Id;
+		float mos_rx_cq = rfactor_to_mos(rfactor_rx_cq);
+
+		Ta = rtt/2 + txStat.jitterUsec.mean/1000;
+		if(Ta >= mT) {
+			float X = (log10(Ta/mT)/LOG2);
+			Id = 25.0 * (pow((1+pow(X,6.0*sT)),(1.0/(6.0*sT)))-3.0*pow((1.0+pow(X/3.0,6.0*sT)),(1.0/(6.0*sT)))+2);
+		}
+		int rfactor_tx_cq = rfactor_tx - Id;
+		float mos_tx_cq = rfactor_to_mos(rfactor_tx);
+
+		LOG(logINFO) << __FUNCTION__ <<"Rx-mos-lq["<<mos_tx<<"] Rx-mos-cq["<<mos_tx_cq<<"] Tx-mos-lq["<<mos_rx<<"] Tx-mos-cq["<<mos_rx_cq<<"]";
+
+		// Another interesting study to consider ...
+		// https://www.naun.org/main/NAUN/mcs/2002-124.pdf
 
 		if (test->rtp_stats_count > 0)
 			test->rtp_stats_json = test->rtp_stats_json + ',';
@@ -342,7 +374,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"pkt\": "+to_string(rxStat.pkt)+", "
 							"\"kbytes\": "+to_string(rxStat.bytes/1024)+", "
 							"\"loss\": "+to_string(rxStat.loss)+", "
-							"\"discard\": "+to_string(rxStat.discard)+", "
+							"\"discard\": "+to_string(jbuf.discard)+", "
 							"\"mos_lq\": "+to_string(mos_rx)+"} "
 						"}";
 		test->rtp_stats_count++;

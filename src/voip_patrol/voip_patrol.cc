@@ -300,10 +300,9 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		RtcpStreamStat txStat = rtcp.txStat;
 
 		LOG(logINFO) << __FUNCTION__ << ": RTCP Rx jitter:"<<rxStat.jitterUsec.n<<"|"<<rxStat.jitterUsec.mean/1000<<"|"<<rxStat.jitterUsec.max/1000
-                     <<"Usec pkt:"<<rxStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<<rxStat.loss<<" discard:"<<jbuf.discard;
+                     <<"Usec pkt:"<<rxStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<<rxStat.loss<<" discard:"<<rxStat.discard<<" discarded frames buffer:"<<jbuf.discard;
 		LOG(logINFO) << __FUNCTION__ << ": RTCP Tx jitter:"<<txStat.jitterUsec.n<<"|"<<txStat.jitterUsec.mean/1000<<"|"<<txStat.jitterUsec.max/1000
                      <<"Usec pkt:"<<txStat.pkt<<" Kbytes:"<<rxStat.bytes/1024<<" loss:"<< txStat.loss<<" discard:"<<txStat.discard;
-
 
 		// MOS-LQ - Listening Quality
 		/* represent loss dependent effective equipment impairment factor and percentage loss probability */
@@ -311,7 +310,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		float Ie_eff_rx, Ppl_rx, Ppl_cut_rx, Ie_eff_tx, Ppl_tx, Ppl_cut_tx;
 		const int Ie = 0; /* Not used : Refer to Appendix I of [ITU-T G.113] for the currently recommended values of Ie.*/
 		float Ta = 0.0; /* Absolute Delay */
-		Ppl_rx = (rxStat.loss+jbuf.discard) * 100.0 / (rxStat.pkt + rxStat.loss);
+		Ppl_rx = (rxStat.loss+rxStat.discard) * 100.0 / (rxStat.pkt + rxStat.loss);
 		Ppl_tx = (txStat.loss+txStat.discard) * 100.0 / (txStat.pkt + txStat.loss);
 
 		float BurstR_rx = 1.0;
@@ -341,7 +340,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		int rfactor_rx_cq = rfactor_rx - Id;
 		float mos_rx_cq = rfactor_to_mos(rfactor_rx_cq);
 
-		Ta = rtt/2 + txStat.jitterUsec.mean/1000;
+		Ta = rtt/2 + txStat.jitterUsec.mean/500; // extrapolating dynamice jitter buffer ~jitterx2
 		if(Ta >= mT) {
 			float X = (log10(Ta/mT)/LOG2);
 			Id = 25.0 * (pow((1+pow(X,6.0*sT)),(1.0/(6.0*sT)))-3.0*pow((1.0+pow(X/3.0,6.0*sT)),(1.0/(6.0*sT)))+2);

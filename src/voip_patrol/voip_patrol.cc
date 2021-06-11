@@ -322,7 +322,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		int rfactor_tx = 100 - Ie_eff_tx;
 		float mos_tx = rfactor_to_mos(rfactor_tx);
 
-		LOG(logINFO) << __FUNCTION__ <<" rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
+		LOG(logINFO) << __FUNCTION__ <<": rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
 		rtt = rtcp.rttUsec.mean/1000;
 
 		// MOS-CQ - Conversational Quality
@@ -339,6 +339,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		}
 		int rfactor_rx_cq = rfactor_rx - Id;
 		float mos_rx_cq = rfactor_to_mos(rfactor_rx_cq);
+		LOG(logINFO) << __FUNCTION__ <<": Tx-mos-lq["<<mos_rx<<"] Tx-mos-cq["<<mos_rx_cq<<"] >> Ta["<<Ta<<"]jb-delay-ms["<<jbuf.avgDelayMsec<<"]";
 
 		Ta = rtt/2 + txStat.jitterUsec.mean/500; // extrapolating dynamice jitter buffer ~jitterx2
 		if(Ta >= mT) {
@@ -347,8 +348,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		}
 		int rfactor_tx_cq = rfactor_tx - Id;
 		float mos_tx_cq = rfactor_to_mos(rfactor_tx);
-
-		LOG(logINFO) << __FUNCTION__ <<"Rx-mos-lq["<<mos_tx<<"] Rx-mos-cq["<<mos_tx_cq<<"] Tx-mos-lq["<<mos_rx<<"] Tx-mos-cq["<<mos_rx_cq<<"]";
+		LOG(logINFO) << __FUNCTION__ <<": Rx-mos-lq["<<mos_tx<<"] Rx-mos-cq["<<mos_tx_cq<<"] >> Ta["<<Ta<<"]RTCP_jitterX2ms["<<txStat.jitterUsec.mean/500<<"]";
 
 		// Another interesting study to consider ...
 		// https://www.naun.org/main/NAUN/mcs/2002-124.pdf

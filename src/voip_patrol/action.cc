@@ -48,23 +48,23 @@ string Action::get_env(string env) {
 }
 
 bool Action::set_param(ActionParam &param, const char *val) {
-			if (!val) return false;
-			LOG(logINFO) <<__FUNCTION__<< " param name:" << param.name << " val:" << val; 
-			if (param.type == APType::apt_bool) {
-				if( strcmp(val, "false") ==  0 )  param.b_val = false;
-				else param.b_val = true;
-			} else if (param.type == APType::apt_integer) {
-				param.i_val = atoi(val);
-			} else if (param.type == APType::apt_float) {
-				param.f_val = atof(val);
-			} else {
-				param.s_val = val;
-				if (param.s_val.compare(0, 7, "VP_ENV_") == 0) {
-					LOG(logINFO) <<__FUNCTION__<<": "<<param.name<<" "<<param.s_val<<" substitution:"<<get_env(val);
-					param.s_val = get_env(val);
-				}
-			}
-			return true;
+	if (!val) return false;
+	LOG(logINFO) <<__FUNCTION__<< " param name:" << param.name << " val:" << val;
+	if (param.type == APType::apt_bool) {
+		if( strcmp(val, "false") ==  0 )  param.b_val = false;
+		else param.b_val = true;
+	} else if (param.type == APType::apt_integer) {
+		param.i_val = atoi(val);
+	} else if (param.type == APType::apt_float) {
+		param.f_val = atof(val);
+	} else {
+		param.s_val = val;
+		if (param.s_val.compare(0, 7, "VP_ENV_") == 0) {
+			LOG(logINFO) <<__FUNCTION__<<": "<<param.name<<" "<<param.s_val<<" substitution:"<<get_env(val);
+			param.s_val = get_env(val);
+		}
+	}
+	return true;
 }
 
 bool Action::set_param_by_name(vector<ActionParam> *params, const string name, const char *val) {
@@ -95,6 +95,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("cancel", false, APType::apt_integer));
@@ -116,6 +117,7 @@ void Action::init_actions_params() {
 	do_register_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	do_register_params.push_back(ActionParam("reg_id", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("instance_id", false, APType::apt_string));
+	do_register_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_register_params.push_back(ActionParam("rewrite_contact", true, APType::apt_bool));
 	// do_accept
 	do_accept_params.push_back(ActionParam("account", false, APType::apt_string));
@@ -131,6 +133,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("call_count", false, APType::apt_integer));
@@ -198,6 +201,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	string password {};
 	string reg_id {};
 	string instance_id {};
+	string srtp {};
 	int expected_cause_code {200};
 	bool unregister {false};
 	bool rewrite_contact {false};
@@ -216,6 +220,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
 		else if (param.name.compare("rewrite_contact") == 0) rewrite_contact = param.b_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
+		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 	}
 
 	if (username.empty() || realm.empty() || password.empty() || registrar.empty()) {
@@ -327,6 +332,22 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	acc_cfg.sipConfig.authCreds.push_back(AuthCredInfo("digest", realm, username, 0, password));
 	acc_cfg.natConfig.contactRewriteUse = rewrite_contact;
 
+	// SRTP for incoming calls
+	if (srtp.find("dtls") != std::string::npos) {
+		acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_OPTIONAL;
+		acc_cfg.mediaConfig.srtpOpt.keyings.push_back(PJMEDIA_SRTP_KEYING_DTLS_SRTP);
+		LOG(logINFO) <<__FUNCTION__<<" adding DTLS-SRTP capabilities";
+	}
+	if (srtp.find("sdes") != std::string::npos) {
+		acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_OPTIONAL;
+		acc_cfg.mediaConfig.srtpOpt.keyings.push_back(PJMEDIA_SRTP_KEYING_SDES);
+		LOG(logINFO) <<__FUNCTION__<<" adding SDES capabilities";
+	}
+	if (srtp.find("force") != std::string::npos) {
+		acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_MANDATORY;
+		LOG(logINFO) <<__FUNCTION__<<" Forcing SRTP";
+	}
+
 	if (!acc) {
 		acc = config->createAccount(acc_cfg);
 	} else {
@@ -353,6 +374,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
 	bool late_start {false};
+	string srtp {"none"};
 	int code {200};
 	int call_count {-1};
 	int response_delay {0};
@@ -373,6 +395,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("early_media") == 0) early_media = param.b_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
+		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
@@ -422,6 +445,23 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 			}
 			LOG(logINFO) <<__FUNCTION__<<":session timer["<<timer<<"]: "<< acc_cfg.callConfig.timerUse ;
 		}
+
+		// SRTP
+		if (srtp.find("dtls") != std::string::npos) {
+			acc_cfg.mediaConfig.srtpOpt.keyings.push_back(PJMEDIA_SRTP_KEYING_DTLS_SRTP);
+			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_OPTIONAL;
+			LOG(logINFO) <<__FUNCTION__<<" adding DTLS-SRTP capabilities";
+		}
+		if (srtp.find("sdes") != std::string::npos) {
+			acc_cfg.mediaConfig.srtpOpt.keyings.push_back(PJMEDIA_SRTP_KEYING_SDES);
+			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_OPTIONAL;
+			LOG(logINFO) <<__FUNCTION__<<" adding SDES capabilities";
+		}
+		if (srtp.find("force") != std::string::npos) {
+			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_MANDATORY;
+			LOG(logINFO) <<__FUNCTION__<<" Forcing SRTP";
+		}
+
 		acc = config->createAccount(acc_cfg);
 	}
 	acc->hangup_duration = hangup_duration;
@@ -443,6 +483,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->x_headers = x_headers;
 	acc->checks = checks;
 	acc->play = play;
+	acc->srtp = srtp;
 }
 
 
@@ -461,6 +502,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	string realm {};
 	string label {};
 	string proxy {};
+	string srtp {"none"};
 	int expected_cause_code {200};
 	call_state_t wait_until {INV_STATE_NULL};
 	float min_mos {0.0};
@@ -495,6 +537,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
+		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
 		else if (param.name.compare("max_ringing_duration") == 0) max_ringing_duration = param.i_val;
@@ -517,11 +560,11 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;
-		LOG(logINFO) <<__FUNCTION__<< ":do_call:turn:"<< config->turn_config.enabled << "\n"; 
+		LOG(logINFO) <<__FUNCTION__<< ":do_call:turn:"<< config->turn_config.enabled << "\n";
 		setTurnConfig(acc_cfg, config);
 
 		if (force_contact != ""){
-			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n"; 
+			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n";
 			acc_cfg.sipConfig.contactForced = force_contact;
 		}
 
@@ -564,16 +607,38 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		}
 
-		if (!from.empty())
+		if (!from.empty()) {
 			acc_cfg.idUri = from;
+		}
+
 		if (!realm.empty()) {
 			if (username.empty() || password.empty()) {
-				if (username.empty()) LOG(logERROR) <<__FUNCTION__<< ": realm specified missing username";
-				else LOG(logERROR) <<__FUNCTION__<<": realm specified missing password";
+				if (username.empty()) {
+					LOG(logERROR) <<__FUNCTION__<< ": realm specified missing username";
+					return;
+				}
+				LOG(logERROR) <<__FUNCTION__<<": realm specified missing password";
 				return;
 			}
 			acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 		}
+
+		// SRTP
+		if (srtp.find("dtls") != std::string::npos) {
+			acc_cfg.mediaConfig.srtpOpt.keyings.push_back(PJMEDIA_SRTP_KEYING_DTLS_SRTP);
+			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_OPTIONAL;
+			LOG(logINFO) <<__FUNCTION__<<" adding DTLS-SRTP capabilities";
+		}
+		if (srtp.find("sdes") != std::string::npos) {
+			acc_cfg.mediaConfig.srtpOpt.keyings.push_back(PJMEDIA_SRTP_KEYING_SDES);
+			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_OPTIONAL;
+			LOG(logINFO) <<__FUNCTION__<<" adding SDES capabilities";
+		}
+		if (srtp.find("force") != std::string::npos) {
+			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_MANDATORY;
+			LOG(logINFO) <<__FUNCTION__<<" Forcing SRTP";
+		}
+
 		acc = config->createAccount(acc_cfg);
 		LOG(logERROR) <<__FUNCTION__<<": session timer["<<timer<<"] : "<< acc_cfg.callConfig.timerUse << " TURN:"<< acc_cfg.natConfig.turnEnabled;
 	}
@@ -597,6 +662,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->rtp_stats = rtp_stats;
 		test->late_start = late_start;
 		test->force_contact = force_contact;
+		test->srtp = srtp;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);
@@ -817,8 +883,9 @@ void Action::do_wait(vector<ActionParam> &params) {
 						call->test->update_result();
 					}
 				}
-				if (complete_all || call->test->state == VPT_RUN_WAIT)
+				if (complete_all || call->test->state == VPT_RUN_WAIT) {
 					tests_running++;
+				}
 			}
 		}
 
@@ -833,10 +900,8 @@ void Action::do_wait(vector<ActionParam> &params) {
 				pos++;
  			}
 		}
-
 		// calls, can now be destroyed
 		config->checking_calls.unlock();
-
 		if (tests_running > 0) {
 			if (status_update) {
 				LOG(logINFO) <<__FUNCTION__<<LOG_COLOR_ERROR<<": action[wait] active account tests or call tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
@@ -844,7 +909,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 			}
 			tests_running=0;
 
-			if (duration_ms > 0) duration_ms -= 100;
+			if (duration_ms > 0) {
+				duration_ms -= 100;
+			}
+
 			pj_thread_sleep(100);
 		} else {
 			if (duration_ms > 0) {

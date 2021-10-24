@@ -194,7 +194,7 @@ DISCONNECTED
             callee="12011111111@target.com"
     />
     <!-- note: will wait until all tests pass wait_until state -->
-    <action type="wait"/> 
+    <action type="wait"/>
     <action type="call" label="call#2"
             transport="udp"
             wait_until="CONFIRMED"
@@ -387,6 +387,7 @@ DISCONNECTED
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory |
 | hangup | int | call duration in second before hangup |
 
 
@@ -403,6 +404,7 @@ DISCONNECTED
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | force_contact | string | local contact header will be overwritten by the given string |
 | max_ringing_duration | int | max ringing duration in seconds before cancel |
@@ -424,6 +426,7 @@ DISCONNECTED
 | reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
 | instance_id | int | same as reg_id, if not present, it will be generated automatically |
 | rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
 
 ### wait command parameters
 

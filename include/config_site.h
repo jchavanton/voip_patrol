@@ -12,3 +12,6 @@
 #define PJSUA_MAX_ACC       512
 #define PJSUA_MAX_CALLS     512
 #define PJSUA_MAX_PLAYERS   512
+
+// SRTP
+#define PJMEDIA_SRTP_HAS_DTLS           1

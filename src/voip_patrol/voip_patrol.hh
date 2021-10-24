@@ -220,6 +220,7 @@ class Test {
 		string rtp_stats_json;
 		string play;
 		string play_dtmf;
+		string srtp;
 		bool rtp_stats_ready{false};
 		bool queued{false};
 		vector<ActionCheck> checks;
@@ -255,6 +256,7 @@ class TestAccount : public Account {
 		string play;
 		string play_dtmf;
 		string timer;
+		string srtp;
 		call_state_t wait_state;
 		std::string accept_label;
 		string reason;

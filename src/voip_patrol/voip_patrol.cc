@@ -1040,6 +1040,7 @@ replay:
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 			else if ( action_type.compare("codec") == 0 ) action.do_codec(params);
 			else if ( action_type.compare("turn") == 0 ) action.do_turn(params);
+			else if ( action_type.compare("transport") == 0 ) action.do_transport(params);
 
 		}
 	}

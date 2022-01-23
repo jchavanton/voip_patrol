@@ -516,6 +516,8 @@ TestAccount::TestAccount() {
 	ring_duration=0;
 	call_count=-1;
 	accept_label="-";
+	early_media = false;
+	response_delay = 0;
 }
 
 TestAccount::~TestAccount() {
@@ -584,20 +586,36 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 			call->test->state = VPT_RUN_WAIT;
 
 		call->test->play_dtmf = play_dtmf;
+		call->test->early_media = early_media;
+		call->test->response_delay = response_delay;
 	}
 	calls.push_back(call);
 	if (call_count > 0)
 		call_count--;
+
 	config->calls.push_back(call);
+
+	for (auto x_hdr : x_headers) {
+		prm.txOption.headers.push_back(x_hdr);
+	}
+
+	if (response_delay > 0) {
+		LOG(logINFO) << __FUNCTION__ << ": Not answering 100 due to response delay: " << response_delay << " ms";
+
+		return;
+	}
+
+	// Explicitly answer with 100
+	CallOpParam prm_100;
+
+	prm_100.statusCode = PJSIP_SC_TRYING;
+	call->answer(prm_100);
+
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
 	if (code  >= 100 && code <= 699) {
 		prm.statusCode = (pjsip_status_code) code;
 	} else {
 		prm.statusCode = PJSIP_SC_OK;
-	}
-
-	for (auto x_hdr : x_headers) {
-		prm.txOption.headers.push_back(x_hdr);
 	}
 
 	if (ring_duration > 0) {
@@ -1149,10 +1167,9 @@ void VoipPatrolEnpoint::onSelectAccount(OnSelectAccountParam &param) {
 		account = config->findAccount("default");
 	}
 	if (!account) return;
-	if (account->response_delay > 0) {
-		LOG(logINFO) <<__FUNCTION__<<" account_index:" << param.accountIndex << " response_delay:" << account->response_delay ;
-		pj_thread_sleep(account->response_delay);
-	}
+
+	LOG(logINFO) << __FUNCTION__ << " account_index:" << param.accountIndex << " response_delay:" << account->response_delay << " ring_duration:" << account->ring_duration;
+
 	AccountInfo acc_info = account->getInfo();
 	param.accountIndex = acc_info.id;
 }
@@ -1459,5 +1476,3 @@ int main(int argc, char **argv){
 	LOG(logINFO) <<__FUNCTION__<<": Watch completed, exiting  /('l')" ;
 	return ret;
 }
-
-

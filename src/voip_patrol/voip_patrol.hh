@@ -197,6 +197,7 @@ class Test {
 		int ring_duration{0};
 		int rtp_stats_count{0};
 		int max_ringing_duration{0};
+		int response_delay{0};
 		void get_mos();
 		std::string local_user;
 		std::string local_uri;
@@ -215,6 +216,7 @@ class Test {
 		int call_id{0};
 		bool recording{false};
 		bool playing{false};
+		bool early_media {false};
 		string record_fn;
 		string reference_fn;
 		string rtp_stats_json;

@@ -157,6 +157,10 @@ void Action::init_actions_params() {
 	do_turn_params.push_back(ActionParam("username", false, APType::apt_string));
 	do_turn_params.push_back(ActionParam("password", false, APType::apt_string));
 	do_turn_params.push_back(ActionParam("password_hashed", false, APType::apt_bool));
+	do_turn_params.push_back(ActionParam("stun_only", false, APType::apt_bool));
+	do_turn_params.push_back(ActionParam("sip_stun_use", false, APType::apt_bool));
+	do_turn_params.push_back(ActionParam("media_stun_use", false, APType::apt_bool));
+
 }
 
 void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
@@ -174,6 +178,39 @@ void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
 		}
 		acc_cfg.natConfig.turnPassword = turn_config->password;
 		acc_cfg.natConfig.iceEnabled = true;
+		if (turn_config->sip_stun_use) {
+			acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DEFAULT;
+		}
+		if (turn_config->media_stun_use) {
+			acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DEFAULT;
+		}
+	} else if (turn_config->stun_only) {
+		if (!turn_config->sip_stun_use && turn_config->media_stun_use) {
+			LOG(logINFO) <<__FUNCTION__<<" STUN: enabled without SIP or Media";
+		}
+
+		if (turn_config->sip_stun_use) {
+			acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DEFAULT;
+		} else {
+			acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
+		}
+		if (turn_config->media_stun_use) {
+			acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DEFAULT;
+		} else {
+			acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DISABLED;
+		}
+		acc_cfg.natConfig.sdpNatRewriteUse = false;
+		acc_cfg.natConfig.turnEnabled = false;
+		acc_cfg.natConfig.turnServer = turn_config->server;
+		acc_cfg.natConfig.turnConnType = PJ_TURN_TP_UDP;
+		acc_cfg.natConfig.turnUserName = turn_config->username;
+		if (turn_config->password_hashed) {
+			acc_cfg.natConfig.turnPasswordType = PJ_STUN_PASSWD_HASHED;
+		} else {
+			acc_cfg.natConfig.turnPasswordType = PJ_STUN_PASSWD_PLAIN;
+		}
+		acc_cfg.natConfig.turnPassword = turn_config->password;
+		acc_cfg.natConfig.iceEnabled = false;
 	} else {
 		acc_cfg.natConfig.turnEnabled = false;
 		acc_cfg.natConfig.iceEnabled = false;
@@ -734,12 +771,18 @@ void Action::do_turn(vector<ActionParam> &params) {
 	string username {};
 	string password {};
 	bool password_hashed {false};
+	bool stun_only {false};
+	bool sip_stun_use {false};
+	bool media_stun_use {false};
 	for (auto param : params) {
 		if (param.name.compare("enabled") == 0) enabled = param.b_val;
 		else if (param.name.compare("server") == 0) server = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("password_hashed") == 0) password_hashed = param.b_val;
+		else if (param.name.compare("sip_stun_use") == 0) sip_stun_use = param.b_val;
+		else if (param.name.compare("media_stun_use") == 0) media_stun_use = param.b_val;
+		else if (param.name.compare("stun_only") == 0) stun_only = param.b_val;
 	}
 	LOG(logINFO) << __FUNCTION__ << " enabled["<<enabled<<"] server["<<server<<"] username["<<username<<"] password["<<password<<"]:"<<password_hashed;
 	config->turn_config.enabled = enabled;
@@ -749,6 +792,9 @@ void Action::do_turn(vector<ActionParam> &params) {
 		config->turn_config.username = username;
 	if (!password.empty())
 		config->turn_config.password = password;
+	config->turn_config.media_stun_use = media_stun_use;
+	config->turn_config.sip_stun_use = sip_stun_use;
+	config->turn_config.stun_only = stun_only;
 }
 
 void Action::do_codec(vector<ActionParam> &params) {

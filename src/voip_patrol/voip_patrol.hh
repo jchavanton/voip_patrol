@@ -89,6 +89,9 @@ class VoipPatrolEnpoint : public Endpoint {
 
 typedef struct turn_config {
 	bool enabled;
+	bool stun_only;
+	bool sip_stun_use;
+	bool media_stun_use;
 	std::string server;
 	std::string username;
 	std::string password;

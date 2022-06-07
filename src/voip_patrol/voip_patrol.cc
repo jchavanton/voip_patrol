@@ -1428,14 +1428,13 @@ int main(int argc, char **argv){
 		disconnecting = false;
 		for (auto & call : config.calls) {
 			pjsua_call_info pj_ci;
-			pjsua_call_id call_id;
 			CallInfo ci;
 			if (call->is_disconnecting()) { // wait for call disconnections
 					if (call->test && call->test->completed) config.removeCall(call);
 					disconnecting = true;
 					continue;
 			}
-			pj_status_t status = pjsua_call_get_info(call_id, &pj_ci);
+			pj_status_t status = pjsua_call_get_info(call->getId(), &pj_ci);
 			LOG(logINFO) << "disconnecting >>> call["<< call->getId() <<"]["<< call <<"] ";
 			if (status != PJ_SUCCESS) {
 				LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);

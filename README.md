@@ -389,7 +389,7 @@ DISCONNECTED
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory |
 | hangup | int | call duration in second before hangup |
-
+| force_contact | string | optional URI to be put as Contact for accept account. Helps bypass NAT-related issues during inbound call testing |
 
 ### call command parameters
 

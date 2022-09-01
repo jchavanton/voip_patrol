@@ -134,6 +134,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("srtp", false, APType::apt_string));
+	do_accept_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("code", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("call_count", false, APType::apt_integer));
@@ -416,6 +417,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	int call_count {-1};
 	int response_delay {0};
 	string reason {};
+	string force_contact {};
 
 	for (auto param : params) {
 		if (param.name.compare("account") == 0) account_name = param.s_val;
@@ -433,6 +435,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
+		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
@@ -448,9 +451,14 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	vp::tolower(transport);
 
 	TestAccount *acc = config->findAccount(account_name);
-	if (!acc) {
+	if (!acc || force_contact != "") {
 		AccountConfig acc_cfg;
 		setTurnConfig(acc_cfg, config);
+
+		if (force_contact != ""){
+			LOG(logINFO) <<__FUNCTION__<< ":do_accept:force_contact:"<< force_contact << "\n";
+			acc_cfg.sipConfig.contactForced = force_contact;
+		}
 
 		if (!transport.empty()) {
 			if (transport == "tcp") {
@@ -499,7 +507,11 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 			LOG(logINFO) <<__FUNCTION__<<" Forcing SRTP";
 		}
 
-		acc = config->createAccount(acc_cfg);
+		if (acc) {
+			acc->modify(acc_cfg);
+		} else {
+			acc = config->createAccount(acc_cfg);
+		}
 	}
 	acc->hangup_duration = hangup_duration;
 	acc->re_invite_interval = re_invite_interval;
@@ -521,6 +533,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->checks = checks;
 	acc->play = play;
 	acc->srtp = srtp;
+	acc->force_contact = force_contact;
 }
 
 

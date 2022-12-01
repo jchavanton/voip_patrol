@@ -852,6 +852,9 @@ void Action::do_wait(vector<ActionParam> &params) {
 		if (param.name.compare("ms") == 0) duration_ms = param.i_val;
 		if (param.name.compare("complete") == 0) complete_all = param.b_val;
 	}
+	if (complete_all && duration_ms == 0) {
+		duration_ms = -1;
+	}
 	LOG(logINFO) << __FUNCTION__ << " duration_ms:" << duration_ms << " complete all tests:" << complete_all;
 	bool completed = false;
 	int tests_running = 0;
@@ -990,14 +993,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 		if (tests_running == 0 && complete_all) {
 			LOG(logINFO) << __FUNCTION__ << LOG_COLOR_ERROR << ": action[wait] No more tests are running, exiting... " << LOG_COLOR_END;
 			completed = true;
-		}
-
-		if (duration_ms <= 0 && duration_ms != -1) {
+		} else if (duration_ms <= 0 && duration_ms != -1) {
 			LOG(logINFO) << __FUNCTION__ << LOG_COLOR_ERROR << ": action[wait] Overall duration exceeded, exiting... " << LOG_COLOR_END;
 			completed = true;
-		}
-
-		if (tests_running > 0 && complete_all) {
+		} else if (tests_running > 0 && complete_all) {
 			if (status_update) {
 				LOG(logINFO) << __FUNCTION__ <<LOG_COLOR_ERROR<<": action[wait] active account tests or call tests in run_wait["<<tests_running<<"] <<<<"<<LOG_COLOR_END;
 				status_update = false;

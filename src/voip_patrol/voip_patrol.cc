@@ -524,6 +524,24 @@ TestAccount::~TestAccount() {
 	LOG(logINFO) << "[Account] is being deleted: No of calls=" << calls.size() ;
 }
 
+
+void TestAccount::onInstantMessage(OnInstantMessageParam &prm) {
+	LOG(logINFO) << "[Account] instant message received from["<< prm.fromUri<<"]message["<<prm.msgBody<<"]";
+}
+
+void TestAccount::onInstantMessageStatus(OnInstantMessageStatusParam &prm) {
+	LOG(logINFO) << "[Account] instant message status received code:"<< prm.code;
+	if (test) {
+		LOG(logINFO) << "[Account] instant message status received updating test code:"<< prm.code;
+		test->result_cause_code = (int)prm.code;
+		test->reason = prm.reason;
+		test->update_result();
+	} else {
+		LOG(logINFO) << "[Account] instant message status received, not test found";
+	}
+
+}
+
 void TestAccount::onRegState(OnRegStateParam &prm) {
 	AccountInfo ai = getInfo();
 	LOG(logINFO) << (ai.regIsActive? "[Register] code:" : "[Unregister] code:") << prm.code ;
@@ -1052,6 +1070,7 @@ replay:
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
+			else if ( action_type.compare("message") == 0 ) action.do_message(params, checks, x_hdrs);
 			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs);
 			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);

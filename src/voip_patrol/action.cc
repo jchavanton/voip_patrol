@@ -20,6 +20,7 @@
 #include "action.hh"
 #include "util.hh"
 #include "string.h"
+#include <pjsua2/presence.hpp>
 
 Action::Action(Config *cfg) : config{cfg} {
 	init_actions_params();
@@ -28,6 +29,7 @@ Action::Action(Config *cfg) : config{cfg} {
 
 vector<ActionParam> Action::get_params(string name) {
 	if (name.compare("call") == 0) return do_call_params;
+	else if (name.compare("message") == 0) return do_message_params;
 	else if (name.compare("register") == 0) return do_register_params;
 	else if (name.compare("wait") == 0) return do_wait_params;
 	else if (name.compare("accept") == 0) return do_accept_params;
@@ -77,6 +79,15 @@ bool Action::set_param_by_name(vector<ActionParam> *params, const string name, c
 }
 
 void Action::init_actions_params() {
+	// do_message
+	do_message_params.push_back(ActionParam("from", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("to_uri", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("text", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("username", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("password", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("realm", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("label", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("from", true, APType::apt_string));
@@ -227,6 +238,73 @@ void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
 // ret.ice_cfg.ice_always_update = natConfig.iceAlwaysUpdate;
 }
 
+void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
+	string to_uri {};
+	string from {};
+	string text {};
+	string transport {"udp"};
+	string username {};
+	string password {};
+	string realm {};
+	string label {};
+	int expected_cause_code {200};
+	for (auto param : params) {
+		if (param.name.compare("from") == 0) from = param.s_val;
+		else if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
+		else if (param.name.compare("text") == 0) text = param.s_val;
+		else if (param.name.compare("transport") == 0) transport = param.s_val;
+		else if (param.name.compare("username") == 0) username = param.s_val;
+		else if (param.name.compare("password") == 0) password = param.s_val;
+		else if (param.name.compare("realm") == 0) realm = param.s_val;
+		else if (param.name.compare("label") == 0) label = param.s_val;
+		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
+	}
+
+    string buddy_uri = "<sip:" + to_uri + ">";
+    BuddyConfig bCfg;
+    bCfg.uri = buddy_uri;
+	bCfg.subscribe = false;
+
+	TestAccount *acc = config->findAccount(from);
+	string account_uri = from;
+	vp::tolower(transport);
+	if (transport != "udp") {
+		 account_uri = "sip:" + account_uri + ";transport=" + transport;
+	} else {
+		 account_uri = "sip:" + account_uri;
+	}
+	if (!acc) { // account not found, creating one
+		AccountConfig acc_cfg;
+		acc_cfg.idUri = account_uri;
+		acc_cfg.sipConfig.authCreds.push_back(AuthCredInfo("digest", realm, username, 0, password));
+		LOG(logINFO) <<__FUNCTION__ << ": create buddy account_uri:"<<account_uri<<"\n";
+		acc = config->createAccount(acc_cfg);
+	}
+	
+	Buddy buddy;
+	Account& account = *acc;
+    buddy.create(account, bCfg);
+    // buddy.delete();
+	string type{"message"};
+
+	Test *test = new Test(config, type);
+	test->local_user = username;
+	test->remote_user = username;
+	test->label = label;
+	test->expected_cause_code = expected_cause_code;
+	test->from = username;
+	test->type = type;
+	acc->test = test;
+
+	SendInstantMessageParam param;
+	param.content = text;
+	param.txOption.targetUri = buddy_uri;
+	cout << "sendind ... sendInstantMessage\n";
+	buddy.sendInstantMessage(param);
+
+	LOG(logINFO) <<__FUNCTION__ << ": sendInstantMessage\n";
+}
+
 void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
 	string type {"register"};
 	string transport {"udp"};
@@ -257,7 +335,6 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("instance_id") == 0) instance_id = param.s_val;
 		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
 		else if (param.name.compare("rewrite_contact") == 0) rewrite_contact = param.b_val;
-		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 	}
 
@@ -537,6 +614,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 }
 
 
+
 void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, SipHeaderVector &x_headers) {
 	string type {"call"};
 	string play {default_playback_file};
@@ -605,8 +683,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	vp::tolower(transport);
 
 	string account_uri {caller};
-	if (transport != "udp")
+	if (transport != "udp") {
 		account_uri = caller + ";transport=" + transport;
+	}
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
 		AccountConfig acc_cfg;

@@ -20,6 +20,7 @@
 #define VOIP_PATROL_H
 #include "action.hh"
 #include <pjsua2.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -246,6 +247,8 @@ class TestAccount : public Account {
 		void removeCall(Call *call);
 		virtual void onRegState(OnRegStateParam &prm);
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
+		virtual void onInstantMessage(OnInstantMessageParam &prm);
+		virtual void onInstantMessageStatus(OnInstantMessageStatusParam &prm);
 		int hangup_duration {0};
 		int re_invite_interval {0};
 		int max_duration {0};

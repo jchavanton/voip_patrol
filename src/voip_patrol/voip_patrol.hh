@@ -203,6 +203,8 @@ class Test {
 		int max_ringing_duration{0};
 		int response_delay{0};
 		void get_mos();
+		string expected_message;
+		string message;
 		std::string local_user;
 		std::string local_uri;
 		std::string local_contact;
@@ -261,6 +263,7 @@ class TestAccount : public Account {
 		bool early_media {false};
 		SipHeaderVector x_headers;
 		int call_count {-1};
+		int message_count {-1};
 		string play;
 		string play_dtmf;
 		string timer;

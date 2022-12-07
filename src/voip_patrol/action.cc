@@ -30,6 +30,7 @@ Action::Action(Config *cfg) : config{cfg} {
 vector<ActionParam> Action::get_params(string name) {
 	if (name.compare("call") == 0) return do_call_params;
 	else if (name.compare("message") == 0) return do_message_params;
+	else if (name.compare("accept_message") == 0) return do_accept_message_params;
 	else if (name.compare("register") == 0) return do_register_params;
 	else if (name.compare("wait") == 0) return do_wait_params;
 	else if (name.compare("accept") == 0) return do_accept_params;
@@ -88,6 +89,11 @@ void Action::init_actions_params() {
 	do_message_params.push_back(ActionParam("realm", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("label", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
+	// do_accept_message
+	do_accept_message_params.push_back(ActionParam("account", false, APType::apt_string));
+	do_accept_message_params.push_back(ActionParam("transport", false, APType::apt_string));
+	do_accept_message_params.push_back(ActionParam("label", false, APType::apt_string));
+	do_accept_message_params.push_back(ActionParam("message_count", false, APType::apt_string));
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("from", true, APType::apt_string));
@@ -280,7 +286,7 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 		LOG(logINFO) <<__FUNCTION__ << ": create buddy account_uri:"<<account_uri<<"\n";
 		acc = config->createAccount(acc_cfg);
 	}
-	
+
 	Buddy buddy;
 	Account& account = *acc;
     buddy.create(account, bCfg);
@@ -335,6 +341,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("instance_id") == 0) instance_id = param.s_val;
 		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
 		else if (param.name.compare("rewrite_contact") == 0) rewrite_contact = param.b_val;
+		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 	}
 
@@ -468,6 +475,72 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	} else {
 		acc->modify(acc_cfg);
 	}
+	acc->setTest(test);
+}
+
+void Action::do_accept_message(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers) {
+	string type {"accept_message"};
+	string account_name {};
+	string transport {};
+	int code {200};
+	int message_count{1};
+	string label {};
+	string reason {};
+	string expected_message {};
+	for (auto param : params) {
+		if (param.name.compare("account") == 0) account_name = param.s_val;
+		else if (param.name.compare("transport") == 0) transport = param.s_val;
+		else if (param.name.compare("code") == 0) code = param.i_val;
+		else if (param.name.compare("message_count") == 0) message_count = param.i_val;
+		else if (param.name.compare("reason") == 0 && param.s_val.length() > 0) reason = param.s_val;
+		else if (param.name.compare("label") == 0) label = param.s_val;
+		else if (param.name.compare("expected_message") == 0) expected_message = param.s_val;
+	}
+
+	if (account_name.empty()) {
+		LOG(logERROR) <<__FUNCTION__<<" missing action parameters <account>" ;
+		return;
+	}
+	vp::tolower(transport);
+
+	TestAccount *acc = config->findAccount(account_name);
+	AccountConfig acc_cfg;
+	if (!acc) {
+		if (!transport.empty()) {
+			if (transport == "tcp") {
+				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
+			} else if (transport == "udp") {
+				acc_cfg.sipConfig.transportId = config->transport_id_udp;
+			} else if (transport == "tls" || transport == "sips") {
+				if (config->transport_id_tls == -1) {
+					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
+					return;
+				}
+				acc_cfg.sipConfig.transportId = config->transport_id_tls;
+			}
+		}
+		if (acc_cfg.sipConfig.transportId == config->transport_id_tls && transport == "sips") {
+			acc_cfg.idUri = "sips:" + account_name;
+		} else {
+			acc_cfg.idUri = "sip:" + account_name;
+		}
+
+		if (acc) {
+			acc->modify(acc_cfg);
+		} else {
+			acc = config->createAccount(acc_cfg);
+		}
+	}
+	acc->accept_label = label;
+	acc->reason = reason;
+	acc->code = code;
+	acc->message_count = message_count;
+	acc->x_headers = x_headers;
+	acc->checks = checks;
+
+	Test *test = new Test(config, type);
+	test->checks = checks;
+	test->expected_cause_code = 200;
 	acc->setTest(test);
 }
 
@@ -949,6 +1022,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 			}
 			// accept/call_count, are considered "tests_running" when maximum duration is either not specified or reached.
 			if (account->call_count > 0 && (duration_ms > 0 || duration_ms == -1)) {
+				tests_running++;
+			}
+			// accept/message_count, are considered "tests_running" when maximum duration is either not specified or reached.
+			if (account->message_count > 0 && (duration_ms > 0 || duration_ms == -1)) {
 				tests_running++;
 			}
 		}

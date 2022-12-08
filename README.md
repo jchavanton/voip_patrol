@@ -432,7 +432,6 @@ DISCONNECTED
 | instance_id | int | same as reg_id, if not present, it will be generated automatically |
 | rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
-
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
@@ -482,7 +481,7 @@ DISCONNECTED
 | transport | string | Force a specific transport for all messages on accepted messages, default to all transport available |
 | label | string | test description or label |
 
-### Example: reveiving a message
+### Example: receiving a message
 ```xml
 <?xml version="1.0"?>
 <config>

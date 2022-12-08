@@ -283,7 +283,7 @@ DISCONNECTED
 
     <x-header name="Foo" value="Bar"/>
     </action>
-    <action type="wait" complete/>
+    <action type="wait" complete="true" />
 </actions></config>
 ```
 

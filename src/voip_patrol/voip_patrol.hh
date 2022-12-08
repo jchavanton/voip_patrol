@@ -20,6 +20,7 @@
 #define VOIP_PATROL_H
 #include "action.hh"
 #include <pjsua2.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -202,6 +203,8 @@ class Test {
 		int max_ringing_duration{0};
 		int response_delay{0};
 		void get_mos();
+		string expected_message;
+		string message;
 		std::string local_user;
 		std::string local_uri;
 		std::string local_contact;
@@ -246,6 +249,8 @@ class TestAccount : public Account {
 		void removeCall(Call *call);
 		virtual void onRegState(OnRegStateParam &prm);
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
+		virtual void onInstantMessage(OnInstantMessageParam &prm);
+		virtual void onInstantMessageStatus(OnInstantMessageStatusParam &prm);
 		int hangup_duration {0};
 		int re_invite_interval {0};
 		int max_duration {0};
@@ -258,6 +263,7 @@ class TestAccount : public Account {
 		bool early_media {false};
 		SipHeaderVector x_headers;
 		int call_count {-1};
+		int message_count {-1};
 		string play;
 		string play_dtmf;
 		string timer;

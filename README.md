@@ -389,7 +389,7 @@ DISCONNECTED
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory |
 | hangup | int | call duration in second before hangup |
-
+| label | string | test description or label |
 
 ### call command parameters
 
@@ -410,7 +410,10 @@ DISCONNECTED
 | max_ringing_duration | int | max ringing duration in seconds before cancel |
 | hangup | int | call duration in second before hangup |
 | repeat | int | do this call multiple times |
-
+| username | string | authentication username, account name, From/To/Contact header user part |
+| password | string | authentication password |
+| realm | string | realm use for authentication byt the remove UAS |
+| label | string | test description or label |
 
 ### register command parameters
 
@@ -418,6 +421,8 @@ DISCONNECTED
 | ---- | ---- | ----------- |
 | proxy | string | ip/hostname of a proxy where to send the register |
 | username | string | authentication username, account name, From/To/Contact header user part |
+| password | string | authentication password |
+| realm | string | realm use for authentication byt the remove UAS |
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
@@ -427,6 +432,77 @@ DISCONNECTED
 | instance_id | int | same as reg_id, if not present, it will be generated automatically |
 | rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
+
+| account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
+| registrar | string | SIP UAS handling registration where the messages will be sent |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
+| unregister | bool | unregister the account <usename@registrar;transport=x> |
+| reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
+| instance_id | int | same as reg_id, if not present, it will be generated automatically |
+| rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
+
+### message command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
+| to_uri | string | used@host part of the URI in the To header |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
+| username | string | authentication username, account name, From/To/Contact header user part |
+| password | string | authentication password |
+| realm | string | realm use for authentication byt the remove UAS |
+| label | string | test description or label |
+
+### Example: sending a message
+```xml
+<?xml version="1.0"?>
+<config>
+        <actions>
+                <action type="message" label="testing SIP message" transport="udp"
+                	expected_cause_code="202"
+                	text="Message in a bottle."
+                	from="123456@in.the.ocean"
+                	to_uri="15876580542@in.the.ocean"
+                	username="123456"
+                	password="pass"
+                	realm="asterisk"
+                />
+                <action type="wait" complete="true"/>
+        </actions>
+</config>
+```
+
+### accept_message command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| account | string | Account will be used if it matches the user part of an incoming message RURI or "default" will catch all |
+| message_count | int | The amount of messages to receive to consider the command completed, default -1 (considered completed) |
+| transport | string | Force a specific transport for all messages on accepted messages, default to all transport available |
+| label | string | test description or label |
+
+### Example: reveiving a message
+```xml
+<?xml version="1.0"?>
+<config>
+        <actions>
+                <action type="register" label="register" transport="udp"
+                	expected_cause_code="200"
+                	username="123456"
+                	password="password"
+                	realm="asterisk"
+                	registrar="pbx.somewhere.time"
+                />
+                <action type="wait" complete="true"/>
+                <action type="accept_message" 
+                        account="123456"
+                        message_count="1"
+                 />
+                <action type="wait" complete="true"/>
+        </actions>
+</config>
+```
 
 ### wait command parameters
 

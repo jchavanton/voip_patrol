@@ -86,7 +86,7 @@ void Action::init_actions_params() {
 	do_message_params.push_back(ActionParam("text", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("username", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("password", true, APType::apt_string));
-	do_message_params.push_back(ActionParam("realm", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("realm", false, APType::apt_string));
 	do_message_params.push_back(ActionParam("label", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("expected_cause_code", false, APType::apt_integer));
 	// do_accept_message
@@ -261,7 +261,7 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
-		else if (param.name.compare("realm") == 0) realm = param.s_val;
+		else if (param.name.compare("realm") == 0 && param.s_val != "") realm = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 	}
@@ -333,7 +333,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("registrar") == 0) registrar = param.s_val;
 		else if (param.name.compare("proxy") == 0) proxy = param.s_val;
-		else if (param.name.compare("realm") == 0) realm = param.s_val;
+		else if (param.name.compare("realm") == 0 && param.s_val != "") realm = param.s_val;
 		else if (param.name.compare("account") == 0) account_name = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
@@ -345,7 +345,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 	}
 
-	if (username.empty() || realm.empty() || password.empty() || registrar.empty()) {
+	if (username.empty() || password.empty() || registrar.empty()) {
 		LOG(logERROR) <<__FUNCTION__<<" missing action parameter" ;
 		return;
 	}
@@ -730,7 +730,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("timer") == 0 && param.s_val.length() > 0) timer = param.s_val;
 		else if (param.name.compare("username") == 0) username = param.s_val;
 		else if (param.name.compare("password") == 0) password = param.s_val;
-		else if (param.name.compare("realm") == 0) realm = param.s_val;
+		else if (param.name.compare("realm") == 0 && param.s_val != "") realm = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("proxy") == 0) proxy = param.s_val;
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;

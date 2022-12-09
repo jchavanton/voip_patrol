@@ -251,7 +251,7 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 	string transport {"udp"};
 	string username {};
 	string password {};
-	string realm {};
+	string realm {"*"};
 	string label {};
 	int expected_cause_code {200};
 	for (auto param : params) {
@@ -317,7 +317,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 	string label {};
 	string registrar {};
 	string proxy {};
-	string realm {};
+	string realm {"*"};
 	string username {};
 	string account_name {};
 	string password {};
@@ -700,7 +700,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	string transport {"udp"};
 	string username {};
 	string password {};
-	string realm {};
+	string realm {"*"};
 	string label {};
 	string proxy {};
 	string srtp {"none"};

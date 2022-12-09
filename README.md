@@ -28,7 +28,6 @@ It is possible to test many scenarios that are not easy to test manually like a 
 ./voip_patrol --help
 ```
 
-
 ### Example: making a test call
 ```xml
 <config>
@@ -113,6 +112,7 @@ It is possible to test many scenarios that are not easy to test manually like a 
    --tls-cert "tls/certificate.pem" \
    --tls-verify-server \
 ```
+
 ```xml
 <config>
   <actions>
@@ -303,7 +303,6 @@ DISCONNECTED
 <action type="wait" ms="5000"/>
 ```
 
-
 ### Sample JSON output RTP stats report with multiples sessions
 #### one block is generated everytime a session is created
 ```json
@@ -457,18 +456,18 @@ DISCONNECTED
 ```xml
 <?xml version="1.0"?>
 <config>
-        <actions>
-                <action type="message" label="testing SIP message" transport="udp"
-                	expected_cause_code="202"
-                	text="Message in a bottle."
-                	from="123456@in.the.ocean"
-                	to_uri="15876580542@in.the.ocean"
-                	username="123456"
-                	password="pass"
-                	realm="asterisk"
-                />
-                <action type="wait" complete="true"/>
-        </actions>
+  <actions>
+    <action type="message" label="testing SIP message" transport="udp"
+      expected_cause_code="202"
+      text="Message in a bottle."
+      from="123456@in.the.ocean"
+      to_uri="15876580542@in.the.ocean"
+      username="123456"
+      password="pass"
+      realm="asterisk"
+     />
+    <action type="wait" complete="true"/>
+  </actions>
 </config>
 ```
 
@@ -485,21 +484,21 @@ DISCONNECTED
 ```xml
 <?xml version="1.0"?>
 <config>
-        <actions>
-                <action type="register" label="register" transport="udp"
-                	expected_cause_code="200"
-                	username="123456"
-                	password="password"
-                	realm="asterisk"
-                	registrar="pbx.somewhere.time"
-                />
-                <action type="wait" complete="true"/>
-                <action type="accept_message" 
-                        account="123456"
-                        message_count="1"
-                 />
-                <action type="wait" complete="true"/>
-        </actions>
+  <actions>
+    <action type="register" label="register" transport="udp"
+      expected_cause_code="200"
+      username="123456"
+      password="password"
+      realm="asterisk"
+      registrar="pbx.somewhere.time"
+     />
+    <action type="wait" complete="true"/>
+    <action type="accept_message" 
+      account="123456"
+      message_count="1"
+     />
+    <action type="wait" complete="true"/>
+  </actions>
 </config>
 ```
 
@@ -517,7 +516,7 @@ DISCONNECTED
     <action type="codec" disable="all"/>
     <action type="codec" enable="pcmu" priority="250"/>
     <!-- more actions ... -->
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -536,7 +535,7 @@ DISCONNECTED
   <actions>
     <action type="turn" enabled="true" server="x.x.x.x:3478" username="foo" password="bar"/>
     <!-- more actions ... -->
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```

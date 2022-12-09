@@ -41,7 +41,6 @@ It is possible to test many scenarios that are not easy to test manually like a 
             max_duration="20" hangup="16"
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
-            realm="target.com"
             rtp_stats="true"
     >
         <x-header name="X-Foo" value="Bar"/>
@@ -218,7 +217,6 @@ DISCONNECTED
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
             proxy="172.16.7.1"
-            realm="target.com"
             registrar="target.com"
             expected_cause_code="200"
     />
@@ -243,7 +241,6 @@ DISCONNECTED
             callee="12349099229@sip.mydomain.com"
             max_duration="55" hangup="12"
             username="65454659288" password="adaadzWidD7T"
-            realm="sip.mydomain.com"
             re_invite_interval="2"
             rtp_stats="true"
         />
@@ -274,7 +271,6 @@ DISCONNECTED
         transport="udp"
         username="20255655"
         password="qntzhpbl"
-        realm="sip.flowroute.com"
         rtp_stats="true"
         late_start="false"
         force_contact="sip:+15147371787@10.10.2.5:5777"
@@ -411,7 +407,6 @@ DISCONNECTED
 | repeat | int | do this call multiple times |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
-| realm | string | realm use for authentication byt the remove UAS |
 | label | string | test description or label |
 
 ### register command parameters
@@ -421,11 +416,9 @@ DISCONNECTED
 | proxy | string | ip/hostname of a proxy where to send the register |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
-| realm | string | realm use for authentication byt the remove UAS |
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
-| realm | string | realm use for authentication |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
 | reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
 | instance_id | int | same as reg_id, if not present, it will be generated automatically |
@@ -449,7 +442,6 @@ DISCONNECTED
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
-| realm | string | realm use for authentication byt the remove UAS |
 | label | string | test description or label |
 
 ### Example: sending a message
@@ -464,7 +456,6 @@ DISCONNECTED
       to_uri="15876580542@in.the.ocean"
       username="123456"
       password="pass"
-      realm="asterisk"
      />
     <action type="wait" complete="true"/>
   </actions>
@@ -489,7 +480,6 @@ DISCONNECTED
       expected_cause_code="200"
       username="123456"
       password="password"
-      realm="asterisk"
       registrar="pbx.somewhere.time"
      />
     <action type="wait" complete="true"/>

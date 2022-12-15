@@ -526,7 +526,8 @@ TestAccount::~TestAccount() {
 
 
 void TestAccount::onInstantMessage(OnInstantMessageParam &prm) {
-	LOG(logINFO) << "[Account] instant message received from["<< prm.fromUri<<"]message["<<prm.msgBody<<"]";
+	AccountInfo ai = this->getInfo();
+	LOG(logINFO) << "[Account]["<<ai.id<<"]["<<ai.uri<<"] instant message received from["<< prm.fromUri<<"]message["<<prm.msgBody<<"]";
 	if (message_count > 0) {
 		message_count--;
 	}
@@ -538,14 +539,15 @@ void TestAccount::onInstantMessage(OnInstantMessageParam &prm) {
 }
 
 void TestAccount::onInstantMessageStatus(OnInstantMessageStatusParam &prm) {
-	LOG(logINFO) << "[Account] instant message status received code:"<< prm.code;
+	AccountInfo ai = this->getInfo();
+	LOG(logINFO) << "[Account]["<<ai.id<<"]["<<ai.uri<<"] instant message status received code:"<< prm.code;
 	if (test) {
 		LOG(logINFO) << "[Account] instant message status received updating test code:"<< prm.code;
 		test->result_cause_code = (int)prm.code;
 		test->reason = prm.reason;
 		test->update_result();
 	} else {
-		LOG(logINFO) << "[Account] instant message status received, not test found";
+		LOG(logINFO) << "[Account] instant message status received, no test found";
 	}
 
 }

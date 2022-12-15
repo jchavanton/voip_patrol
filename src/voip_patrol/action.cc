@@ -93,7 +93,7 @@ void Action::init_actions_params() {
 	do_accept_message_params.push_back(ActionParam("account", false, APType::apt_string));
 	do_accept_message_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_accept_message_params.push_back(ActionParam("label", false, APType::apt_string));
-	do_accept_message_params.push_back(ActionParam("message_count", false, APType::apt_string));
+	do_accept_message_params.push_back(ActionParam("message_count", false, APType::apt_integer));
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("from", true, APType::apt_string));

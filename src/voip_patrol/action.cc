@@ -813,7 +813,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			acc_cfg.idUri = from;
 		}
 
-		if (!realm.empty()) {
+		if (!realm.empty() && realm != "*") {
 			if (username.empty() || password.empty()) {
 				if (username.empty()) {
 					LOG(logERROR) <<__FUNCTION__<< ": realm specified missing username";

@@ -531,10 +531,9 @@ void TestAccount::onInstantMessage(OnInstantMessageParam &prm) {
 	if (message_count > 0) {
 		message_count--;
 	}
-	
-	if (test) {
-		test->message = prm.msgBody;
-		test->update_result();
+	if (testAccept) {
+		testAccept->message = prm.msgBody;
+		testAccept->update_result();
 	}
 }
 

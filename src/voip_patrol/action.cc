@@ -541,7 +541,7 @@ void Action::do_accept_message(vector<ActionParam> &params, vector<ActionCheck> 
 	Test *test = new Test(config, type);
 	test->checks = checks;
 	test->expected_cause_code = 200;
-	acc->setTest(test);
+	acc->testAccept = test;
 }
 
 void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers) {

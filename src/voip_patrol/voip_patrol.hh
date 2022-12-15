@@ -242,6 +242,7 @@ class TestAccount : public Account {
 	public:
 		std::vector<TestCall *> calls;
 		Test *test;
+		Test *testAccept;
 		Config *config;
 		void setTest(Test *test);
 		TestAccount();

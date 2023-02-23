@@ -454,6 +454,12 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		test->call_id = getId();
 		test->sip_call_id = ci.callIdString;
 	}
+	if (test && (ci.lastStatusCode == 180 || ci.lastStatusCode == 183)) {
+		if (test->ring_duration > 0) {
+			LOG(logINFO) <<__FUNCTION__<<": Waiting "<<test->ring_duration <<" seconds ring_duration";
+			pj_thread_sleep(test->ring_duration * 1000);
+		}
+	}
 	if (test && (ci.state == PJSIP_INV_STATE_DISCONNECTED || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 		test->connect_duration = ci.connectDuration.sec;
@@ -637,19 +643,21 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	prm_100.statusCode = PJSIP_SC_TRYING;
 	call->answer(prm_100);
 
-	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
+	LOG(logINFO) <<__FUNCTION__<<": code:" << code <<" reason:"<< reason;
+	if (ring_duration > 0) {
+		prm.statusCode = PJSIP_SC_RINGING;
+		if (early_media) {
+			prm.statusCode = PJSIP_SC_PROGRESS;
+		}
+		call->answer(prm);
+	}
+	if (reason.size() > 0) {
+		prm.reason = reason;
+	}
 	if (code  >= 100 && code <= 699) {
 		prm.statusCode = (pjsip_status_code) code;
 	} else {
 		prm.statusCode = PJSIP_SC_OK;
-	}
-
-	if (ring_duration > 0) {
-			prm.statusCode = PJSIP_SC_RINGING;
-			if (early_media)
-				prm.statusCode = PJSIP_SC_PROGRESS;
-	} else {
-		if (reason.size() > 0) prm.reason = reason;
 	}
 	call->answer(prm);
 }
@@ -737,7 +745,7 @@ void Test::update_result() {
 			success=true;
 		}
 
-		
+
 		// JSON report
 		string jsonLocalUri = local_uri;
 		jsonify(&jsonLocalUri);

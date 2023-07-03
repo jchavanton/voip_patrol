@@ -1,0 +1,18 @@
+FROM debian:buster as builder
+
+ADD . /src/
+
+RUN apt-get update && apt-get install -y build-essential cmake libasound2-dev libcurl4-openssl-dev libopus-dev libssl-dev pkg-config
+
+RUN cd /src	&& cp include/config_site.h  pjproject/pjlib/include/pj/config_site.h \
+	  && cd pjproject && ./configure --disable-libwebrtc --disable-opencore-amr \
+	  && make dep && make && make install \
+	  && cd .. && cmake CMakeLists.txt && make
+
+FROM debian:buster 
+
+RUN apt-get update && apt-get install -y libasound2 libcurl4 openssl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /src/voip_patrol /usr/local/sbin/
+
+RUN chmod a+x /usr/local/sbin/voip_patrol

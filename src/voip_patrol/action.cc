@@ -902,7 +902,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else if (transport == "sips") {
-			if (!to_uri.empty())
+			if (!to_uri.empty() && to_uri.substr(0,4) != "sips")
 					to_uri = "sips:"+to_uri;
 			try {
 				call->makeCall("sips:"+callee, prm, to_uri);
@@ -910,7 +910,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else if (transport == "tcp") {
-			if (!to_uri.empty())
+			if (!to_uri.empty() && to_uri.substr(0,3) != "sip")
 				to_uri = "sip:"+to_uri+";transport=tcp";
 			try {
 				call->makeCall("sip:"+callee+";transport=tcp", prm, to_uri);
@@ -918,7 +918,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		} else {
-			if (!to_uri.empty())
+			if (!to_uri.empty() && to_uri.substr(0,3) != "sip")
 					to_uri = "sip:"+to_uri;
 			try {
 				call->makeCall("sip:"+callee, prm, to_uri);

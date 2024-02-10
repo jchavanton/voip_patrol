@@ -1012,6 +1012,15 @@ void Action::do_wait(vector<ActionParam> &params) {
 	int tests_running = 0;
 	bool status_update = true;
 	while (!completed) {
+		// insert any incomming call received in another thread.
+		config->new_calls_lock.lock();
+		for (auto it = config->new_calls.begin(); it != config->new_calls.end(); ++it) {
+			config->calls.push_back(*it);
+			config->new_calls.erase(it);
+			break;
+		}
+		config->new_calls_lock.unlock();
+
 		for (auto & account : config->accounts) {
 			AccountInfo acc_inf = account->getInfo();
 			if (account->test && account->test->state == VPT_DONE){
@@ -1063,14 +1072,12 @@ void Action::do_wait(vector<ActionParam> &params) {
 							if (test->early_media) prm.statusCode = PJSIP_SC_PROGRESS;
 
 							LOG(logINFO) << " Answering call["<<call->getId()<<"] with " << prm.statusCode << " on call time: " << ci.totalDuration.msec << " ms";
-
 							call->answer(prm);
 						} else {
 							prm.reason = "OK";
 
 							if (test->code) prm.statusCode = test->code;
 							else prm.statusCode = PJSIP_SC_OK;
-
 							call->answer(prm);
 						}
 					} else if (test->ring_duration > 0 && ci.totalDuration.msec >= (test->ring_duration * 1000 + test->response_delay)) {
@@ -1143,7 +1150,6 @@ void Action::do_wait(vector<ActionParam> &params) {
 				pos++;
  			}
 		}
-		// calls, can now be destroyed
 		config->checking_calls.unlock();
 
 		if (tests_running == 0 && complete_all) {

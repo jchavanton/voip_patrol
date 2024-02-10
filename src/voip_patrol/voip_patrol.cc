@@ -223,8 +223,10 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 
 TestCall::~TestCall() {
 	if (test) {
-		const std::lock_guard<std::mutex> lock(test->config->checking_calls);
+		test->config->checking_calls.lock();
+		test->config->removeCall(this);
 		delete test;
+		test->config->checking_calls.unlock();
 	}
 }
 
@@ -579,7 +581,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	CallOpParam prm;
 	AccountInfo acc_inf = getInfo();
 
-	LOG(logINFO) <<__FUNCTION__<<":"<<" ["<< acc_inf.uri <<"]["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
+	LOG(logINFO) <<__FUNCTION__<<":"<<" ["<< acc_inf.uri <<"]id["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
 	if (!call->test) {
 		string type("accept");
 		LOG(logINFO)<<__FUNCTION__<<": max call duration["<< hangup_duration <<"]";
@@ -616,11 +618,6 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->early_media = early_media;
 		call->test->response_delay = response_delay;
 	}
-	calls.push_back(call);
-	if (call_count > 0)
-		call_count--;
-
-	config->calls.push_back(call);
 
 	for (auto x_hdr : x_headers) {
 		prm.txOption.headers.push_back(x_hdr);
@@ -628,14 +625,17 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 
 	if (response_delay > 0) {
 		LOG(logINFO) << __FUNCTION__ << ": Not answering 100 due to response delay: " << response_delay << " ms";
+		CallOpParam prm_100;
+		prm_100.statusCode = PJSIP_SC_TRYING;
+		call->answer(prm_100);
+		calls.push_back(call);
+		if (call_count > 0)
+			call_count--;
+		config->new_calls_lock.lock();
+		config->new_calls.push_back(call);
+		config->new_calls_lock.unlock();
 		return;
 	}
-
-	// Explicitly answer with 100
-	CallOpParam prm_100;
-
-	prm_100.statusCode = PJSIP_SC_TRYING;
-	call->answer(prm_100);
 
 	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
 	if (code  >= 100 && code <= 699) {
@@ -652,6 +652,13 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		if (reason.size() > 0) prm.reason = reason;
 	}
 	call->answer(prm);
+
+	calls.push_back(call);
+	if (call_count > 0)
+		call_count--;
+	config->new_calls_lock.lock();
+	config->new_calls.push_back(call);
+	config->new_calls_lock.unlock();
 }
 
 

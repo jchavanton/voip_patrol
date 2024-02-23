@@ -127,7 +127,6 @@ class Config {
 		TransportId transport_id_udp{-1};
 		TransportId transport_id_tcp{-1};
 		TransportId transport_id_tls{-1};
-		int json_result_count;
 		Action action;
 		ResultFile result_file;
 		std::mutex checking_calls;

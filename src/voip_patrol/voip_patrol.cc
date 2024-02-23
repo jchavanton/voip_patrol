@@ -767,36 +767,35 @@ void Test::update_result() {
 		string jsonReason = reason;
 		jsonify(&jsonReason);
 
-		config->json_result_count++;
-		std::string result_line_json = "{\""+std::to_string(config->json_result_count)+"\": {"
-							"\"label\": \""+label+"\", "
-							"\"start\": \""+start_time+"\", "
-							"\"end\": \""+end_time+"\", "
-							"\"action\": \""+type+"\", "
-							"\"from\": \""+jsonFrom+"\", "
-							"\"to\": \""+jsonTo+"\", "
+		std::string result_line_json = "{"
+				"\"label\": \""+label+"\", "
+				"\"start\": \""+start_time+"\", "
+				"\"end\": \""+end_time+"\", "
+				"\"action\": \""+type+"\", "
+				"\"from\": \""+jsonFrom+"\", "
+				"\"to\": \""+jsonTo+"\", "
 
-							"\"result\": \""+res+"\", "
-							"\"expected_cause_code\": "+std::to_string(expected_cause_code)+", "
-							"\"cause_code\": "+std::to_string(result_cause_code)+", "
-							"\"reason\": \""+jsonReason+"\", "
-							"\"callid\": \""+jsonCallid+"\", "
-							"\"transport\": \""+transport+"\", "
-							"\"peer_socket\": \""+peer_socket+"\", "
-							"\"duration\": "+std::to_string(connect_duration)+", "
-							"\"expected_duration\": "+std::to_string(expected_duration)+", "
-							"\"max_duration\": "+std::to_string(max_duration)+", "
-							"\"hangup_duration\": "+std::to_string(hangup_duration);
+				"\"result\": \""+res+"\", "
+				"\"expected_cause_code\": "+std::to_string(expected_cause_code)+", "
+				"\"cause_code\": "+std::to_string(result_cause_code)+", "
+				"\"reason\": \""+jsonReason+"\", "
+				"\"callid\": \""+jsonCallid+"\", "
+				"\"transport\": \""+transport+"\", "
+				"\"peer_socket\": \""+peer_socket+"\", "
+				"\"duration\": "+std::to_string(connect_duration)+", "
+				"\"expected_duration\": "+std::to_string(expected_duration)+", "
+				"\"max_duration\": "+std::to_string(max_duration)+", "
+				"\"hangup_duration\": "+std::to_string(hangup_duration);
 		if (dtmf_recv.length() > 0)
 			result_line_json += ", \"dtmf_recv\": \""+dtmf_recv+"\"";
 
 
 		result_line_json += ", \"call_info\":{"
-							"\"local_uri\": \""+jsonLocalUri+"\", "
-							"\"remote_uri\": \""+jsonRemoteUri+"\", "
-							"\"local_contact\": \""+jsonLocalContact+"\", "
-							"\"remote_contact\": \""+jsonRemoteContact+"\" "
-							"}";
+				"\"local_uri\": \""+jsonLocalUri+"\", "
+				"\"remote_uri\": \""+jsonRemoteUri+"\", "
+				"\"local_contact\": \""+jsonLocalContact+"\", "
+				"\"remote_contact\": \""+jsonRemoteContact+"\" "
+				"}";
 
 		string result_checks_json {};
 		int x {0};
@@ -823,7 +822,7 @@ void Test::update_result() {
 
 		if (rtp_stats && rtp_stats_ready)
 			result_line_json += ", \"rtp_stats\":[" + rtp_stats_json + "]";
-		result_line_json += "}}";
+		result_line_json += "}";
 
 		config->result_file.write(result_line_json);
 		LOG(logINFO)<<__FUNCTION__<<"["<<now<<"]" << result_line_json;
@@ -923,7 +922,6 @@ Config::Config(string result_fn) : result_file(result_fn), action(this) {
 	tls_cfg.certificate = "";
 	tls_cfg.verify_server = 0;
 	tls_cfg.verify_client = 0;
-	json_result_count = 0;
 	graceful_shutdown = false;
 	rewrite_ack_transport = false;
 	memset(&this->turn_config, 0, sizeof(turn_config_t));

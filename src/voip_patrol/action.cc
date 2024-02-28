@@ -1055,9 +1055,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.connectDuration.sec <<">="<<call->test->hangup_duration<<"]";
 				}
+				int totalDurationMs = ci.totalDuration.sec*1000 + ci.totalDuration.msec;
 				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY || ci.state == PJSIP_INV_STATE_INCOMING)  {
 					Test *test = call->test;
-					if (test->response_delay > 0 && ci.totalDuration.msec >= test->response_delay && ci.state == PJSIP_INV_STATE_INCOMING) {
+					if (test->response_delay > 0 && totalDurationMs >= test->response_delay && ci.state == PJSIP_INV_STATE_INCOMING) {
 						CallOpParam prm;
 
 						// Explicitly answer with 100
@@ -1066,12 +1067,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 						call->answer(prm_100);
 
 						if (test->ring_duration > 0) {
-
 							prm.statusCode = PJSIP_SC_RINGING;
-
-							if (test->early_media) prm.statusCode = PJSIP_SC_PROGRESS;
-
-							LOG(logINFO) << " Answering call["<<call->getId()<<"] with " << prm.statusCode << " on call time: " << ci.totalDuration.msec << " ms";
+							if (test->early_media)
+								prm.statusCode = PJSIP_SC_PROGRESS;
+							LOG(logINFO) <<" Answering call["<<call->getId()<<"] with "<<prm.statusCode<<" on call time: "<<totalDurationMs<<" ms";
 							call->answer(prm);
 						} else {
 							prm.reason = "OK";
@@ -1080,14 +1079,14 @@ void Action::do_wait(vector<ActionParam> &params) {
 							else prm.statusCode = PJSIP_SC_OK;
 							call->answer(prm);
 						}
-					} else if (test->ring_duration > 0 && ci.totalDuration.msec >= (test->ring_duration * 1000 + test->response_delay)) {
+					} else if (test->ring_duration > 0 && totalDurationMs >= (test->ring_duration * 1000 + test->response_delay)) {
 						CallOpParam prm;
 						//if (test->reason.size() > 0) prm.reason = test->reason;
 						prm.reason = "OK";
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
-					} else if (test->max_ringing_duration && (test->max_ringing_duration * 1000 + test->response_delay) <= ci.totalDuration.msec) {
+					} else if (test->max_ringing_duration && (test->max_ringing_duration * 1000 + test->response_delay) <= totalDurationMs) {
 						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.totalDuration.sec <<"(s)>="<<test->max_ringing_duration<<"(s)+"<<test->response_delay<<"(ms)]";

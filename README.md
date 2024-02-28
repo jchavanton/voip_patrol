@@ -372,7 +372,7 @@ DISCONNECTED
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| ringing_duration | int | ringing duration in seconds |
+| ring_duration | int | ringing duration in seconds |
 | early_media | bool | if "true" 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | code | int | SIP cause code to return must be >100 and <700 |

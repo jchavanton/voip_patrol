@@ -645,9 +645,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	}
 
 	if (ring_duration > 0) {
-			prm.statusCode = PJSIP_SC_RINGING;
-			if (early_media)
-				prm.statusCode = PJSIP_SC_PROGRESS;
+		prm.statusCode = PJSIP_SC_RINGING;
+		if (early_media)
+			prm.statusCode = PJSIP_SC_PROGRESS;
 	} else {
 		if (reason.size() > 0) prm.reason = reason;
 	}

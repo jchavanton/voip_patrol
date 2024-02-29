@@ -708,7 +708,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	call_state_t wait_until {INV_STATE_NULL};
 	float min_mos {0.0};
 	int max_duration {0};
-	int max_ringing_duration {0};
+	int max_ringing_duration {60};
 	int expected_duration {0};
 	int hangup_duration {0};
 	int cancel_duration {0};
@@ -741,7 +741,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
-		else if (param.name.compare("max_ringing_duration") == 0) max_ringing_duration = param.i_val;
+		else if (param.name.compare("max_ringing_duration") == 0 && param.i_val != 0) max_ringing_duration = param.i_val;
 		else if (param.name.compare("duration") == 0) expected_duration = param.i_val;
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
@@ -1086,7 +1086,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
-					} else if (test->max_ringing_duration && (test->max_ringing_duration * 1000 + test->response_delay) <= totalDurationMs) {
+					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay * 1000) <= totalDurationMs) {
 						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.totalDuration.sec <<"(s)>="<<test->max_ringing_duration<<"(s)+"<<test->response_delay<<"(ms)]";

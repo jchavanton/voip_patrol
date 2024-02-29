@@ -402,7 +402,7 @@ DISCONNECTED
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | force_contact | string | local contact header will be overwritten by the given string |
-| max_ringing_duration | int | max ringing duration in seconds before cancel |
+| max_ringing_duration | int | max ringing duration in seconds before cancel, default 60 |
 | hangup | int | call duration in second before hangup |
 | repeat | int | do this call multiple times |
 | username | string | authentication username, account name, From/To/Contact header user part |

@@ -926,6 +926,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
 		}
+		pj_gettimeofday(&test->sip_latency.inviteSentTs);
 		repeat--;
 	} while (repeat >= 0);
 }
@@ -1092,6 +1093,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 						     << ci.totalDuration.sec <<"(s)>="<<test->max_ringing_duration<<"(s)+"<<test->response_delay<<"(ms)]";
 						CallOpParam prm(true);
 						try {
+							pj_gettimeofday(&test->sip_latency.byeSentTs);
 							call->hangup(prm);
 						} catch (pj::Error e)  {
 							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
@@ -1124,6 +1126,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 							CallOpParam prm(true);
 							LOG(logINFO) << "hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
 							try {
+								pj_gettimeofday(&call->test->sip_latency.byeSentTs);
 								call->hangup(prm);
 							} catch (pj::Error e)  {
 								if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;

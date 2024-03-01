@@ -67,6 +67,14 @@ class Alert {
 
 };
 
+struct sipLatency {
+	int invite100Ms;
+	int invite18xMs;
+	int invite200Ms;
+	int bye200Ms;
+	pj_time_val inviteSentTs;
+	pj_time_val byeSentTs;
+};
 
 class ResultFile {
 	public:
@@ -234,6 +242,7 @@ class Test {
 		bool queued{false};
 		vector<ActionCheck> checks;
 		Config *config;
+		sipLatency sip_latency;
 	private:
 		std::mutex process_result;
 };

@@ -1086,7 +1086,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
-					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay * 1000) <= totalDurationMs) {
+					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= totalDurationMs) {
 						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
 						     << ci.totalDuration.sec <<"(s)>="<<test->max_ringing_duration<<"(s)+"<<test->response_delay<<"(ms)]";

@@ -252,16 +252,15 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 				int msec_repl = pjsip_rxdata->pkt_info.timestamp.sec*1000 + pjsip_rxdata->pkt_info.timestamp.msec;
 				pj_time_val s = pjsip_rxdata->pkt_info.timestamp;
 
+				PJ_TIME_VAL_SUB(s, test->sip_latency.inviteSentTs);
 				if (ci.state == PJSIP_INV_STATE_CALLING && test->sip_latency.invite100Ms == 0) {
-					PJ_TIME_VAL_SUB(s, test->sip_latency.inviteSentTs);
 					test->sip_latency.invite100Ms = s.sec*1000+s.msec;
 				} else if (ci.state == PJSIP_INV_STATE_EARLY && test->sip_latency.invite18xMs == 0) {
-					PJ_TIME_VAL_SUB(s, test->sip_latency.inviteSentTs);
 					test->sip_latency.invite18xMs = s.sec*1000+s.msec;
 				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED && test->sip_latency.invite200Ms == 0) {
-					PJ_TIME_VAL_SUB(s, test->sip_latency.inviteSentTs);
 					test->sip_latency.invite200Ms = s.sec*1000+s.msec;
 //				} else if (ci.state == PJSIP_INV_STATE_DISCONNECTED && test->sip_latency.bye200Ms == 0) {
+//					PJ_TIME_VAL_SUB(s, test->sip_latency.byeSentTs);
 //					PJ_TIME_VAL_SUB(pjsip_rxdata->pkt_info.timestamp, s);
 //					msec = test->sip_latency.byeSentTs.sec*1000 + test->sip_latency.byeSentTs.msec;
 				}
@@ -477,9 +476,8 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			LOG(logDEBUG) <<__FUNCTION__<<": [test-wait-return]";
 		}
 
-
 		LOG(logINFO) <<__FUNCTION__<<": ["<<getId()<<"]role["<<(ci.role==0?"CALLER":"CALLEE")<<"]id["<<ci.callIdString
-                             <<"]["<<ci.localUri<<"]["<<ci.remoteUri<<"]["<< ci.stateText<<"|"<<ci.state<<"] "<< test->sip_latency.bye200Ms;
+                             <<"]["<<ci.localUri<<"]["<<ci.remoteUri<<"]["<< ci.stateText<<"|"<<ci.state<<"]";
 
 		test->call_id = getId();
 		test->sip_call_id = ci.callIdString;

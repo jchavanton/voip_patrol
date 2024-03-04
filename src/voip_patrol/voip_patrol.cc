@@ -422,12 +422,12 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	if (prm.e.type == PJSIP_EVENT_TX_MSG) {
 		pjsip_tx_data *pjsip_txdata = (pjsip_tx_data *) prm.e.body.txMsg.tdata.pjTxData;
 		if (pjsip_txdata && pjsip_txdata->msg && pjsip_txdata->msg->type == PJSIP_REQUEST_MSG) {
-			LOG(logINFO) <<__FUNCTION__<<": >>> "+ pj2Str(pjsip_txdata->msg->line.req.method.name);
+			LOG(logINFO) <<__FUNCTION__<<": "+ pj2Str(pjsip_txdata->msg->line.req.method.name);
 		}
 	} else if (prm.e.type == PJSIP_EVENT_RX_MSG) {
 		pjsip_rx_data *pjsip_rxdata = (pjsip_rx_data *) prm.e.body.rxMsg.rdata.pjRxData;
 		if (pjsip_rxdata && pjsip_rxdata->msg_info.msg && pjsip_rxdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
-			LOG(logINFO) <<__FUNCTION__<<": >>> "+ pj2Str(pjsip_rxdata->msg_info.msg->line.req.method.name);
+			LOG(logINFO) <<__FUNCTION__<<": "+ pj2Str(pjsip_rxdata->msg_info.msg->line.req.method.name);
 			std::string message;
 			message.append(pjsip_rxdata->msg_info.msg_buf, pjsip_rxdata->msg_info.len);
 			if (test) check_checks(test->checks, pjsip_rxdata->msg_info.msg, message);
@@ -823,9 +823,9 @@ void Test::update_result() {
 				"}";
 
 		result_line_json += ", \"sip_latency\" : {"
-			            "\"invite100Ms\": \""+std::to_string(sip_latency.invite100Ms)+"\", "
-			            "\"invite18xMs\": \""+std::to_string(sip_latency.invite18xMs)+"\", "
-			            "\"invite200Ms\": \""+std::to_string(sip_latency.invite200Ms)+"\" "
+			            "\"invite100Ms\": "+std::to_string(sip_latency.invite100Ms)+", "
+			            "\"invite18xMs\": "+std::to_string(sip_latency.invite18xMs)+", "
+			            "\"invite200Ms\": "+std::to_string(sip_latency.invite200Ms)+" "
 				    "}";
 
 		string result_checks_json {};

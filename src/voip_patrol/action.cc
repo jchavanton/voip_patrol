@@ -847,6 +847,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 
 	do {
 		Test *test = new Test(config, type);
+		memset(&test->sip_latency, 0, sizeof(sipLatency));
 		test->wait_state = wait_until;
 		if (test->wait_state != INV_STATE_NULL)
 			test->state = VPT_RUN_WAIT;

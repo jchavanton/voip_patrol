@@ -543,6 +543,17 @@ DISCONNECTED
 | media_stun_use | bool | if "true" STUN reflective IP is use with media/SDP |
 | stun_only | bool | if "true" TURN and ICE are disabled and only STUN is use |
 
+### using multiple accounts
+When using multiple accounts, accounts can be created and selected with the following parameters.
+
+|command | account parameter |
+| ------ | ----------------- |
+| accept | account |
+| register | account |
+| call | caller |
+|accept_message| account |
+| message | from |
+
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.
 Example : `username="VP_ENV_USERNAME"`

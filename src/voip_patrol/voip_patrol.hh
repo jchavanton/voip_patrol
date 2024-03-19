@@ -152,6 +152,7 @@ class Config {
 		} ip_cfg;
 		struct {
 			int port;
+			int port_range;
 		} rtp_cfg;
 		std::vector<Test *> tests_with_rtp_stats;
 		VoipPatrolEnpoint *ep;

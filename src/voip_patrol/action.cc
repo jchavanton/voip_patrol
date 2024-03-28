@@ -1089,9 +1089,11 @@ void Action::do_wait(vector<ActionParam> &params) {
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
 					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= totalDurationMs) {
-						LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
-						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
-						     << ci.totalDuration.sec <<"(s)>="<<test->max_ringing_duration<<"(s)+"<<test->response_delay<<"(ms)]";
+						if (ci.totalDuration.sec > 0 && ci.totalDuration.msec < 110 && ci.totalDuration.sec % 10 == 0) {
+							LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
+							     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
+							     << ci.totalDuration.sec <<"(s)>="<<test->max_ringing_duration<<"(s)+"<<test->response_delay<<"(ms)]";
+						}
 						CallOpParam prm(true);
 						try {
 							pj_gettimeofday(&test->sip_latency.byeSentTs);

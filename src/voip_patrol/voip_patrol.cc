@@ -1489,7 +1489,7 @@ int main(int argc, char **argv){
 		LOG(logINFO) <<__FUNCTION__<<": final wait complete all...";
 		vector<ActionParam> params = config.action.get_params("wait");
 		config.action.set_param_by_name(&params, "complete", "true");
-		config.action.set_param_by_name(&params, "ms", "5000");
+		config.action.set_param_by_name(&params, "ms", "-1");
 		config.action.do_wait(params);
 
 		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";

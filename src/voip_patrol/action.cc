@@ -866,6 +866,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->late_start = late_start;
 		test->force_contact = force_contact;
 		test->srtp = srtp;
+		test->cancel = cancel_duration;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);

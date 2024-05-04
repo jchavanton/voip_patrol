@@ -257,15 +257,24 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 					test->sip_latency.invite100Ms = s.sec*1000+s.msec;
 				} else if (ci.state == PJSIP_INV_STATE_EARLY && test->sip_latency.invite18xMs == 0) {
 					test->sip_latency.invite18xMs = s.sec*1000+s.msec;
+					if (test->cancel == 1) {
+						CallOpParam prm(true);
+						call->hangup(prm);
+						LOG(logINFO) <<__FUNCTION__<<" EARLY CANCEL:"<<pjsip_rxdata->msg_info.msg->line.status.code;
+					}
 				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED && test->sip_latency.invite200Ms == 0) {
 					test->sip_latency.invite200Ms = s.sec*1000+s.msec;
+					if (test->cancel == 1) {
+						CallOpParam prm(true);
+						call->hangup(prm);
+						LOG(logINFO) <<__FUNCTION__<<" EARLY CONNECTED CANCEL:"<<pjsip_rxdata->msg_info.msg->line.status.code;
+					}
 //				} else if (ci.state == PJSIP_INV_STATE_DISCONNECTED && test->sip_latency.bye200Ms == 0) {
 //					PJ_TIME_VAL_SUB(s, test->sip_latency.byeSentTs);
 //					PJ_TIME_VAL_SUB(pjsip_rxdata->pkt_info.timestamp, s);
 //					msec = test->sip_latency.byeSentTs.sec*1000 + test->sip_latency.byeSentTs.msec;
 				}
 				LOG(logINFO) <<__FUNCTION__<<" RESPONSE:"<<pjsip_rxdata->msg_info.msg->line.status.code<<" "<<pjsip_rxdata->pkt_info.timestamp.sec<<"."<<pjsip_rxdata->pkt_info.timestamp.msec<<" delayms:"<<s.sec*1000+s.msec;
-
 			}
 		}
 	}

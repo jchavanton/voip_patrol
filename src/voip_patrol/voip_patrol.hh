@@ -212,6 +212,7 @@ class Test {
 		int rtp_stats_count{0};
 		int max_ringing_duration{0};
 		int response_delay{0};
+		int cancel{0};
 		void get_mos();
 		string expected_message;
 		string message;

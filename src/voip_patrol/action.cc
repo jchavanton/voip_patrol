@@ -115,7 +115,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
-	do_call_params.push_back(ActionParam("cancel", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("early_cancel", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("play", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("play_dtmf", false, APType::apt_string));
@@ -711,7 +711,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	int max_ringing_duration {60};
 	int expected_duration {0};
 	int hangup_duration {0};
-	int cancel_duration {0};
+	int early_cancel {0};
 	int re_invite_interval {0};
 	int repeat {0};
 	bool recording {false};
@@ -746,6 +746,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
 		else if (param.name.compare("repeat") == 0) repeat = param.i_val;
+		else if (param.name.compare("early_cancel") == 0) early_cancel = param.i_val;
 		else if (param.name.compare("recording") == 0) recording = true;
 	}
 
@@ -866,7 +867,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->late_start = late_start;
 		test->force_contact = force_contact;
 		test->srtp = srtp;
-		test->cancel = cancel_duration;
+		test->cancel = early_cancel;
 		std::size_t pos = caller.find("@");
 		if (pos!=std::string::npos) {
 			test->local_user = caller.substr(0, pos);

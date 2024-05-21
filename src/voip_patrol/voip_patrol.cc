@@ -259,15 +259,15 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 					test->sip_latency.invite18xMs = s.sec*1000+s.msec;
 					if (test->cancel == 1) {
 						CallOpParam prm(true);
-						call->hangup(prm);
-						LOG(logINFO) <<__FUNCTION__<<" EARLY CANCEL:"<<pjsip_rxdata->msg_info.msg->line.status.code;
+						this->hangup(prm);
+						LOG(logINFO) <<__FUNCTION__<<" DISCONNECTING: EARLY CANCEL RINGING:"<<pjsip_rxdata->msg_info.msg->line.status.code;
 					}
 				} else if (ci.state == PJSIP_INV_STATE_CONFIRMED && test->sip_latency.invite200Ms == 0) {
 					test->sip_latency.invite200Ms = s.sec*1000+s.msec;
 					if (test->cancel == 1) {
 						CallOpParam prm(true);
-						call->hangup(prm);
-						LOG(logINFO) <<__FUNCTION__<<" EARLY CONNECTED CANCEL:"<<pjsip_rxdata->msg_info.msg->line.status.code;
+						this->hangup(prm);
+						LOG(logINFO) <<__FUNCTION__<<" DISCONNECTING: EARLY CANCEL CONNECTED:"<<pjsip_rxdata->msg_info.msg->line.status.code;
 					}
 //				} else if (ci.state == PJSIP_INV_STATE_DISCONNECTED && test->sip_latency.bye200Ms == 0) {
 //					PJ_TIME_VAL_SUB(s, test->sip_latency.byeSentTs);

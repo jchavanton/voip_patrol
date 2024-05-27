@@ -199,6 +199,8 @@ class Test {
 		float mos{0.0};
 		bool rtp_stats{false};
 		bool late_start{false};
+		bool record_early{false};
+		bool record{false};
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -271,6 +273,8 @@ class TestAccount : public Account {
 		int response_delay {0};
 		bool rtp_stats {false};
 		bool late_start {false};
+		bool record_early {false};
+		bool record {false};
 		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};

@@ -112,6 +112,8 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("record_early", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("record", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
@@ -150,6 +152,8 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("record_early", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("record", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
@@ -562,6 +566,8 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
 	bool late_start {false};
+	bool record_early {false};
+	bool record {false};
 	string srtp {"none"};
 	int code {200};
 	int call_count {-1};
@@ -587,6 +593,8 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
+		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
+		else if (param.name.compare("record") == 0) record = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("cancel") == 0) cancel_duration = param.i_val;
@@ -670,7 +678,9 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->ring_duration = ring_duration;
 	acc->accept_label = label;
 	acc->rtp_stats = rtp_stats;
-	acc->late_start= late_start;
+	acc->late_start = late_start;
+	acc->record_early = record_early;
+	acc->record = record;
 	acc->play = play;
 	acc->play_dtmf = play_dtmf;
 	acc->timer = timer;
@@ -717,6 +727,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	bool recording {false};
 	bool rtp_stats {false};
 	bool late_start {false};
+	bool record {false};
+	bool record_early {false};
 	string force_contact {};
 
 	for (auto param : params) {
@@ -738,6 +750,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
+		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
+		else if (param.name.compare("record") == 0) record = param.b_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
@@ -865,6 +879,10 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->recording = recording;
 		test->rtp_stats = rtp_stats;
 		test->late_start = late_start;
+		test->record_early = record_early;
+		LOG(logERROR) <<__FUNCTION__<<": record early["<<record_early<<"]";
+
+		test->record = record;
 		test->force_contact = force_contact;
 		test->srtp = srtp;
 		test->cancel = early_cancel;

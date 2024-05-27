@@ -401,6 +401,8 @@ DISCONNECTED
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
+| record | bool | if "true" the call will be recorded once connected in /voice_files |
+| record_early | bool | if "true" the call will be recorded when early media starts in /voice_files |
 | force_contact | string | local contact header will be overwritten by the given string |
 | max_ringing_duration | int | max ringing duration in seconds before cancel, default 60 |
 | hangup | int | call duration in second before hangup |

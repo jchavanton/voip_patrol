@@ -1509,7 +1509,11 @@ int main(int argc, char **argv){
 		LOG(logINFO) <<__FUNCTION__<<": final wait complete all...";
 		vector<ActionParam> params = config.action.get_params("wait");
 		config.action.set_param_by_name(&params, "complete", "true");
-		config.action.set_param_by_name(&params, "ms", "-1");
+		if (config.graceful_shutdown) { // make sure all the tests are completed
+			config.action.set_param_by_name(&params, "ms", "-1");
+		} else {
+			config.action.set_param_by_name(&params, "ms", "32000");
+		}
 		config.action.do_wait(params);
 
 		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";
@@ -1519,7 +1523,7 @@ int main(int argc, char **argv){
 		alert.send();
 
 		LOG(logINFO) <<__FUNCTION__<<": hangup all calls..." ;
-		if (config.graceful_shutdown) // make sure we terminate transactions, not sure why this was necessary
+		if (config.graceful_shutdown) // a little room to terminate transactions
 			pj_thread_sleep(2000);
 
 		ret = PJ_SUCCESS;

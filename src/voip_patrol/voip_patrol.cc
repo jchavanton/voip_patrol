@@ -670,10 +670,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	}
 
 	if (response_delay > 0) {
-		LOG(logINFO) << __FUNCTION__ << ": Not answering 100 due to response delay: " << response_delay << " ms";
-		CallOpParam prm_100;
-		prm_100.statusCode = PJSIP_SC_TRYING;
-		call->answer(prm_100);
+		LOG(logINFO) << __FUNCTION__ << ": Not returning 100 due to response delay: " << response_delay << " ms";
 		calls.push_back(call);
 		if (call_count > 0)
 			call_count--;
@@ -682,8 +679,11 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		config->new_calls_lock.unlock();
 		return;
 	}
+	CallOpParam prm_100;
+	prm_100.statusCode = PJSIP_SC_TRYING;
+	call->answer(prm_100);
 
-	LOG(logINFO) <<__FUNCTION__<<"code:" << code <<" reason:"<< reason;
+	LOG(logINFO) <<__FUNCTION__<<"returnning code:" << code <<" reason:"<< reason;
 	if (code  >= 100 && code <= 699) {
 		prm.statusCode = (pjsip_status_code) code;
 	} else {

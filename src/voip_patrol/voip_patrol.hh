@@ -236,6 +236,7 @@ class Test {
 		bool recording{false};
 		bool playing{false};
 		bool early_media {false};
+		bool is_recording_running {false};
 		string record_fn;
 		string reference_fn;
 		string rtp_stats_json;

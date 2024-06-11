@@ -312,8 +312,10 @@ void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	CallInfo ci = getInfo();
 	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early;
-	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->record_early) {
-		record_call("early_", this, ci.id, test->remote_user.c_str());
+	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->record_early && !test->is_recording_running) {
+		if (record_call("early_", this, ci.id, test->remote_user.c_str()) == PJ_SUCCESS) {
+			test->is_recording_running = true;
+		}
 	}
 }
 
@@ -527,8 +529,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			LOG(logINFO) <<__FUNCTION__<<": [dtmf]" << test->play_dtmf;
 		}
 		stream_to_call(this, ci.id, test->remote_user.c_str());
-		if (!test->record_early && test->record) {
-			record_call("record_", this, ci.id, test->remote_user.c_str());
+		if (!test->is_recording_running && test->record) {
+			if (record_call("record_", this, ci.id, test->remote_user.c_str()) == PJ_SUCCESS) {
+				test->is_recording_running = true;
+			}
 		}
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {

@@ -20,6 +20,7 @@
 #define VOIP_PATROL_H
 #include "action.hh"
 #include <pjsua2.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -66,6 +67,14 @@ class Alert {
 
 };
 
+struct sipLatency {
+	int invite100Ms;
+	int invite18xMs;
+	int invite200Ms;
+	int bye200Ms;
+	pj_time_val inviteSentTs;
+	pj_time_val byeSentTs;
+};
 
 class ResultFile {
 	public:
@@ -89,6 +98,9 @@ class VoipPatrolEnpoint : public Endpoint {
 
 typedef struct turn_config {
 	bool enabled;
+	bool stun_only;
+	bool sip_stun_use;
+	bool media_stun_use;
 	std::string server;
 	std::string username;
 	std::string password;
@@ -108,6 +120,7 @@ class Config {
 		turn_config_t turn_config;
 		std::vector<TestAccount *> accounts;
 		std::vector<TestCall *> calls;
+		std::vector<TestCall *> new_calls;
 		std::vector<Test *> tests;
 		std::vector<std::string> testResults;
 		ezxml_t xml_conf_head;
@@ -122,9 +135,10 @@ class Config {
 		TransportId transport_id_udp{-1};
 		TransportId transport_id_tcp{-1};
 		TransportId transport_id_tls{-1};
-		int json_result_count;
 		Action action;
 		ResultFile result_file;
+		std::mutex checking_calls;
+		std::mutex new_calls_lock;
 		struct {
 			string ca_list;
 			string private_key;
@@ -136,6 +150,10 @@ class Config {
 			string public_address{};
 			string bound_address{};
 		} ip_cfg;
+		struct {
+			int port;
+			int port_range;
+		} rtp_cfg;
 		std::vector<Test *> tests_with_rtp_stats;
 		VoipPatrolEnpoint *ep;
 	private:
@@ -181,6 +199,8 @@ class Test {
 		float mos{0.0};
 		bool rtp_stats{false};
 		bool late_start{false};
+		bool record_early{false};
+		bool record{false};
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -193,7 +213,11 @@ class Test {
 		int ring_duration{0};
 		int rtp_stats_count{0};
 		int max_ringing_duration{0};
+		int response_delay{0};
+		int cancel{0};
 		void get_mos();
+		string expected_message;
+		string message;
 		std::string local_user;
 		std::string local_uri;
 		std::string local_contact;
@@ -211,16 +235,20 @@ class Test {
 		int call_id{0};
 		bool recording{false};
 		bool playing{false};
+		bool early_media {false};
+		bool is_recording_running {false};
 		string record_fn;
 		string reference_fn;
 		string rtp_stats_json;
 		string play;
 		string play_dtmf;
+		string srtp;
 		bool rtp_stats_ready{false};
 		bool queued{false};
 		vector<ActionCheck> checks;
-	private:
 		Config *config;
+		sipLatency sip_latency;
+	private:
 		std::mutex process_result;
 };
 
@@ -229,6 +257,7 @@ class TestAccount : public Account {
 	public:
 		std::vector<TestCall *> calls;
 		Test *test;
+		Test *testAccept;
 		Config *config;
 		void setTest(Test *test);
 		TestAccount();
@@ -236,6 +265,8 @@ class TestAccount : public Account {
 		void removeCall(Call *call);
 		virtual void onRegState(OnRegStateParam &prm);
 		virtual void onIncomingCall(OnIncomingCallParam &iprm);
+		virtual void onInstantMessage(OnInstantMessageParam &prm);
+		virtual void onInstantMessageStatus(OnInstantMessageStatusParam &prm);
 		int hangup_duration {0};
 		int re_invite_interval {0};
 		int max_duration {0};
@@ -243,14 +274,18 @@ class TestAccount : public Account {
 		int response_delay {0};
 		bool rtp_stats {false};
 		bool late_start {false};
+		bool record_early {false};
+		bool record {false};
 		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};
 		SipHeaderVector x_headers;
 		int call_count {-1};
+		int message_count {-1};
 		string play;
 		string play_dtmf;
 		string timer;
+		string srtp;
 		call_state_t wait_state;
 		std::string accept_label;
 		string reason;

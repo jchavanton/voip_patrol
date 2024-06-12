@@ -20,32 +20,13 @@ It is possible to test many scenarios that are not easy to test manually like a 
 ### Linux Debian building from sources
 [see commands in Dockerfile](docker/Dockerfile)
 
+### Load test example
+[load test example](load_test/LOAD_TEST.md)
 
 ### run
 ```
-./voip_patrol                                
- -v --version                      voip_patrol version       
- --log-level-file <0-10>           file log level            
- --log-level-console <0-10>        console log level         
- -p --port <5060>                  local port                
- -c,--conf <conf.xml>              XML scenario file         
- -l,--log <logfilename>            voip_patrol log file name 
- -t, timer_ms <ms>                 pjsua timer_d for transaction default to 32s
- -o,--output <result.json>         json result file name, another file suffixed with ".pjsua" will
-                                   also be created with all the logs from PJ-SIP 
- --tls-calist <path/file_name>     TLS CA list (pem format)     
- --tls-privkey <path/file_name>    TLS private key (pem format) 
- --tls-cert <path/file_name>       TLS certificate (pem format) 
- --tls-verify-server               TLS verify server certificate 
- --tls-verify-client               TLS verify client certificate 
- --rewrite-ack-transport           WIP first use case of rewriting messages before they are sent 
- --graceful-shutdown               Wait a few seconds when shuting down
- --tcp / --udp                     Only listen to TCP/UDP    
- --ip-addr <IP>                    Use the specifed address as SIP and RTP addresses
- --bound-addr <IP>                 Bind transports to this IP interface
+./voip_patrol --help
 ```
-
-
 
 ### Example: making a test call
 ```xml
@@ -60,7 +41,6 @@ It is possible to test many scenarios that are not easy to test manually like a 
             max_duration="20" hangup="16"
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
-            realm="target.com"
             rtp_stats="true"
     >
         <x-header name="X-Foo" value="Bar"/>
@@ -131,6 +111,7 @@ It is possible to test many scenarios that are not easy to test manually like a 
    --tls-cert "tls/certificate.pem" \
    --tls-verify-server \
 ```
+
 ```xml
 <config>
   <actions>
@@ -212,7 +193,7 @@ DISCONNECTED
             callee="12011111111@target.com"
     />
     <!-- note: will wait until all tests pass wait_until state -->
-    <action type="wait"/> 
+    <action type="wait"/>
     <action type="call" label="call#2"
             transport="udp"
             wait_until="CONFIRMED"
@@ -236,7 +217,6 @@ DISCONNECTED
             username="VP_ENV_USERNAME"
             password="VP_ENV_PASSWORD"
             proxy="172.16.7.1"
-            realm="target.com"
             registrar="target.com"
             expected_cause_code="200"
     />
@@ -261,7 +241,6 @@ DISCONNECTED
             callee="12349099229@sip.mydomain.com"
             max_duration="55" hangup="12"
             username="65454659288" password="adaadzWidD7T"
-            realm="sip.mydomain.com"
             re_invite_interval="2"
             rtp_stats="true"
         />
@@ -292,7 +271,6 @@ DISCONNECTED
         transport="udp"
         username="20255655"
         password="qntzhpbl"
-        realm="sip.flowroute.com"
         rtp_stats="true"
         late_start="false"
         force_contact="sip:+15147371787@10.10.2.5:5777"
@@ -301,7 +279,7 @@ DISCONNECTED
 
     <x-header name="Foo" value="Bar"/>
     </action>
-    <action type="wait" complete/>
+    <action type="wait" complete="true" />
 </actions></config>
 ```
 
@@ -320,7 +298,6 @@ DISCONNECTED
 <action type="accept" call_count="1" ... />
 <action type="wait" ms="5000"/>
 ```
-
 
 ### Sample JSON output RTP stats report with multiples sessions
 #### one block is generated everytime a session is created
@@ -395,7 +372,7 @@ DISCONNECTED
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| ringing_duration | int | ringing duration in seconds |
+| ring_duration | int | ringing duration in seconds |
 | early_media | bool | if "true" 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | code | int | SIP cause code to return must be >100 and <700 |
@@ -405,8 +382,11 @@ DISCONNECTED
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory |
 | hangup | int | call duration in second before hangup |
-
+| label | string | test description or label |
+| record | bool | if "true" the call will be recorded once connected in /voice_files |
+| record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
 
 ### call command parameters
 
@@ -418,15 +398,20 @@ DISCONNECTED
 | from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
-| transport | string | force a specific transport <tcp,udp,tls> |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
+| record | bool | if "true" the call will be recorded once connected in /voice_files |
+| record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
 | force_contact | string | local contact header will be overwritten by the given string |
-| max_ringing_duration | int | max ringing duration in seconds before cancel |
+| max_ringing_duration | int | max ringing duration in seconds before cancel, default 60 |
 | hangup | int | call duration in second before hangup |
 | repeat | int | do this call multiple times |
-
+| username | string | authentication username, account name, From/To/Contact header user part |
+| password | string | authentication password |
+| label | string | test description or label |
 
 ### register command parameters
 
@@ -434,11 +419,82 @@ DISCONNECTED
 | ---- | ---- | ----------- |
 | proxy | string | ip/hostname of a proxy where to send the register |
 | username | string | authentication username, account name, From/To/Contact header user part |
+| password | string | authentication password |
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
-| transport | string | force a specific transport <tcp,udp,tls> |
-| realm | string | realm use for authentication |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
+| reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
+| instance_id | int | same as reg_id, if not present, it will be generated automatically |
+| rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
+| account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
+| registrar | string | SIP UAS handling registration where the messages will be sent |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
+| unregister | bool | unregister the account <usename@registrar;transport=x> |
+| reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
+| instance_id | int | same as reg_id, if not present, it will be generated automatically |
+| rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
+| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
+
+### message command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
+| to_uri | string | used@host part of the URI in the To header |
+| transport | string | force a specific transport <tcp,udp,tls,sips> |
+| username | string | authentication username, account name, From/To/Contact header user part |
+| password | string | authentication password |
+| label | string | test description or label |
+
+### Example: sending a message
+```xml
+<?xml version="1.0"?>
+<config>
+  <actions>
+    <action type="message" label="testing SIP message" transport="udp"
+      expected_cause_code="202"
+      text="Message in a bottle."
+      from="123456@in.the.ocean"
+      to_uri="15876580542@in.the.ocean"
+      username="123456"
+      password="pass"
+     />
+    <action type="wait" complete="true"/>
+  </actions>
+</config>
+```
+
+### accept_message command parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| account | string | Account will be used if it matches the user part of an incoming message RURI or "default" will catch all |
+| message_count | int | The amount of messages to receive to consider the command completed, default -1 (considered completed) |
+| transport | string | Force a specific transport for all messages on accepted messages, default to all transport available |
+| label | string | test description or label |
+
+### Example: receiving a message
+```xml
+<?xml version="1.0"?>
+<config>
+  <actions>
+    <action type="register" label="register" transport="udp"
+      expected_cause_code="200"
+      username="123456"
+      password="password"
+      registrar="pbx.somewhere.time"
+     />
+    <action type="wait" complete="true"/>
+    <action type="accept_message" 
+      account="123456"
+      message_count="1"
+     />
+    <action type="wait" complete="true"/>
+  </actions>
+</config>
+```
 
 ### wait command parameters
 
@@ -454,7 +510,7 @@ DISCONNECTED
     <action type="codec" disable="all"/>
     <action type="codec" enable="pcmu" priority="250"/>
     <!-- more actions ... -->
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -473,7 +529,7 @@ DISCONNECTED
   <actions>
     <action type="turn" enabled="true" server="x.x.x.x:3478" username="foo" password="bar"/>
     <!-- more actions ... -->
-    <action type="wait" complete/>
+    <action type="wait" complete="true"/>
   </actions>
 </config>
 ```
@@ -487,6 +543,20 @@ DISCONNECTED
 | username | string | turn server username |
 | password | string | turn server password |
 | password_hashed | bool | if "true" us hashed password, default plain password |
+| sip_stun_use | bool | if "true" SIP reflective IP is use with signaling |
+| media_stun_use | bool | if "true" STUN reflective IP is use with media/SDP |
+| stun_only | bool | if "true" TURN and ICE are disabled and only STUN is use |
+
+### using multiple accounts
+When using multiple accounts, accounts can be created and selected with the following parameters.
+
+|command | account parameter |
+| ------ | ----------------- |
+| accept | account |
+| register | account |
+| call | caller |
+|accept_message| account |
+| message | from |
 
 ### using env variable in scenario actions parameters
 Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.

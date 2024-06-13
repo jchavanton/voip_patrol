@@ -9,7 +9,7 @@
 	    reason="coco"
 	    ring_duration="2"
 	    hangup="12"
-	    play="/voip_patrol/voice_ref_files/reference_8000_12s.wav"
+	    play="/voice_ref_files/reference_8000_12s.wav"
 	/>
 	<action type="wait" ms="-1"/>
 </actions></config>

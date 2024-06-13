@@ -199,6 +199,7 @@ class Test {
 		bool late_start{false};
 		bool record_early{false};
 		bool record{false};
+		bool tone_detected{false};
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -305,9 +306,11 @@ class TestCall : public Call {
 		void makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri);
 		void hangup(const CallOpParam &prm);
 		pjsua_recorder_id recorder_id{-1};
+		pjsua_recorder_id tone_detector_id{-1};
 		pjsua_player_id player_id{-1};
 		int role;
 		int rtt;
+		int durationBeforeEarly;
 		bool is_disconnecting(){return disconnecting;};
 		TestAccount *acc;
 	private:

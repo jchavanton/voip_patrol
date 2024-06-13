@@ -99,6 +99,51 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	return status;
 }
 
+pj_status_t tone_detected(pjmedia_port *port, void *user_data) {
+	TestCall* call = (TestCall *)user_data;
+	if (call->test) {
+		LOG(logINFO) <<__FUNCTION__<<": tone_detected hanging up, test updated";
+		call->test->tone_detected = true;
+	} else {
+		LOG(logINFO) <<__FUNCTION__<<": tone_detected no test";
+	}
+/*	if (call->recorder_id != -1){
+		pjsua_recorder_destroy(call->recorder_id);
+		call->recorder_id = -1;
+	}
+*/
+	// not from the call back
+/*	CallOpParam prm(true);
+	call->hangup(prm); */
+	return PJ_TRUE;
+}
+
+static pj_status_t detect_tone(const char *prefix, TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
+       pj_status_t status = PJ_SUCCESS;
+       // Create a recorder if none.
+       if (call->tone_detector_id < 0) {
+               char rec_fn[1024] = "";
+               CallInfo ci = call->getInfo();
+               sprintf(rec_fn,"/voice_files/%s%s_%s_rec.wav", prefix, ci.callIdString.c_str(), caller_contact);
+               call->test->record_fn = string(&rec_fn[0]);
+               const pj_str_t rec_file_name = pj_str(rec_fn);
+               LOG(logINFO) <<__FUNCTION__<<": [tone_detector] >> create:" << " fn:"<< rec_fn;
+               status = pjsua_tone_detector_create(&rec_file_name, 0, NULL, -1, 0, &call->tone_detector_id, &tone_detected, call);
+               if (status != PJ_SUCCESS) {
+                       LOG(logINFO) <<__FUNCTION__<<": [error] tone_detector_create failure\n";
+                       return status;
+               }
+               LOG(logINFO) <<__FUNCTION__<<": [tone_detector] >> created:" << call->tone_detector_id << " fn:"<< rec_fn;
+       }
+       int call_conf_port = pjsua_call_get_conf_port(call_id);
+       LOG(logINFO) <<__FUNCTION__<<": [tone_detector] call conf id:" << call_conf_port;
+       if (call_conf_port == -1) {
+               return PJ_FALSE;
+       }
+       status = pjsua_conf_connect(pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(call->tone_detector_id));
+       return status;
+}
+
 static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
 	pj_status_t status = PJ_SUCCESS;
 	// Create a recorder if none.
@@ -242,7 +287,9 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 	test = NULL;
 	acc = p_acc;
 	recorder_id = -1;
+	tone_detector_id = -1;
 	player_id = -1;
+	durationBeforeEarly = 0;
 	role = -1; // Caller 0 | callee 1
 	disconnecting = false;
 }
@@ -295,6 +342,11 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 						this->hangup(prm);
 						LOG(logINFO) <<__FUNCTION__<<" DISCONNECTING: EARLY CANCEL CONNECTED:"<<pjsip_rxdata->msg_info.msg->line.status.code;
 					}
+				//	if (test->hangup_duration == 0) {
+				//		CallOpParam prm(true);
+				//		this->hangup(prm);
+				//		LOG(logINFO) <<__FUNCTION__<<" DISCONNECTING: MAX DURATION is set to 0: "<<pjsip_rxdata->msg_info.msg->line.status.code;
+				//	}
 //				} else if (ci.state == PJSIP_INV_STATE_DISCONNECTED && test->sip_latency.bye200Ms == 0) {
 //					PJ_TIME_VAL_SUB(s, test->sip_latency.byeSentTs);
 //					PJ_TIME_VAL_SUB(pjsip_rxdata->pkt_info.timestamp, s);
@@ -333,10 +385,9 @@ void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	CallInfo ci = getInfo();
 	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early;
-	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->record_early && !test->is_recording_running) {
-		if (record_call("early_", this, ci.id, test->remote_user.c_str()) == PJ_SUCCESS) {
-			test->is_recording_running = true;
-		}
+	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->record_early) {
+		detect_tone("detect_tone_", this, ci.id, test->remote_user.c_str());
+		// record_call("early_", this, ci.id, test->remote_user.c_str());
 	}
 }
 
@@ -543,6 +594,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			}
 		}
 	}
+	if (ci.state == PJSIP_INV_STATE_EARLY && durationBeforeEarly == 0){
+		durationBeforeEarly = ci.totalDuration.sec*1000 + ci.totalDuration.msec;
+		LOG(logINFO) <<__FUNCTION__<<": RINGING/EARLY PDD: "<< durationBeforeEarly;
+	}
 	// Create player and recorder
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 		if (test->play_dtmf.length() > 0) {
@@ -566,6 +621,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		if (recorder_id != -1){
 			pjsua_recorder_destroy(recorder_id);
 			recorder_id = -1;
+		}
+		if (tone_detector_id != -1){
+			pjsua_recorder_destroy(tone_detector_id);
+			tone_detector_id = -1;
 		}
 	}
 }
@@ -837,6 +896,7 @@ void Test::update_result() {
 		string jsonReason = reason;
 		jsonify(&jsonReason);
 
+			LOG(logINFO)<<__FUNCTION__<<"["<<this<<"]"<<" completed tone_detected:"<<tone_detected<<"\n";
 		std::string result_line_json = "{"
 				"\"label\": \""+label+"\", "
 				"\"start\": \""+start_time+"\", "
@@ -855,6 +915,7 @@ void Test::update_result() {
 				"\"duration\": "+std::to_string(connect_duration)+", "
 				"\"expected_duration\": "+std::to_string(expected_duration)+", "
 				"\"max_duration\": "+std::to_string(max_duration)+", "
+				"\"tone_detected\": "+std::to_string(tone_detected)+", "
 				"\"hangup_duration\": "+std::to_string(hangup_duration);
 		if (dtmf_recv.length() > 0)
 			result_line_json += ", \"dtmf_recv\": \""+dtmf_recv+"\"";
@@ -899,11 +960,11 @@ void Test::update_result() {
 
 		if (rtp_stats && rtp_stats_ready)
 			result_line_json += ", \"rtp_stats\":[" + rtp_stats_json + "]";
-		result_line_json += "}";
+		result_line_json += "}\n";
 
-		config->result_file.write(result_line_json);
-		LOG(logINFO)<<__FUNCTION__<<"["<<now<<"]" << result_line_json;
+		config->result_file.write(result_line_json); // endline missing mutex sync 
 		config->result_file.flush();
+		LOG(logINFO)<<__FUNCTION__<<"["<<now<<"]" << result_line_json;
 
 		LOG(logINFO)<<" ["<<type<<"]"<<endl;
 
@@ -961,7 +1022,7 @@ ResultFile::ResultFile(string name) : name(name) {
 
 bool ResultFile::write(string res) {
 	try {
-		file << res << "\n";
+		file << res;
 	} catch (Error & err) {
 		LOG(logINFO) <<__FUNCTION__<< "Exception: " << err.info() ;
 		return false;
@@ -1493,7 +1554,7 @@ int main(int argc, char **argv){
 			PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
 		}
 		EpConfig ep_cfg;
-		ep_cfg.uaConfig.maxCalls = 1000;
+		ep_cfg.uaConfig.maxCalls = 60;
 		ep_cfg.logConfig.level = log_level_file;
 		ep_cfg.logConfig.consoleLevel = log_level_console;
 		std::string pj_log_fn =  log_fn_pjsua;
@@ -1501,7 +1562,6 @@ int main(int argc, char **argv){
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
 		// ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
-
 		ep.libInit(ep_cfg);
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
@@ -1557,11 +1617,7 @@ int main(int argc, char **argv){
 		LOG(logINFO) <<__FUNCTION__<<": final wait complete all...";
 		vector<ActionParam> params = config.action.get_params("wait");
 		config.action.set_param_by_name(&params, "complete", "true");
-		if (config.graceful_shutdown) { // make sure all the tests are completed
-			config.action.set_param_by_name(&params, "ms", "-1");
-		} else {
-			config.action.set_param_by_name(&params, "ms", "32000");
-		}
+		config.action.set_param_by_name(&params, "ms", "30");
 		config.action.do_wait(params);
 
 		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";
@@ -1587,14 +1643,15 @@ int main(int argc, char **argv){
 			pjsua_call_info pj_ci;
 			CallInfo ci;
 			if (call->is_disconnecting()) { // wait for call disconnections
+					LOG(logINFO) <<__FUNCTION__<<": wait for call disconnections, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
 					if (call->test && call->test->completed) config.removeCall(call);
 					disconnecting = true;
 					continue;
 			}
 			pj_status_t status = pjsua_call_get_info(call->getId(), &pj_ci);
-			LOG(logINFO) << "disconnecting >>> call["<< call->getId() <<"]["<< call <<"] ";
+			LOG(logINFO) <<__FUNCTION__<<": disconnecting >>> call["<< call->getId() <<"]["<< call <<"] ";
 			if (status != PJ_SUCCESS) {
-				LOG(logINFO) << "can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
+				LOG(logINFO) <<__FUNCTION__<<": can not get call info, removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
 				continue;
 			}
 			ci.fromPj(pj_ci);
@@ -1608,8 +1665,7 @@ int main(int argc, char **argv){
 					LOG(logERROR) <<__FUNCTION__<<" error :" << e.status;
 				}
 			} else {
-				// LOG(logINFO) << "removing call["<< call->getId() <<"]["<< call <<"] "<< config.removeCall(call);
-				LOG(logINFO) << "disconnected call["<< call->getId() <<"]["<< call <<"]";
+				LOG(logINFO) <<__FUNCTION__<<": disconnected call["<< call->getId() <<"]["<< call <<"]";
 				pj_thread_sleep(500);
 			}
 		}

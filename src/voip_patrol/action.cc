@@ -1066,9 +1066,6 @@ void Action::do_wait(vector<ActionParam> &params) {
 
 		for (auto & call : config->calls) {
 			if (call->test && call->test->state == VPT_DONE){
-				//CallInfo ci = call->getInfo();
-				//if (ci.state == PJSIP_INV_STATE_DISCONNECTED)
-				//LOG(logINFO) << "delete call test["<<call->test<<"] = " << config->removeCall(call);
 				continue;
 			} else if (call->test) {
 				CallInfo ci = call->getInfo();
@@ -1080,7 +1077,11 @@ void Action::do_wait(vector<ActionParam> &params) {
 				int totalDurationMs = ci.totalDuration.sec*1000 + ci.totalDuration.msec;
 				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY || ci.state == PJSIP_INV_STATE_INCOMING)  {
 					Test *test = call->test;
-					if (test->response_delay > 0 && totalDurationMs >= test->response_delay && ci.state == PJSIP_INV_STATE_INCOMING) {
+					if (test->tone_detected) {
+						LOG(logINFO) <<" tone detected hangup";
+						CallOpParam prm(true);
+						call->hangup(prm);
+					} else if (test->response_delay > 0 && totalDurationMs >= test->response_delay && ci.state == PJSIP_INV_STATE_INCOMING) {
 						CallOpParam prm;
 
 						// Explicitly answer with 100
@@ -1108,7 +1109,8 @@ void Action::do_wait(vector<ActionParam> &params) {
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
-					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= totalDurationMs) {
+					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= (totalDurationMs-call->durationBeforeEarly)) {
+						LOG(logINFO) <<" Call ringing ["<<call->getId()<<"] duration: "<<totalDurationMs<<"ms before ringing:"<<call->durationBeforeEarly<<"ms, max ringing duration:"<< (test->max_ringing_duration * 1000 + test->response_delay);
 						if (ci.totalDuration.sec > 0 && ci.totalDuration.msec < 110 && ci.totalDuration.sec % 10 == 0) {
 							LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 							     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
@@ -1134,7 +1136,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 							CallOpParam prm(true);
 							prm.opt.audioCount = 1;
 							prm.opt.videoCount = 0;
-							LOG(logINFO) <<__FUNCTION__<<" re-invite : call in PJSIP_INV_STATE_CONFIRMED" ;
+							LOG(logINFO) <<__FUNCTION__<<": re-invite call in PJSIP_INV_STATE_CONFIRMED" ;
 							try {
 								call->reinvite(prm);
 								call->test->re_invite_next = call->test->re_invite_next + call->test->re_invite_interval;
@@ -1147,7 +1149,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 					if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
 						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 							CallOpParam prm(true);
-							LOG(logINFO) << "hangup : call in PJSIP_INV_STATE_CONFIRMED" ;
+							LOG(logINFO) <<__FUNCTION__<<": hangup call in PJSIP_INV_STATE_CONFIRMED" ;
 							try {
 								pj_gettimeofday(&call->test->sip_latency.byeSentTs);
 								call->hangup(prm);

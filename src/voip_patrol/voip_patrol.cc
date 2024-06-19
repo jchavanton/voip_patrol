@@ -422,8 +422,8 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"mos_lq\": "+to_string(mos_rx)+"} "
 						"}";
 		test->rtp_stats_count++;
-		if (ci.state == PJSIP_INV_STATE_CONFIRMED) return;
 		test->rtp_stats_ready = true;
+		if (ci.state == PJSIP_INV_STATE_CONFIRMED) return;
 		test->update_result();
 	} catch (pj::Error e)  {
 			LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;

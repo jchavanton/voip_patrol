@@ -777,7 +777,7 @@ void Test::update_result() {
 			config->tests_with_rtp_stats.push_back(this);
 			return;
 		}
-		std::lock_guard<std::mutex> lock(process_result);
+		std::lock_guard<std::mutex> lock(config->process_result);
 		if (completed) {
 			LOG(logINFO)<<__FUNCTION__<<"["<<this<<"]"<<" already completed\n";
 			return;

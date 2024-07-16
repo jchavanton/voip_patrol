@@ -205,6 +205,23 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 		LOG(logINFO) <<__FUNCTION__<< " Fast-Start: flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
 	}
 
+	// Adding custom headers.
+	// We need to create a custom memory pool for this, as if using only pjsip_generic_string_hdr_init2
+	// there are problems to add multiple headers
+	pj_caching_pool cache_pool;
+	pj_pool_t *header_pool;
+	pj_caching_pool_init(&cache_pool, &pj_pool_factory_default_policy, 0);
+	header_pool = pj_pool_create(&cache_pool.factory, "header", 1000, 1000, NULL);
+
+	for (SipHeader sip_header : prm.txOption.headers) {
+		LOG(logINFO) <<__FUNCTION__<<": Adding custom header " << sip_header.hName << " = " << sip_header.hValue;
+
+		pj_str_t hname = str2Pj(sip_header.hName);
+		pj_str_t hvalue = str2Pj(sip_header.hValue);
+		pjsip_generic_string_hdr* x_header = pjsip_generic_string_hdr_create(header_pool, &hname, &hvalue);
+		pj_list_push_back(&param.msg_data.hdr_list, x_header);
+	}
+
 	if (!to_uri.empty()) {
 		pjsua_msg_data_init(&param.msg_data);
 		param.p_msg_data = &param.msg_data;

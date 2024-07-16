@@ -19,56 +19,105 @@
 #include "pj_util.hpp"
 #include <regex>
 
-
-
 bool check_regex(string m, string e) {
 	std::istringstream ss(m);
 	std::string line;
 	std::regex re(e);
+
 	while (std::getline(ss, line)) {
 		line.pop_back();
-		LOG(logINFO) <<__FUNCTION__<<">>> "<< line;
+
+		LOG(logINFO) << __FUNCTION__ << " >>> " << line;
+
 		if (std::regex_match(line, re)) {
-			LOG(logINFO) <<__FUNCTION__<<": matching ! ["<<e<<"]";
+			LOG(logINFO) << __FUNCTION__ << ": matching ! [" << e << "]";
+
 			return true;
 		}
 	}
-	LOG(logINFO) <<__FUNCTION__<<": not matching ! ["<<e<<"]";
+	LOG(logINFO) << __FUNCTION__ << ": not matching ! [" << e << "]";
+
 	return false;
 }
 
 
 void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message) {
 	std::string method = pj2Str(msg->line.req.method.name);
-	LOG(logINFO) <<__FUNCTION__<<": "+ method;
-	// action checks for headers
-	for (vector<ActionCheck> :: iterator check = checks.begin(); check != checks.end(); ++check){
-		if (!check->regex.empty()) {
-			if (method != check->method) continue;
-			if (check_regex(message, check->regex)) {
-				check->result = true;
+
+	LOG(logINFO) << __FUNCTION__ << ": " + method;
+
+	for (vector<ActionCheck> :: iterator check = checks.begin(); check != checks.end(); ++check) {
+		// Message checks
+		if (check->type == "message") {
+			if (!check->regex.empty()) {
+				if (method != check->method) {
+					continue;
+				}
+				if (check_regex(message, check->regex)) {
+					check->result = true;
+				}
+				if (check->fail_on_match) {
+					check->result = not check->result;
+
+					LOG(logINFO) << __FUNCTION__ << ": fail_on_match is true, inverting result to " << check->result;
+				}
 			}
 			continue;
 		}
-		if (method != check->method) continue;
-		if (check->hdr.hName == "") continue;
-		LOG(logINFO) <<__FUNCTION__<<" check-header:"<< check->hdr.hName<<" "<<check->hdr.hValue;
-		pj_str_t header_name;
-		header_name.slen = strlen(check->hdr.hName.c_str());
-		header_name.ptr = (char*) check->hdr.hName.c_str();
 
-		pjsip_hdr* s_hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(msg, (const pj_str_t *) &header_name, NULL);
-		if (s_hdr) {
-			SipHeader SHdr;
-			SHdr.fromPj(s_hdr);
-			if (check->hdr.hValue == "" || check->hdr.hValue == SHdr.hValue) {
-				LOG(logINFO) <<__FUNCTION__<< " header found and value is matching:" << SHdr.hName <<" "<< SHdr.hValue;
-				check->result = true;
-			} else {
-				LOG(logINFO) <<__FUNCTION__<< " header found and value is not matching:" << SHdr.hName <<" "<< SHdr.hValue;
+		// Header checks
+		if (check->type == "header") {
+			if (method != check->method) {
+				continue;
 			}
-		} else {
-			LOG(logINFO) <<__FUNCTION__<< " header not found";
+
+			if (check->hdr.hName == "") {
+				continue;
+			}
+
+			LOG(logINFO) << __FUNCTION__ << " check-header:" << check->hdr.hName << " " << check->hdr.hValue;
+
+			pj_str_t header_name;
+			header_name.slen = strlen(check->hdr.hName.c_str());
+			header_name.ptr = (char*) check->hdr.hName.c_str();
+
+			pjsip_hdr* s_hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(msg, (const pj_str_t *) &header_name, NULL);
+			if (s_hdr) {
+				SipHeader SHdr;
+				SHdr.fromPj(s_hdr);
+
+				if (check->hdr.hValue == "" || check->hdr.hValue == SHdr.hValue) {
+					LOG(logINFO) << __FUNCTION__ << " header found and value is matching:" << SHdr.hName << " " << SHdr.hValue;
+
+					check->result = true;
+				} else {
+					// Check if we have regex in pattern
+					if (check->hdr.hValue.length() >= 6 && check->hdr.hValue.substr(0,6) == "regex/") {
+						std::string header_value_regex = check->hdr.hValue.substr(6);
+
+						if (check_regex(SHdr.hValue, header_value_regex)) {
+							LOG(logINFO) << __FUNCTION__ << " header found and value is matching in regex style: " << SHdr.hName << " " << SHdr.hValue << " =~ " << header_value_regex;
+
+							check->result = true;
+						}
+					} else {
+						LOG(logINFO) << __FUNCTION__ << " header found and value is not matching: " << SHdr.hName << " " << SHdr.hValue << " != " << check->hdr.hValue;
+					}
+				}
+
+				if (check->fail_on_match) {
+					check->result = not check->result;
+
+					LOG(logINFO) << __FUNCTION__ << ": fail_on_match is true, inverting result to " << check->result;
+				}
+
+				continue;
+			}
+			// If header not found, we consider it as a fail anyways
+			LOG(logINFO) << __FUNCTION__ << " header not found";
+			continue;
 		}
+
+		LOG(logWARNING) << __FUNCTION__ << ": unknown check type: " << check->type;
 	}
 }

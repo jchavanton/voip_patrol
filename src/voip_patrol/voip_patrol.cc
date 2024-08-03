@@ -205,6 +205,13 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 		LOG(logINFO) <<__FUNCTION__<< " Fast-Start: flag:"<< param.p_opt->flag << " PJSUA_CALL_NO_SDP_OFFER:" <<  PJSUA_CALL_NO_SDP_OFFER;
 	}
 
+	if (!to_uri.empty()) {
+		pjsua_msg_data_init(&param.msg_data);
+		param.p_msg_data = &param.msg_data;
+		param.p_msg_data->target_uri = str2Pj(dst_uri);
+		pj_to_uri = str2Pj(to_uri);
+	}
+
 	// Adding custom headers.
 	// We need to create a custom memory pool for this, as if using only pjsip_generic_string_hdr_init2
 	// there are problems to add multiple headers
@@ -222,16 +229,11 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 		pj_list_push_back(&param.msg_data.hdr_list, x_header);
 	}
 
-	if (!to_uri.empty()) {
-		pjsua_msg_data_init(&param.msg_data);
-		param.p_msg_data = &param.msg_data;
-		param.p_msg_data->target_uri = str2Pj(dst_uri);
-		pj_to_uri = str2Pj(to_uri);
-	}
-
 	int id = Call::getId();
 	PJSUA2_CHECK_EXPR( pjsua_call_make_call(acc->getId(), &pj_to_uri,
 		param.p_opt, this, param.p_msg_data, &id) );
+
+	pj_pool_release(header_pool);
 }
 
 TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {

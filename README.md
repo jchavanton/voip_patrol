@@ -167,6 +167,8 @@ It is possible to test many scenarios that are not easy to test manually like a 
         <!-- Chech that a header exists and matches a specific regex -->
         <check-header name="To" regex="^.*sip:\+5678@example\.com" fail_on_match="true"/>
         <!-- Chech that a header exists and NOT matches a specific regex -->
+        <check-header name="RURI" regex="^INVITE\ sip:\d{5}@(\d{1,3}\.){3}\d{1,3}:\d{1,5};.*transport=[a-zA-Z]{3};.*"/>
+        <!-- Not really a header, but allows to check the Request URI on an incoming INVITE-->
     </action>
     <action type="wait" ms="-1"/>
   </actions>

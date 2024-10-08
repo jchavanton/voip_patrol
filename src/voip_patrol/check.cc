@@ -75,6 +75,40 @@ void check_checks(vector<ActionCheck> &checks, pjsip_msg* msg, string message) {
 				continue;
 			}
 
+			// Special check for RURI header. It's a first line of the message
+			if (check->hdr.hName == "RURI") {
+				std::istringstream tmp_ss(message);
+				std::string ruri;
+				std::getline(tmp_ss, ruri);
+				// Remove CRLF leftovers
+				ruri.pop_back();
+
+				if (check->hdr.hValue == ruri) {
+					check->result = true;
+
+					LOG(logINFO) << __FUNCTION__ << " Checking RURI ok: [" << ruri << "] == [" << check->hdr.hValue <<"]";
+				} else {
+					if (check->hdr.hValue.length() >= 6 && check->hdr.hValue.substr(0,6) == "regex/") {
+						std::string header_value_regex = check->hdr.hValue.substr(6);
+
+						if (check_regex(ruri, header_value_regex)) {
+							check->result = true;
+
+							LOG(logINFO) << __FUNCTION__ << " Checking RURI ok: [" << ruri << "] ~= [" << header_value_regex <<"]";
+						}
+					} else {
+						LOG(logINFO) << __FUNCTION__ << " Checking RURI failed: [" << ruri << "] != [" << check->hdr.hValue <<"]";
+					}
+				}
+
+				if (check->fail_on_match) {
+					check->result = not check->result;
+
+					LOG(logINFO) << __FUNCTION__ << ": fail_on_match is true, inverting result to " << check->result;
+				}
+				continue;
+			}
+
 			LOG(logINFO) << __FUNCTION__ << " check-header:" << check->hdr.hName << " " << check->hdr.hValue;
 
 			pj_str_t header_name;

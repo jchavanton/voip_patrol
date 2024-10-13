@@ -51,20 +51,30 @@ string Action::get_env(string env) {
 }
 
 bool Action::set_param(ActionParam &param, const char *val) {
+	bool subst {false};
+	const char *tmp_val;
 	if (!val) return false;
 	LOG(logINFO) <<__FUNCTION__<< " param name:" << param.name << " val:" << val;
+	if (strncmp(val,"VP_ENV_",7) == 0) {
+		LOG(logINFO) <<__FUNCTION__<<": "<<param.name<<" "<<val<<" substitution:"<<get_env(val);
+		subst = true;
+	}
 	if (param.type == APType::apt_bool) {
-		if( strcmp(val, "false") ==  0 )  param.b_val = false;
+		if (subst) tmp_val = get_env(val).c_str();
+		else tmp_val = val;
+		if( strcmp(tmp_val, "false") ==  0 )  param.b_val = false;
 		else param.b_val = true;
 	} else if (param.type == APType::apt_integer) {
-		param.i_val = atoi(val);
+		if (subst) param.i_val = atoi(get_env(val).c_str());
+		else param.i_val = atoi(val);
 	} else if (param.type == APType::apt_float) {
-		param.f_val = atof(val);
+		if (subst) param.f_val = atof(get_env(val).c_str());
+		else param.f_val = atof(val);
 	} else {
-		param.s_val = val;
-		if (param.s_val.compare(0, 7, "VP_ENV_") == 0) {
-			LOG(logINFO) <<__FUNCTION__<<": "<<param.name<<" "<<param.s_val<<" substitution:"<<get_env(val);
+		if (subst) {
 			param.s_val = get_env(val);
+		} else {
+		    param.s_val = val;
 		}
 	}
 	return true;

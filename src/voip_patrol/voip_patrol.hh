@@ -50,7 +50,6 @@ typedef struct upload_data {
 	std::vector<std::string> payload_content;
 } upload_data_t;
 
-
 class Alert {
 	public:
 		Alert(Config* config);
@@ -64,7 +63,6 @@ class Alert {
 		Config * config;
 	private:
 		CURL *curl;
-
 };
 
 struct sipLatency {
@@ -156,10 +154,10 @@ class Config {
 		} rtp_cfg;
 		std::vector<Test *> tests_with_rtp_stats;
 		VoipPatrolEnpoint *ep;
+		std::mutex process_result;
 	private:
 		std::string configFileName;
 };
-
 
 typedef enum call_wait_state {
 	INV_STATE_NULL,        //0 Before INVITE is sent or received
@@ -248,10 +246,7 @@ class Test {
 		vector<ActionCheck> checks;
 		Config *config;
 		sipLatency sip_latency;
-	private:
-		std::mutex process_result;
 };
-
 
 class TestAccount : public Account {
 	public:
@@ -318,6 +313,5 @@ class TestCall : public Call {
 	private:
 		bool disconnecting;
 };
-
 
 #endif

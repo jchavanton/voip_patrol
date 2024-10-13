@@ -807,7 +807,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
 				return;
 			}
-			acc_cfg.idUri = "tls:" + account_uri;
+			acc_cfg.idUri = "sip:" + account_uri;
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
 		} else if (transport == "sips") {

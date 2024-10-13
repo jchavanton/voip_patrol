@@ -1,4 +1,4 @@
-FROM debian:buster as builder
+FROM debian:bookworm-20230814 as builder
 
 ADD . /src/
 
@@ -9,7 +9,7 @@ RUN cd /src	&& cp include/config_site.h  pjproject/pjlib/include/pj/config_site.
 	  && make dep && make && make install \
 	  && cd .. && cmake CMakeLists.txt && make
 
-FROM debian:buster 
+FROM debian:bookworm-20230814
 
 RUN apt-get update && apt-get install -y libasound2 libcurl4 openssl && rm -rf /var/lib/apt/lists/*
 

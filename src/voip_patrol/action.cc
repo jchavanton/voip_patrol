@@ -93,6 +93,7 @@ void Action::init_actions_params() {
 	// do_message
 	do_message_params.push_back(ActionParam("from", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("to_uri", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_message_params.push_back(ActionParam("text", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("username", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("password", true, APType::apt_string));

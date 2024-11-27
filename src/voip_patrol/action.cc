@@ -304,8 +304,8 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 
 	Buddy buddy;
 	Account& account = *acc;
-    buddy.create(account, bCfg);
-    // buddy.delete();
+	buddy.create(account, bCfg);
+	// buddy.delete();
 	string type{"message"};
 
 	Test *test = new Test(config, type);
@@ -318,6 +318,9 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 	acc->test = test;
 
 	SendInstantMessageParam param;
+	for (auto x_hdr : x_headers) {
+		param.txOption.headers.push_back(x_hdr);
+	}
 	param.content = text;
 	param.txOption.targetUri = buddy_uri;
 	cout << "sendind ... sendInstantMessage\n";

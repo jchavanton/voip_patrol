@@ -281,19 +281,20 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 	}
 
-    string buddy_uri = "<sip:" + to_uri + ">";
-    BuddyConfig bCfg;
-    bCfg.uri = buddy_uri;
-	bCfg.subscribe = false;
-
 	TestAccount *acc = config->findAccount(from);
 	string account_uri = from;
 	vp::tolower(transport);
 	if (transport != "udp") {
 		 account_uri = "sip:" + account_uri + ";transport=" + transport;
+		 to_uri = to_uri + ";transport=" + transport;
 	} else {
 		 account_uri = "sip:" + account_uri;
 	}
+	string buddy_uri = "<sip:" + to_uri + ">";
+	BuddyConfig bCfg;
+	bCfg.uri = buddy_uri;
+	bCfg.subscribe = false;
+
 	if (!acc) { // account not found, creating one
 		AccountConfig acc_cfg;
 		acc_cfg.idUri = account_uri;
@@ -413,10 +414,16 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 
 	LOG(logINFO) <<__FUNCTION__<< " >> sip:" + account_name;
 	AccountConfig acc_cfg;
-	SipHeader sh;
-	sh.hName = "User-Agent";
-	sh.hValue = "<voip_patrol>";
-	acc_cfg.regConfig.headers.push_back(sh);
+	if (x_headers.size() == 0) {
+		SipHeader sh;
+		sh.hName = "User-Agent";
+		sh.hValue = "<voip_patrol>";
+		acc_cfg.regConfig.headers.push_back(sh);
+	} else {
+		for (auto x_hdr : x_headers) {
+			acc_cfg.regConfig.headers.push_back(x_hdr);
+		}
+	}
 	setTurnConfig(acc_cfg, config);
 
 	if (reg_id != "" || instance_id != "") {
@@ -432,9 +439,6 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		}
 	} else {
 		acc_cfg.natConfig.sipOutboundUse = false;
-	}
-	for (auto x_hdr : x_headers) {
-		acc_cfg.regConfig.headers.push_back(x_hdr);
 	}
 
 	if (transport == "tcp") {

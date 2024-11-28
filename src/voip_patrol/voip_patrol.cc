@@ -867,12 +867,13 @@ void Test::update_result() {
 				"\"remote_contact\": \""+jsonRemoteContact+"\" "
 				"}";
 
-		result_line_json += ", \"sip_latency\" : {"
+		if (type == "call") {
+			result_line_json += ", \"sip_latency\" : {"
 			            "\"invite100Ms\": "+std::to_string(sip_latency.invite100Ms)+", "
 			            "\"invite18xMs\": "+std::to_string(sip_latency.invite18xMs)+", "
 			            "\"invite200Ms\": "+std::to_string(sip_latency.invite200Ms)+" "
 				    "}";
-
+		}
 		string result_checks_json {};
 		int x {0};
 		for (auto check : checks) {

@@ -933,7 +933,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
 		if (transport == "tls") {
-			if (!to_uri.empty())
+			if (!to_uri.empty() && to_uri.substr(0,3) != "sip")
 					to_uri = "sip:"+to_uri+";transport=tls";
 			try {
 				call->makeCall("sip:"+callee+";transport=tls", prm, to_uri);

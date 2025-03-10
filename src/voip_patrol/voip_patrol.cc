@@ -233,9 +233,28 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 		pj_to_uri = str2Pj(to_uri);
 	}
 
+	// Adding custom headers.
+	// We need to create a custom memory pool for this, as if using only pjsip_generic_string_hdr_init2
+	// there are problems to add multiple headers
+	pj_caching_pool cache_pool;
+	pj_pool_t *header_pool;
+	pj_caching_pool_init(&cache_pool, &pj_pool_factory_default_policy, 0);
+	header_pool = pj_pool_create(&cache_pool.factory, "header", 1000, 1000, NULL);
+
+	for (SipHeader sip_header : prm.txOption.headers) {
+		LOG(logINFO) <<__FUNCTION__<<": Adding custom header " << sip_header.hName << " = " << sip_header.hValue;
+
+		pj_str_t hname = str2Pj(sip_header.hName);
+		pj_str_t hvalue = str2Pj(sip_header.hValue);
+		pjsip_generic_string_hdr* x_header = pjsip_generic_string_hdr_create(header_pool, &hname, &hvalue);
+		pj_list_push_back(&param.msg_data.hdr_list, x_header);
+	}
+
 	int id = Call::getId();
 	PJSUA2_CHECK_EXPR( pjsua_call_make_call(acc->getId(), &pj_to_uri,
 		param.p_opt, this, param.p_msg_data, &id) );
+
+	pj_pool_release(header_pool);
 }
 
 TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {

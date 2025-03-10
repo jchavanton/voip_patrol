@@ -211,25 +211,22 @@ void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
 		}
 		acc_cfg.natConfig.turnPassword = turn_config->password;
 		acc_cfg.natConfig.iceEnabled = true;
-		if (turn_config->sip_stun_use) {
-			acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DEFAULT;
-		}
-		if (turn_config->media_stun_use) {
-			acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DEFAULT;
-		}
+
 	} else if (turn_config->stun_only) {
+
+		char* srv_name_tmp = (char*)(turn_config->server).data();
+
+		pj_str_t srv_list[] = { pj_str(srv_name_tmp) };
+		pjsua_update_stun_servers(1, srv_list, 1);
+
 		if (!turn_config->sip_stun_use && turn_config->media_stun_use) {
 			LOG(logINFO) <<__FUNCTION__<<" STUN: enabled without SIP or Media";
 		}
 
-		if (turn_config->sip_stun_use) {
-			acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DEFAULT;
-		} else {
+		if (!turn_config->sip_stun_use) {
 			acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
 		}
-		if (turn_config->media_stun_use) {
-			acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DEFAULT;
-		} else {
+		if (!turn_config->media_stun_use) {
 			acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DISABLED;
 		}
 		acc_cfg.natConfig.sdpNatRewriteUse = false;
@@ -247,6 +244,8 @@ void setTurnConfig(AccountConfig &acc_cfg, Config *cfg) {
 	} else {
 		acc_cfg.natConfig.turnEnabled = false;
 		acc_cfg.natConfig.iceEnabled = false;
+		acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
+		acc_cfg.natConfig.mediaStunUse = PJSUA_STUN_USE_DISABLED;
 	}
 
 // ret.ice_cfg_use = PJSUA_ICE_CONFIG_USE_CUSTOM;

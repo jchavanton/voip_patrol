@@ -423,6 +423,7 @@ DISCONNECTED
 | from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
+| contact_uri_params | string | string, that will be added to Contact URI as params |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
@@ -447,6 +448,7 @@ DISCONNECTED
 | password | string | authentication password |
 | account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
+| contact_uri_params | string | string, that will be added to Contact URI as params |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
 | reg_id | int | if present outbound and other related parameters will be added see RFC5626 |

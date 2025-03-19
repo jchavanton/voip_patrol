@@ -107,6 +107,7 @@ void Action::init_actions_params() {
 	do_accept_message_params.push_back(ActionParam("message_count", false, APType::apt_integer));
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
+	do_call_params.push_back(ActionParam("display_name", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("from", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("callee", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("to_uri", true, APType::apt_string));
@@ -722,7 +723,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	string play_dtmf {};
 	string timer {};
 	string caller {};
-	string from {};
+	string display_name {};
+	string from {}; // deprecated
 	string callee {};
 	string to_uri {};
 	string transport {"udp"};
@@ -752,6 +754,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	for (auto param : params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
+		else if (param.name.compare("display_name") == 0) display_name = param.s_val;
 		else if (param.name.compare("from") == 0) from = param.s_val;
 		else if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
@@ -817,7 +820,11 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		}
 
 		if (transport == "tcp") {
-			acc_cfg.idUri = "sip:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sip:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
 		} else if (transport == "tls") {
@@ -825,7 +832,11 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
 				return;
 			}
-			acc_cfg.idUri = "sip:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sip:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
 		} else if (transport == "sips") {
@@ -833,11 +844,19 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<": sips(TLS) transport not supported" ;
 				return;
 			}
-			acc_cfg.idUri = "sips:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sips:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sips:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
 		} else {
-			acc_cfg.idUri = "sip:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sip:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		}

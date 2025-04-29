@@ -227,8 +227,6 @@ void TestCall::makeCall(const string &dst_uri, const CallOpParam &prm, const str
 	}
 
 	if (!to_uri.empty()) {
-		pjsua_msg_data_init(&param.msg_data);
-		param.p_msg_data = &param.msg_data;
 		param.p_msg_data->target_uri = str2Pj(dst_uri);
 		pj_to_uri = str2Pj(to_uri);
 	}

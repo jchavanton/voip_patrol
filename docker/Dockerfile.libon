@@ -1,4 +1,4 @@
-FROM debian:bookworm-20230814 as builder
+FROM debian:bookworm-20251117 as builder
 
 ADD . /src/
 

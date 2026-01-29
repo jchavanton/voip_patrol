@@ -32,6 +32,18 @@
 using namespace pj;
 
 
+static string strip_ip_brackets(const string &addr) {
+	if (addr.size() >= 2 && addr.front() == '[' && addr.back() == ']') {
+		return addr.substr(1, addr.size() - 2);
+	}
+	return addr;
+}
+
+static bool is_ipv6_literal(const string &addr) {
+	string normalized = strip_ip_brackets(addr);
+	return !normalized.empty() && normalized.find(':') != string::npos;
+}
+
 void get_time_string(char * str_now) {
 	time_t t = time(0);
 	struct tm * now = localtime( & t );
@@ -1420,11 +1432,11 @@ int main(int argc, char **argv){
 				log_fn = argv[++i];
 			}
 		} else if (arg == "--ip-addr") {
-			config.ip_cfg.public_address = argv[++i];
+			config.ip_cfg.public_address = strip_ip_brackets(argv[++i]);
 			if (config.ip_cfg.bound_address == "")
-				config.ip_cfg.bound_address = "0.0.0.0";
+				config.ip_cfg.bound_address = is_ipv6_literal(config.ip_cfg.public_address) ? "::" : "0.0.0.0";
 		} else if (arg == "--bound-addr") {
-			config.ip_cfg.bound_address = argv[++i];
+			config.ip_cfg.bound_address = strip_ip_brackets(argv[++i]);
 		} else if (arg == "--rtp-port") {
 			config.rtp_cfg.port = atoi(argv[++i]);
 		} else if (arg == "--rtp-port-end") {
@@ -1450,6 +1462,11 @@ int main(int argc, char **argv){
 			}
 		}
 	}
+
+	config.ip_cfg.public_address = strip_ip_brackets(config.ip_cfg.public_address);
+	config.ip_cfg.bound_address = strip_ip_brackets(config.ip_cfg.bound_address);
+	bool public_is_v6 = is_ipv6_literal(config.ip_cfg.public_address);
+	bool bound_is_v6 = is_ipv6_literal(config.ip_cfg.bound_address);
 
 	FILELog::ReportingLevel() = (TLogLevel)log_level_console;
 	if ( log_fn.length() > 0 ) {
@@ -1480,7 +1497,6 @@ int main(int argc, char **argv){
 	if (timer_ms > 0)
 		pjsip_cfg()->tsx.td = timer_ms;
 
-	TransportConfig tcfg;
 	try {
 		ep.libCreate();
 		if (config.rewrite_ack_transport) {
@@ -1503,16 +1519,66 @@ int main(int argc, char **argv){
 		ep.libInit(ep_cfg);
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 
-		tcfg.port = port;
-		tcfg.publicAddress = config.ip_cfg.public_address;
-		tcfg.boundAddress = config.ip_cfg.bound_address;
+		TransportConfig tcfg4;
+		TransportConfig tcfg6;
+		tcfg4.port = port;
+		if (!public_is_v6)
+			tcfg4.publicAddress = config.ip_cfg.public_address;
+		if (!bound_is_v6)
+			tcfg4.boundAddress = config.ip_cfg.bound_address;
+
+		tcfg6.port = port;
+		if (public_is_v6)
+			tcfg6.publicAddress = config.ip_cfg.public_address;
+		if (bound_is_v6)
+			tcfg6.boundAddress = config.ip_cfg.bound_address;
+		if (tcfg6.boundAddress.empty())
+			tcfg6.boundAddress = "::";
+
+		bool has_transport = false;
 
 		// TCP and UDP transports
 		if (!tcp_only) {
-			config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+			try {
+				config.transport_id_udp = ep.transportCreate(PJSIP_TRANSPORT_UDP, tcfg4);
+				has_transport = true;
+			} catch (Error & err) {
+				config.transport_id_udp = -1;
+				LOG(logINFO) <<__FUNCTION__<<": IPv4 UDP transport failed: " << err.info();
+			}
 		}
 		if (!udp_only) {
-			config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
+			try {
+				config.transport_id_tcp = ep.transportCreate(PJSIP_TRANSPORT_TCP, tcfg4);
+				has_transport = true;
+			} catch (Error & err) {
+				config.transport_id_tcp = -1;
+				LOG(logINFO) <<__FUNCTION__<<": IPv4 TCP transport failed: " << err.info();
+			}
+		}
+#if PJ_HAS_IPV6
+		if (!tcp_only) {
+			try {
+				config.transport_id_udp6 = ep.transportCreate(PJSIP_TRANSPORT_UDP6, tcfg6);
+				has_transport = true;
+			} catch (Error & err) {
+				config.transport_id_udp6 = -1;
+				LOG(logINFO) <<__FUNCTION__<<": IPv6 UDP transport failed: " << err.info();
+			}
+		}
+		if (!udp_only) {
+			try {
+				config.transport_id_tcp6 = ep.transportCreate(PJSIP_TRANSPORT_TCP6, tcfg6);
+				has_transport = true;
+			} catch (Error & err) {
+				config.transport_id_tcp6 = -1;
+				LOG(logINFO) <<__FUNCTION__<<": IPv6 TCP transport failed: " << err.info();
+			}
+		}
+#endif
+		if (!has_transport) {
+			LOG(logINFO) <<__FUNCTION__<<": No usable SIP transports available";
+			return 1;
 		}
 	} catch (Error & err) {
 		LOG(logINFO) <<__FUNCTION__<<": Exception: " << err.info() ;
@@ -1522,24 +1588,55 @@ int main(int argc, char **argv){
 	if (!udp_only) {
 		try {
 			// TLS transport
-			tcfg.port = port+1;
+			TransportConfig tcfg4;
+			TransportConfig tcfg6;
+			tcfg4.port = port+1;
+			if (!public_is_v6)
+				tcfg4.publicAddress = config.ip_cfg.public_address;
+			if (!bound_is_v6)
+				tcfg4.boundAddress = config.ip_cfg.bound_address;
+
+			tcfg6.port = port+1;
+			if (public_is_v6)
+				tcfg6.publicAddress = config.ip_cfg.public_address;
+			if (bound_is_v6)
+				tcfg6.boundAddress = config.ip_cfg.bound_address;
+			if (tcfg6.boundAddress.empty())
+				tcfg6.boundAddress = "::";
+
 			// Optional, set CA/certificate/private key files.
-			tcfg.tlsConfig.CaListFile = config.tls_cfg.ca_list;
-			tcfg.tlsConfig.certFile = config.tls_cfg.certificate;
-			tcfg.tlsConfig.privKeyFile = config.tls_cfg.private_key;
-			tcfg.tlsConfig.verifyServer = config.tls_cfg.verify_server;
-			tcfg.tlsConfig.verifyClient = config.tls_cfg.verify_client;
+			tcfg4.tlsConfig.CaListFile = config.tls_cfg.ca_list;
+			tcfg4.tlsConfig.certFile = config.tls_cfg.certificate;
+			tcfg4.tlsConfig.privKeyFile = config.tls_cfg.private_key;
+			tcfg4.tlsConfig.verifyServer = config.tls_cfg.verify_server;
+			tcfg4.tlsConfig.verifyClient = config.tls_cfg.verify_client;
+			tcfg6.tlsConfig = tcfg4.tlsConfig;
 			// Optional, set ciphers. You can select a certain cipher/rearrange the order of ciphers here.
 			// tcfg.tlsConfig.ciphers = ep.utilSslGetAvailableCiphers();
-			config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg);
-			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.ca_list      :"<< tcfg.tlsConfig.CaListFile;
-			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.certFile     :"<< tcfg.tlsConfig.certFile;
-			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.privKeyFile  :"<< tcfg.tlsConfig.privKeyFile;
-			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.verifyServer :"<< tcfg.tlsConfig.verifyServer;
-			LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.verifyClient :"<< tcfg.tlsConfig.verifyClient;
-			LOG(logINFO) <<__FUNCTION__<<": TLS supported :"<< config.tls_cfg.certificate;
+			try {
+				config.transport_id_tls = ep.transportCreate(PJSIP_TRANSPORT_TLS, tcfg4);
+				LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.ca_list      :"<< tcfg4.tlsConfig.CaListFile;
+				LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.certFile     :"<< tcfg4.tlsConfig.certFile;
+				LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.privKeyFile  :"<< tcfg4.tlsConfig.privKeyFile;
+				LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.verifyServer :"<< tcfg4.tlsConfig.verifyServer;
+				LOG(logINFO) <<__FUNCTION__<<": TLS tcfg.tlsConfig.verifyClient :"<< tcfg4.tlsConfig.verifyClient;
+				LOG(logINFO) <<__FUNCTION__<<": TLS supported :"<< config.tls_cfg.certificate;
+			} catch (Error & err) {
+				config.transport_id_tls = -1;
+				LOG(logINFO) <<__FUNCTION__<<": TLS not supported, see README. " << err.info() ;
+			}
+#if PJ_HAS_IPV6
+			try {
+				config.transport_id_tls6 = ep.transportCreate(PJSIP_TRANSPORT_TLS6, tcfg6);
+				LOG(logINFO) <<__FUNCTION__<<": TLSv6 supported :"<< config.tls_cfg.certificate;
+			} catch (Error & err) {
+				config.transport_id_tls6 = -1;
+				LOG(logINFO) <<__FUNCTION__<<": TLSv6 not supported, see README. " << err.info() ;
+			}
+#endif
 		} catch (Error & err) {
 			config.transport_id_tls = -1;
+			config.transport_id_tls6 = -1;
 			LOG(logINFO) <<__FUNCTION__<<": Exception: TLS not supported, see README. " << err.info() ;
 		}
 	}

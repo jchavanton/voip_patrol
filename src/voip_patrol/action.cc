@@ -22,6 +22,69 @@
 #include "string.h"
 #include <pjsua2/presence.hpp>
 
+namespace {
+
+string normalize_transport_param(const string &transport) {
+	if (transport == "udp6") return "udp";
+	if (transport == "tcp6") return "tcp";
+	if (transport == "tls6") return "tls";
+	if (transport == "sips6") return "sips";
+	return transport;
+}
+
+bool uri_has_ipv6_host(string uri) {
+	auto lt = uri.find('<');
+	auto gt = uri.find('>');
+	if (lt != string::npos && gt != string::npos && gt > lt) {
+		uri = uri.substr(lt + 1, gt - lt - 1);
+	}
+
+	if (uri.compare(0, 5, "sips:") == 0)
+		uri = uri.substr(5);
+	else if (uri.compare(0, 4, "sip:") == 0)
+		uri = uri.substr(4);
+
+	auto at_pos = uri.find('@');
+	if (at_pos != string::npos)
+		uri = uri.substr(at_pos + 1);
+
+	auto param_pos = uri.find(';');
+	if (param_pos != string::npos)
+		uri = uri.substr(0, param_pos);
+
+	auto query_pos = uri.find('?');
+	if (query_pos != string::npos)
+		uri = uri.substr(0, query_pos);
+
+	if (!uri.empty() && uri.front() == '[') {
+		auto end = uri.find(']');
+		if (end != string::npos) {
+			auto inside = uri.substr(1, end - 1);
+			return inside.find(':') != string::npos;
+		}
+	}
+
+	return std::count(uri.begin(), uri.end(), ':') >= 2;
+}
+
+TransportId select_transport_id(const Config *config, const string &transport, const string &target_uri) {
+	string transport_lc = transport;
+	vp::tolower(transport_lc);
+	bool target_is_v6 = uri_has_ipv6_host(target_uri);
+
+	if (transport_lc == "udp6") return config->transport_id_udp6;
+	if (transport_lc == "tcp6") return config->transport_id_tcp6;
+	if (transport_lc == "tls6" || transport_lc == "sips6") return config->transport_id_tls6;
+
+	if (transport_lc == "udp") return target_is_v6 ? config->transport_id_udp6 : config->transport_id_udp;
+	if (transport_lc == "tcp") return target_is_v6 ? config->transport_id_tcp6 : config->transport_id_tcp;
+	if (transport_lc == "tls" || transport_lc == "sips")
+		return target_is_v6 ? config->transport_id_tls6 : config->transport_id_tls;
+
+	return -1;
+}
+} // namespace
+
 Action::Action(Config *cfg) : config{cfg} {
 	init_actions_params();
 	std::cout<<"Prepared for Action!\n";
@@ -284,10 +347,12 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 
 	TestAccount *acc = config->findAccount(from);
 	string account_uri = from;
+	string target_uri = to_uri;
 	vp::tolower(transport);
-	if (transport != "udp") {
-		 account_uri = "sip:" + account_uri + ";transport=" + transport;
-		 to_uri = to_uri + ";transport=" + transport;
+	string transport_param = normalize_transport_param(transport);
+	if (transport_param != "udp") {
+		 account_uri = "sip:" + account_uri + ";transport=" + transport_param;
+		 to_uri = to_uri + ";transport=" + transport_param;
 	} else {
 		 account_uri = "sip:" + account_uri;
 	}
@@ -298,6 +363,14 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 
 	if (!acc) { // account not found, creating one
 		AccountConfig acc_cfg;
+		TransportId transport_id = select_transport_id(config, transport, target_uri);
+		if (transport_id == -1 && !transport.empty()) {
+			LOG(logERROR) <<__FUNCTION__<<": transport not supported for target: "<< target_uri;
+			return;
+		}
+		if (transport_id != -1) {
+			acc_cfg.sipConfig.transportId = transport_id;
+		}
 		acc_cfg.idUri = account_uri;
 		acc_cfg.sipConfig.authCreds.push_back(AuthCredInfo("digest", realm, username, 0, password));
 		LOG(logINFO) <<__FUNCTION__ << ": create buddy account_uri:"<<account_uri<<"\n";
@@ -370,6 +443,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		return;
 	}
 	vp::tolower(transport);
+	string transport_param = normalize_transport_param(transport);
 
 	if (account_name.empty()) account_name = username;
 	account_name = account_name + "@" + registrar;
@@ -426,10 +500,18 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		}
 	}
 	setTurnConfig(acc_cfg, config);
+	TransportId transport_id = select_transport_id(config, transport, registrar);
+	if (transport_id == -1 && !transport.empty()) {
+		LOG(logERROR) <<__FUNCTION__<<": transport not supported for registrar: "<< registrar;
+		return;
+	}
+	if (transport_id != -1) {
+		acc_cfg.sipConfig.transportId = transport_id;
+	}
 
 	if (reg_id != "" || instance_id != "") {
 		LOG(logINFO) <<__FUNCTION__<<" reg_id:"<<reg_id<<" instance_id:"<<instance_id;
-		if (transport == "udp") {
+		if (transport_param == "udp") {
 			LOG(logINFO) <<__FUNCTION__<< " oubound rfc5626 not supported on transport UDP";
 		} else {
 			acc_cfg.natConfig.sipOutboundUse = true;
@@ -442,14 +524,14 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		acc_cfg.natConfig.sipOutboundUse = false;
 	}
 
-	if (transport == "tcp") {
+	if (transport_param == "tcp") {
 		LOG(logINFO) <<__FUNCTION__<< " SIP TCP";
 		acc_cfg.idUri = "sip:" + account_name + ";transport=tcp";
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar + ";transport=tcp";
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
-	} else if (transport == "tls") {
-		if (config->transport_id_tls == -1) {
+	} else if (transport_param == "tls") {
+		if (transport_id == -1) {
 			LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
 			return;
 		}
@@ -457,8 +539,8 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		acc_cfg.regConfig.registrarUri = "sip:" + registrar + ";transport=tls";
 		if (!proxy.empty())
 			acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
-	} else if (transport == "sips") {
-		if (config->transport_id_tls == -1) {
+	} else if (transport_param == "sips") {
+		if (transport_id == -1) {
 			LOG(logERROR) <<__FUNCTION__<<" TLS transport not supported";
 			return;
 		}
@@ -525,24 +607,24 @@ void Action::do_accept_message(vector<ActionParam> &params, vector<ActionCheck> 
 		return;
 	}
 	vp::tolower(transport);
+	string transport_param = normalize_transport_param(transport);
 
 	TestAccount *acc = config->findAccount(account_name);
 	AccountConfig acc_cfg;
 	if (!acc) {
-		if (!transport.empty()) {
-			if (transport == "tcp") {
-				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
-			} else if (transport == "udp") {
-				acc_cfg.sipConfig.transportId = config->transport_id_udp;
-			} else if (transport == "tls" || transport == "sips") {
-				if (config->transport_id_tls == -1) {
-					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
-					return;
-				}
-				acc_cfg.sipConfig.transportId = config->transport_id_tls;
-			}
+		TransportId transport_id = select_transport_id(config, transport, account_name);
+		if (transport_id == -1 && !transport.empty()) {
+			LOG(logERROR) <<__FUNCTION__<<": transport not supported for account: "<< account_name;
+			return;
 		}
-		if (acc_cfg.sipConfig.transportId == config->transport_id_tls && transport == "sips") {
+		if (transport_id != -1) {
+			acc_cfg.sipConfig.transportId = transport_id;
+		}
+		if (transport_param == "sips") {
+			if (transport_id == -1) {
+				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
+				return;
+			}
 			acc_cfg.idUri = "sips:" + account_name;
 		} else {
 			acc_cfg.idUri = "sip:" + account_name;
@@ -626,6 +708,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		return;
 	}
 	vp::tolower(transport);
+	string transport_param = normalize_transport_param(transport);
 
 	TestAccount *acc = config->findAccount(account_name);
 	if (!acc || force_contact != "") {
@@ -637,20 +720,19 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 			acc_cfg.sipConfig.contactForced = force_contact;
 		}
 
-		if (!transport.empty()) {
-			if (transport == "tcp") {
-				acc_cfg.sipConfig.transportId = config->transport_id_tcp;
-			} else if (transport == "udp") {
-				acc_cfg.sipConfig.transportId = config->transport_id_udp;
-			} else if (transport == "tls" || transport == "sips") {
-				if (config->transport_id_tls == -1) {
-					LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
-					return;
-				}
-				acc_cfg.sipConfig.transportId = config->transport_id_tls;
-			}
+		TransportId transport_id = select_transport_id(config, transport, account_name);
+		if (transport_id == -1 && !transport.empty()) {
+			LOG(logERROR) <<__FUNCTION__<<": transport not supported for account: "<< account_name;
+			return;
 		}
-		if (acc_cfg.sipConfig.transportId == config->transport_id_tls && transport == "sips") {
+		if (transport_id != -1) {
+			acc_cfg.sipConfig.transportId = transport_id;
+		}
+		if (transport_param == "sips") {
+			if (transport_id == -1) {
+				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported.";
+				return;
+			}
 			acc_cfg.idUri = "sips:" + account_name;
 		} else {
 			acc_cfg.idUri = "sip:" + account_name;
@@ -790,10 +872,11 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		return;
 	}
 	vp::tolower(transport);
+	string transport_param = normalize_transport_param(transport);
 
 	string account_uri {caller};
-	if (transport != "udp") {
-		account_uri = caller + ";transport=" + transport;
+	if (transport_param != "udp") {
+		account_uri = caller + ";transport=" + transport_param;
 	}
 	TestAccount* acc = config->findAccount(account_uri);
 	if (!acc) {
@@ -819,7 +902,17 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			LOG(logERROR) <<__FUNCTION__<<": session timer["<<timer<<"] : "<< acc_cfg.callConfig.timerUse ;
 		}
 
-		if (transport == "tcp") {
+		string target_uri = to_uri.empty() ? callee : to_uri;
+		TransportId transport_id = select_transport_id(config, transport, target_uri);
+		if (transport_id == -1 && !transport.empty()) {
+			LOG(logERROR) <<__FUNCTION__<<": transport not supported for target: "<< target_uri;
+			return;
+		}
+		if (transport_id != -1) {
+			acc_cfg.sipConfig.transportId = transport_id;
+		}
+
+		if (transport_param == "tcp") {
 			if (display_name != "") {
 				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
 			} else {
@@ -827,8 +920,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
-		} else if (transport == "tls") {
-			if (config->transport_id_tls == -1) {
+		} else if (transport_param == "tls") {
+			if (transport_id == -1) {
 				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
 				return;
 			}
@@ -839,8 +932,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
-		} else if (transport == "sips") {
-			if (config->transport_id_tls == -1) {
+		} else if (transport_param == "sips") {
+			if (transport_id == -1) {
 				LOG(logERROR) <<__FUNCTION__<<": sips(TLS) transport not supported" ;
 				return;
 			}
@@ -951,7 +1044,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		prm.opt.videoCount = 0;
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
-		if (transport == "tls") {
+		if (transport_param == "tls") {
 			if (!to_uri.empty() && to_uri.substr(0,3) != "sip")
 					to_uri = "sip:"+to_uri+";transport=tls";
 			try {
@@ -959,7 +1052,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
-		} else if (transport == "sips") {
+		} else if (transport_param == "sips") {
 			if (!to_uri.empty() && to_uri.substr(0,4) != "sips")
 					to_uri = "sips:"+to_uri;
 			try {
@@ -967,7 +1060,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			} catch (pj::Error e)  {
 				LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 			}
-		} else if (transport == "tcp") {
+		} else if (transport_param == "tcp") {
 			if (!to_uri.empty() && to_uri.substr(0,3) != "sip")
 				to_uri = "sip:"+to_uri+";transport=tcp";
 			try {

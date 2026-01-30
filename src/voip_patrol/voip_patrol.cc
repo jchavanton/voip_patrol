@@ -1064,8 +1064,12 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	}
 	LOG(logINFO) <<__FUNCTION__<<" rtp port range: "<<rtp_cfg.port<<"-"<<acc_cfg.mediaConfig.transportConfig.portRange;
 
-	acc_cfg.mediaConfig.transportConfig.boundAddress = ip_cfg.bound_address;
-	acc_cfg.mediaConfig.transportConfig.publicAddress = ip_cfg.public_address;
+	if (!ip_cfg.bound_address.empty()) {
+		acc_cfg.mediaConfig.transportConfig.boundAddress = ip_cfg.bound_address;
+	}
+	if (!ip_cfg.public_address.empty()) {
+		acc_cfg.mediaConfig.transportConfig.publicAddress = ip_cfg.public_address;
+	}
 	if (ip_cfg.public_address != "")
 		acc_cfg.natConfig.sipStunUse = PJSUA_STUN_USE_DISABLED;
 	account->create(acc_cfg);
@@ -1433,8 +1437,11 @@ int main(int argc, char **argv){
 			}
 		} else if (arg == "--ip-addr") {
 			config.ip_cfg.public_address = strip_ip_brackets(argv[++i]);
-			if (config.ip_cfg.bound_address == "")
-				config.ip_cfg.bound_address = is_ipv6_literal(config.ip_cfg.public_address) ? "::" : "0.0.0.0";
+			if (config.ip_cfg.bound_address == "") {
+				if (!is_ipv6_literal(config.ip_cfg.public_address)) {
+					config.ip_cfg.bound_address = "0.0.0.0";
+				}
+			}
 		} else if (arg == "--bound-addr") {
 			config.ip_cfg.bound_address = strip_ip_brackets(argv[++i]);
 		} else if (arg == "--rtp-port") {

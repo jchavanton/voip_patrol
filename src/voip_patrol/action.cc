@@ -83,6 +83,21 @@ TransportId select_transport_id(const Config *config, const string &transport, c
 
 	return -1;
 }
+
+void apply_ipv6_account_config(AccountConfig &acc_cfg, const Config *config, const string &target_uri) {
+	if (!uri_has_ipv6_host(target_uri)) {
+		return;
+	}
+
+	acc_cfg.mediaConfig.ipv6Use = PJSUA_IPV6_ENABLED;
+
+	if (!config->ip_cfg.bound_address.empty()) {
+		acc_cfg.mediaConfig.transportConfig.boundAddress = config->ip_cfg.bound_address;
+	}
+	if (!config->ip_cfg.public_address.empty()) {
+		acc_cfg.mediaConfig.transportConfig.publicAddress = config->ip_cfg.public_address;
+	}
+}
 } // namespace
 
 Action::Action(Config *cfg) : config{cfg} {
@@ -363,6 +378,7 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 
 	if (!acc) { // account not found, creating one
 		AccountConfig acc_cfg;
+		apply_ipv6_account_config(acc_cfg, config, target_uri);
 		TransportId transport_id = select_transport_id(config, transport, target_uri);
 		if (transport_id == -1 && !transport.empty()) {
 			LOG(logERROR) <<__FUNCTION__<<": transport not supported for target: "<< target_uri;
@@ -500,6 +516,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		}
 	}
 	setTurnConfig(acc_cfg, config);
+	apply_ipv6_account_config(acc_cfg, config, registrar);
 	TransportId transport_id = select_transport_id(config, transport, registrar);
 	if (transport_id == -1 && !transport.empty()) {
 		LOG(logERROR) <<__FUNCTION__<<": transport not supported for registrar: "<< registrar;
@@ -612,6 +629,7 @@ void Action::do_accept_message(vector<ActionParam> &params, vector<ActionCheck> 
 	TestAccount *acc = config->findAccount(account_name);
 	AccountConfig acc_cfg;
 	if (!acc) {
+		apply_ipv6_account_config(acc_cfg, config, account_name);
 		TransportId transport_id = select_transport_id(config, transport, account_name);
 		if (transport_id == -1 && !transport.empty()) {
 			LOG(logERROR) <<__FUNCTION__<<": transport not supported for account: "<< account_name;
@@ -714,6 +732,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	if (!acc || force_contact != "") {
 		AccountConfig acc_cfg;
 		setTurnConfig(acc_cfg, config);
+		apply_ipv6_account_config(acc_cfg, config, account_name);
 
 		if (force_contact != ""){
 			LOG(logINFO) <<__FUNCTION__<< ":do_accept:force_contact:"<< force_contact << "\n";
@@ -883,6 +902,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		AccountConfig acc_cfg;
 		LOG(logINFO) <<__FUNCTION__<< ":do_call:turn:"<< config->turn_config.enabled << "\n";
 		setTurnConfig(acc_cfg, config);
+		string target_uri = to_uri.empty() ? callee : to_uri;
+		apply_ipv6_account_config(acc_cfg, config, target_uri);
 
 		if (force_contact != ""){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n";
@@ -902,7 +923,6 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			LOG(logERROR) <<__FUNCTION__<<": session timer["<<timer<<"] : "<< acc_cfg.callConfig.timerUse ;
 		}
 
-		string target_uri = to_uri.empty() ? callee : to_uri;
 		TransportId transport_id = select_transport_id(config, transport, target_uri);
 		if (transport_id == -1 && !transport.empty()) {
 			LOG(logERROR) <<__FUNCTION__<<": transport not supported for target: "<< target_uri;

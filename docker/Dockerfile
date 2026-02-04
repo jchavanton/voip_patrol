@@ -1,13 +1,14 @@
-FROM python:3.7-buster
+FROM python:bullseye
 
-ARG VERSION="0.7.4"
+ARG VERSION="0.7.8"
+ARG REPO="https://github.com/jchavanton/voip_patrol.git"
 
 RUN echo "installing dependencies" \
-	&& apt-get update && apt-get install -y build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev \
+	&& apt-get update && apt-get install -y build-essential libcurl4-openssl-dev cmake pkg-config libasound2-dev libopus0 libopus-dev \
 	&& apt-get -y install libssl-dev git
 
 RUN echo "building VoIP Patrol" \
-	&& mkdir /git && cd /git && git clone https://github.com/jchavanton/voip_patrol.git \
+	&& mkdir /git && cd /git && git clone ${REPO} \
 	&& cd voip_patrol && git checkout ${VERSION} \
 	&& git submodule update --init \
 	&& cp include/config_site.h  pjproject/pjlib/include/pj/config_site.h \

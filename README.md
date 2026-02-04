@@ -167,6 +167,8 @@ It is possible to test many scenarios that are not easy to test manually like a 
         <!-- Chech that a header exists and matches a specific regex -->
         <check-header name="To" regex="^.*sip:\+5678@example\.com" fail_on_match="true"/>
         <!-- Chech that a header exists and NOT matches a specific regex -->
+        <check-header name="RURI" regex="^INVITE\ sip:\d{5}@(\d{1,3}\.){3}\d{1,3}:\d{1,5};.*transport=[a-zA-Z]{3};.*"/>
+        <!-- Not really a header, but allows to check the Request URI on an incoming INVITE-->
     </action>
     <action type="wait" ms="-1"/>
   </actions>
@@ -418,7 +420,7 @@ DISCONNECTED
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | proxy | string | ip/hostname of a proxy where to send the call |
 | caller | string | From header user@host, only used if from it not specified |
-| from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
+| display_name | string | From and Contact header display name, example: "Alice" |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |

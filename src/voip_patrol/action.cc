@@ -52,30 +52,30 @@ string Action::get_env(string env) {
 
 bool Action::set_param(ActionParam &param, const char *val) {
 	bool subst {false};
-    const char *tmp_val;
+	const char *tmp_val;
 	if (!val) return false;
 	LOG(logINFO) <<__FUNCTION__<< " param name:" << param.name << " val:" << val;
 	if (strncmp(val,"VP_ENV_",7) == 0) {
 		LOG(logINFO) <<__FUNCTION__<<": "<<param.name<<" "<<val<<" substitution:"<<get_env(val);
-        subst = true;
-    }
+		subst = true;
+	}
 	if (param.type == APType::apt_bool) {
-        if (subst) tmp_val = get_env(val).c_str();
-        else tmp_val = val;
+		if (subst) tmp_val = get_env(val).c_str();
+		else tmp_val = val;
 		if( strcmp(tmp_val, "false") ==  0 )  param.b_val = false;
 		else param.b_val = true;
 	} else if (param.type == APType::apt_integer) {
 		if (subst) param.i_val = atoi(get_env(val).c_str());
-        else param.i_val = atoi(val);
-    } else if (param.type == APType::apt_float) {
+		else param.i_val = atoi(val);
+	} else if (param.type == APType::apt_float) {
 		if (subst) param.f_val = atof(get_env(val).c_str());
-        else param.f_val = atof(val);
+		else param.f_val = atof(val);
 	} else {
 		if (subst) {
 			param.s_val = get_env(val);
 		} else {
 		    param.s_val = val;
-        }
+		}
 	}
 	return true;
 }
@@ -93,6 +93,7 @@ void Action::init_actions_params() {
 	// do_message
 	do_message_params.push_back(ActionParam("from", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("to_uri", true, APType::apt_string));
+	do_message_params.push_back(ActionParam("transport", false, APType::apt_string));
 	do_message_params.push_back(ActionParam("text", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("username", true, APType::apt_string));
 	do_message_params.push_back(ActionParam("password", true, APType::apt_string));
@@ -106,6 +107,7 @@ void Action::init_actions_params() {
 	do_accept_message_params.push_back(ActionParam("message_count", false, APType::apt_integer));
 	// do_call
 	do_call_params.push_back(ActionParam("caller", true, APType::apt_string));
+	do_call_params.push_back(ActionParam("display_name", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("from", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("callee", true, APType::apt_string));
 	do_call_params.push_back(ActionParam("to_uri", true, APType::apt_string));
@@ -280,19 +282,20 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
 	}
 
-    string buddy_uri = "<sip:" + to_uri + ">";
-    BuddyConfig bCfg;
-    bCfg.uri = buddy_uri;
-	bCfg.subscribe = false;
-
 	TestAccount *acc = config->findAccount(from);
 	string account_uri = from;
 	vp::tolower(transport);
 	if (transport != "udp") {
 		 account_uri = "sip:" + account_uri + ";transport=" + transport;
+		 to_uri = to_uri + ";transport=" + transport;
 	} else {
 		 account_uri = "sip:" + account_uri;
 	}
+	string buddy_uri = "<sip:" + to_uri + ">";
+	BuddyConfig bCfg;
+	bCfg.uri = buddy_uri;
+	bCfg.subscribe = false;
+
 	if (!acc) { // account not found, creating one
 		AccountConfig acc_cfg;
 		acc_cfg.idUri = account_uri;
@@ -303,8 +306,8 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 
 	Buddy buddy;
 	Account& account = *acc;
-    buddy.create(account, bCfg);
-    // buddy.delete();
+	buddy.create(account, bCfg);
+	// buddy.delete();
 	string type{"message"};
 
 	Test *test = new Test(config, type);
@@ -317,6 +320,9 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 	acc->test = test;
 
 	SendInstantMessageParam param;
+	for (auto x_hdr : x_headers) {
+		param.txOption.headers.push_back(x_hdr);
+	}
 	param.content = text;
 	param.txOption.targetUri = buddy_uri;
 	cout << "sendind ... sendInstantMessage\n";
@@ -409,10 +415,16 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 
 	LOG(logINFO) <<__FUNCTION__<< " >> sip:" + account_name;
 	AccountConfig acc_cfg;
-	SipHeader sh;
-	sh.hName = "User-Agent";
-	sh.hValue = "<voip_patrol>";
-	acc_cfg.regConfig.headers.push_back(sh);
+	if (x_headers.size() == 0) {
+		SipHeader sh;
+		sh.hName = "User-Agent";
+		sh.hValue = "<voip_patrol>";
+		acc_cfg.regConfig.headers.push_back(sh);
+	} else {
+		for (auto x_hdr : x_headers) {
+			acc_cfg.regConfig.headers.push_back(x_hdr);
+		}
+	}
 	setTurnConfig(acc_cfg, config);
 
 	if (reg_id != "" || instance_id != "") {
@@ -428,9 +440,6 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		}
 	} else {
 		acc_cfg.natConfig.sipOutboundUse = false;
-	}
-	for (auto x_hdr : x_headers) {
-		acc_cfg.regConfig.headers.push_back(x_hdr);
 	}
 
 	if (transport == "tcp") {
@@ -714,7 +723,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	string play_dtmf {};
 	string timer {};
 	string caller {};
-	string from {};
+	string display_name {};
+	string from {}; // deprecated
 	string callee {};
 	string to_uri {};
 	string transport {"udp"};
@@ -744,6 +754,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	for (auto param : params) {
 		if (param.name.compare("callee") == 0) callee = param.s_val;
 		else if (param.name.compare("caller") == 0) caller = param.s_val;
+		else if (param.name.compare("display_name") == 0) display_name = param.s_val;
 		else if (param.name.compare("from") == 0) from = param.s_val;
 		else if (param.name.compare("to_uri") == 0) to_uri = param.s_val;
 		else if (param.name.compare("transport") == 0) transport = param.s_val;
@@ -809,7 +820,11 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		}
 
 		if (transport == "tcp") {
-			acc_cfg.idUri = "sip:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sip:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tcp");
 		} else if (transport == "tls") {
@@ -817,7 +832,11 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<": TLS transport not supported" ;
 				return;
 			}
-			acc_cfg.idUri = "sip:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sip:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy + ";transport=tls");
 		} else if (transport == "sips") {
@@ -825,11 +844,19 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 				LOG(logERROR) <<__FUNCTION__<<": sips(TLS) transport not supported" ;
 				return;
 			}
-			acc_cfg.idUri = "sips:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sips:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sips:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sips:" + proxy);
 		} else {
-			acc_cfg.idUri = "sip:" + account_uri;
+			if (display_name != "") {
+				acc_cfg.idUri = "\""+ display_name +"\" <sip:"+account_uri+">";
+			} else {
+				acc_cfg.idUri = "sip:" + account_uri;
+			}
 			if (!proxy.empty())
 				acc_cfg.sipConfig.proxies.push_back("sip:" + proxy);
 		}
@@ -925,7 +952,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
 		if (transport == "tls") {
-			if (!to_uri.empty())
+			if (!to_uri.empty() && to_uri.substr(0,3) != "sip")
 					to_uri = "sip:"+to_uri+";transport=tls";
 			try {
 				call->makeCall("sip:"+callee+";transport=tls", prm, to_uri);

@@ -17,3 +17,5 @@
 #define PJMEDIA_SRTP_HAS_DTLS           1
 // Make send of "100 - Trying" explicit
 #define PJSUA_DISABLE_AUTO_SEND_100 1
+
+#define PJ_HAS_IPV6 1

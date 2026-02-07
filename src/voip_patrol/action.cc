@@ -67,6 +67,11 @@ bool uri_has_ipv6_host(string uri) {
 	return std::count(uri.begin(), uri.end(), ':') >= 2;
 }
 
+bool is_ipv6_transport(const string &transport) {
+  	return transport_lc == "udp6" || transport_lc == "tcp6" ||
+           transport_lc == "tls6" || transport_lc == "sips6";
+}
+
 TransportId select_transport_id(const Config *config, const string &transport, const string &target_uri) {
 	string transport_lc = transport;
 	vp::tolower(transport_lc);
@@ -84,12 +89,30 @@ TransportId select_transport_id(const Config *config, const string &transport, c
 	return -1;
 }
 
-void apply_ipv6_account_config(AccountConfig &acc_cfg, const Config *config, const string &target_uri) {
-	if (!uri_has_ipv6_host(target_uri)) {
+void apply_ipv6_account_config(AccountConfig &acc_cfg, const Config *config, const string &target_uri, const string &transport = "") {
+	bool explicit_ipv6_transport = is_ipv6_transport(transport);
+	bool ipv6_target = uri_has_ipv6_host(target_uri);
+
+	if (!ipv6_target && !explicit_ipv6_transport) {
 		return;
 	}
+	if (explicit_ipv6_transport) {
+#ifdef PJSUA_IPV6_ENABLED_PREFER_IPV6
+		acc_cfg.mediaConfig.ipv6Use = PJSUA_IPV6_ENABLED_PREFER_IPV6;
 
-	acc_cfg.mediaConfig.ipv6Use = PJSUA_IPV6_ENABLED;
+		LOG(logINFO) << __FUNCTION__ << ": Enabling IPv6 transport and media";
+#else
+		acc_cfg.mediaConfig.ipv6Use = PJSUA_IPV6_ENABLED;
+#endif
+	} else {
+#ifdef PJSUA_IPV6_ENABLED_PREFER_IPV4
+		acc_cfg.mediaConfig.ipv6Use = PJSUA_IPV6_ENABLED_PREFER_IPV4;
+
+		LOG(logINFO) << __FUNCTION__ << ": Enabling IPv6 transport and IPv4 media";
+#else
+		acc_cfg.mediaConfig.ipv6Use = PJSUA_IPV6_ENABLED;
+#endif
+	}
 
 	if (!config->ip_cfg.bound_address.empty()) {
 		acc_cfg.mediaConfig.transportConfig.boundAddress = config->ip_cfg.bound_address;
@@ -378,7 +401,7 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 
 	if (!acc) { // account not found, creating one
 		AccountConfig acc_cfg;
-		apply_ipv6_account_config(acc_cfg, config, target_uri);
+		apply_ipv6_account_config(acc_cfg, config, target_uri, transport);
 		TransportId transport_id = select_transport_id(config, transport, target_uri);
 		if (transport_id == -1 && !transport.empty()) {
 			LOG(logERROR) <<__FUNCTION__<<": transport not supported for target: "<< target_uri;
@@ -516,7 +539,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		}
 	}
 	setTurnConfig(acc_cfg, config);
-	apply_ipv6_account_config(acc_cfg, config, registrar);
+	apply_ipv6_account_config(acc_cfg, config, registrar, transport);
 	TransportId transport_id = select_transport_id(config, transport, registrar);
 	if (transport_id == -1 && !transport.empty()) {
 		LOG(logERROR) <<__FUNCTION__<<": transport not supported for registrar: "<< registrar;
@@ -629,7 +652,7 @@ void Action::do_accept_message(vector<ActionParam> &params, vector<ActionCheck> 
 	TestAccount *acc = config->findAccount(account_name);
 	AccountConfig acc_cfg;
 	if (!acc) {
-		apply_ipv6_account_config(acc_cfg, config, account_name);
+		apply_ipv6_account_config(acc_cfg, config, account_name, transport);
 		TransportId transport_id = select_transport_id(config, transport, account_name);
 		if (transport_id == -1 && !transport.empty()) {
 			LOG(logERROR) <<__FUNCTION__<<": transport not supported for account: "<< account_name;
@@ -732,7 +755,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	if (!acc || force_contact != "") {
 		AccountConfig acc_cfg;
 		setTurnConfig(acc_cfg, config);
-		apply_ipv6_account_config(acc_cfg, config, account_name);
+		apply_ipv6_account_config(acc_cfg, config, account_name, transport);
 
 		if (force_contact != ""){
 			LOG(logINFO) <<__FUNCTION__<< ":do_accept:force_contact:"<< force_contact << "\n";
@@ -903,7 +926,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		LOG(logINFO) <<__FUNCTION__<< ":do_call:turn:"<< config->turn_config.enabled << "\n";
 		setTurnConfig(acc_cfg, config);
 		string target_uri = to_uri.empty() ? callee : to_uri;
-		apply_ipv6_account_config(acc_cfg, config, target_uri);
+		apply_ipv6_account_config(acc_cfg, config, target_uri, transport);
 
 		if (force_contact != ""){
 			LOG(logINFO) <<__FUNCTION__<< ":do_call:force_contact:"<< force_contact << "\n";

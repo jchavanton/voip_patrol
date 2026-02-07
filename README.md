@@ -3,7 +3,7 @@
 # VoIP Patrol
 ![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small2.jpg)
 
-## VoIP signaling and media test automaton
+## VoIP signaling and media test automation
 Designed to automate end2end and or integration tests.
 
 VoIP patrol will follow a scenario in XML format and will output results in JSON.
@@ -423,7 +423,7 @@ DISCONNECTED
 | display_name | string | From and Contact header display name, example: "Alice" |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
 | to_uri | string | used@host part of the URI in the To header |
-| transport | string | force a specific transport <tcp,udp,tls,sips> |
+| transport | string | force a specific transport <tcp,udp,tls,sips,tcp6,udp6,tls6,sips6> |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |

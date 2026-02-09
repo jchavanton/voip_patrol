@@ -68,8 +68,8 @@ bool uri_has_ipv6_host(string uri) {
 }
 
 bool is_ipv6_transport(const string &transport) {
-  	return transport_lc == "udp6" || transport_lc == "tcp6" ||
-           transport_lc == "tls6" || transport_lc == "sips6";
+  	return transport == "udp6" || transport == "tcp6" ||
+           transport == "tls6" || transport == "sips6";
 }
 
 TransportId select_transport_id(const Config *config, const string &transport, const string &target_uri) {

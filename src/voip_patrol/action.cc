@@ -1001,15 +1001,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 			acc_cfg.idUri = from;
 		}
 
-		if (!realm.empty() && realm != "*") {
-			if (username.empty() || password.empty()) {
-				if (username.empty()) {
-					LOG(logERROR) <<__FUNCTION__<< ": realm specified missing username";
-					return;
-				}
-				LOG(logERROR) <<__FUNCTION__<<": realm specified missing password";
-				return;
-			}
+		if (!username.empty() && !password.empty()) {
 			acc_cfg.sipConfig.authCreds.push_back( AuthCredInfo("digest", realm, username, 0, password) );
 		}
 

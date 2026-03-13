@@ -91,6 +91,35 @@ bool stob(std::string s) {
     return result;
 }
 
+// Translating string like '123ww45' -> send 123, 2 times pause 0.5s, send 45
+static std::vector<Test::DtmfSequenceItem> parseDtmfSequence(const std::string &input) {
+	std::vector<Test::DtmfSequenceItem> seq;
+	std::string buf;
+
+	int delay_ms = 0;
+	for (char c : input) {
+		if (c == 'w') {
+			if (!buf.empty()) {
+				seq.push_back({delay_ms, buf});
+				buf.clear();
+			}
+			delay_ms += 500;
+		} else if (c == 'W') {
+			if (!buf.empty()) {
+				seq.push_back({delay_ms, buf});
+				buf.clear();
+			}
+			delay_ms += 1000;
+		} else {
+			buf += c;
+		}
+	}
+	if (!buf.empty()) {
+		seq.push_back({delay_ms, buf});
+	}
+	return seq;
+}
+
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
 	// Create a player if none.
@@ -556,8 +585,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	// Create player and recorder
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED){
 		if (test->play_dtmf.length() > 0) {
-			dialDtmf(test->play_dtmf);
-			LOG(logINFO) <<__FUNCTION__<<": [dtmf]" << test->play_dtmf;
+			test->dtmf_sequence = parseDtmfSequence(test->play_dtmf);
+			test->dtmf_seq_index = 0;
+			LOG(logINFO) <<__FUNCTION__<<": [dtmf] parsed " << test->dtmf_sequence.size() << " chunks from: " << test->play_dtmf;
 		}
 		stream_to_call(this, ci.id, test->remote_user.c_str());
 		if (!test->is_recording_running && test->record) {

@@ -243,6 +243,12 @@ class Test {
 		string rtp_stats_json;
 		string play;
 		string play_dtmf;
+		struct DtmfSequenceItem {
+			int delay_ms;
+			std::string digits;
+		};
+		std::vector<DtmfSequenceItem> dtmf_sequence;
+		int dtmf_seq_index {0};
 		string srtp;
 		bool rtp_stats_ready{false};
 		bool queued{false};

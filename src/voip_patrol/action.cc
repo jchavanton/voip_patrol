@@ -1308,6 +1308,20 @@ void Action::do_wait(vector<ActionParam> &params) {
 							}
 						}
 					}
+					// check scheduled DTMF
+					if (call->test->dtmf_seq_index < (int)call->test->dtmf_sequence.size()) {
+						int connect_ms = ci.connectDuration.sec * 1000 + ci.connectDuration.msec;
+						while (call->test->dtmf_seq_index < (int)call->test->dtmf_sequence.size()
+						       && connect_ms >= call->test->dtmf_sequence[call->test->dtmf_seq_index].delay_ms) {
+							try {
+								call->dialDtmf(call->test->dtmf_sequence[call->test->dtmf_seq_index].digits);
+								LOG(logINFO) << __FUNCTION__ << " [dtmf] Sending sequence: " << call->test->dtmf_sequence[call->test->dtmf_seq_index].digits;
+							} catch (pj::Error& e) {
+								LOG(logERROR) << __FUNCTION__ << " [dtmf] error (" << e.status << "): " << e.reason;
+							}
+							call->test->dtmf_seq_index += 1;
+						}
+					}
 					// check hangup
 					if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
 						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {

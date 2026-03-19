@@ -246,9 +246,27 @@ vp_call_param::vp_call_param(const SipTxOption &tx_option, const CallSetting &se
 }
 
 void TestCall::hangup(const CallOpParam &prm) {
-		if (disconnecting) return;
+		CallInfo ci = getInfo();
+		LOG(logINFO) <<__FUNCTION__<<" CALLED: state="<<ci.state<<" stateText="<<ci.stateText<<" disconnecting="<<disconnecting;
+		if (disconnecting) {
+			LOG(logINFO) <<__FUNCTION__<<" SKIP: already disconnecting";
+			return;
+		}
 		disconnecting = true;
-		LOG(logINFO) <<__FUNCTION__<<": [hangup]";
+		LOG(logINFO) <<__FUNCTION__<<": [hangup] disconnecting set to true";
+
+		// Cleanup player and recorder
+		if (player_id != -1) {
+			LOG(logINFO) <<__FUNCTION__<<" destroying player_id="<<player_id;
+			pjsua_player_destroy(player_id);
+			player_id = -1;
+		}
+		if (recorder_id != -1) {
+			LOG(logINFO) <<__FUNCTION__<<" destroying recorder_id="<<recorder_id;
+			pjsua_recorder_destroy(recorder_id);
+			recorder_id = -1;
+		}
+
 		Call::hangup(prm);
 }
 
@@ -515,9 +533,12 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	}
 
 	CallInfo ci = getInfo();
+	LOG(logINFO) <<__FUNCTION__<<" ENTRY: state="<<ci.state<<" stateText="<<ci.stateText<<" disconnecting="<<disconnecting;
 
-	if (disconnecting == true && ci.state != PJSIP_INV_STATE_DISCONNECTED)
+	if (disconnecting == true && ci.state != PJSIP_INV_STATE_DISCONNECTED) {
+		LOG(logINFO) <<__FUNCTION__<<" EARLY_RETURN: disconnecting=true, state="<<ci.state<<" (not DISCONNECTED)";
 		return;
+	}
 
 	int uri_prefix = 3; // sip:
 	std::string remote_user("");
@@ -600,10 +621,12 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
 		LOG(logINFO) <<__FUNCTION__<<": [Call disconnected] red:"<< res;
 		if (player_id != -1) {
+			LOG(logINFO) <<__FUNCTION__<<" [onCallState] destroying player_id="<<player_id;
 			pjsua_player_destroy(player_id);
 			player_id = -1;
 		}
 		if (recorder_id != -1){
+			LOG(logINFO) <<__FUNCTION__<<" [onCallState] destroying recorder_id="<<recorder_id;
 			pjsua_recorder_destroy(recorder_id);
 			recorder_id = -1;
 		}

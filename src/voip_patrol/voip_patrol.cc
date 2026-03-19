@@ -330,12 +330,19 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	if (prm.e.type == PJSIP_EVENT_TSX_STATE && prm.e.body.tsxState.type == PJSIP_EVENT_RX_MSG) {
 		pjsip_rx_data *pjsip_rxdata = (pjsip_rx_data *) prm.e.body.tsxState.src.rdata.pjRxData;
 		if (pjsip_rxdata) {
-			if (pjsip_rxdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {	
+			if (pjsip_rxdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
 				int msec = 0;
 				int msec_repl = pjsip_rxdata->pkt_info.timestamp.sec*1000 + pjsip_rxdata->pkt_info.timestamp.msec;
 				pj_time_val s = pjsip_rxdata->pkt_info.timestamp;
 
-				PJ_TIME_VAL_SUB(s, test->sip_latency.inviteSentTs);
+				// Only calculate latency if inviteSentTs was initialized (outgoing calls)
+				if (test->sip_latency.inviteSentTs.sec > 0 && test->sip_latency.inviteSentTs.sec < 2000000000) {
+					PJ_TIME_VAL_SUB(s, test->sip_latency.inviteSentTs);
+				} else {
+					// For incoming calls, set s to zero to skip latency measurements
+					s.sec = 0;
+					s.msec = 0;
+				}
 				if (ci.state == PJSIP_INV_STATE_CALLING && test->sip_latency.invite100Ms == 0) {
 					test->sip_latency.invite100Ms = s.sec*1000+s.msec;
 				} else if (ci.state == PJSIP_INV_STATE_EARLY && test->sip_latency.invite18xMs == 0) {

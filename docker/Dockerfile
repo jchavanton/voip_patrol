@@ -1,6 +1,6 @@
 FROM debian:trixie
 
-ARG VERSION="0.7.8"
+ARG VERSION="0.8.0"
 ARG REPO="https://github.com/jchavanton/voip_patrol.git"
 
 RUN echo "installing dependencies" \

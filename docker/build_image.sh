@@ -1,6 +1,6 @@
 #!/bin/sh
 TAG="0.7.8"
-docker build . --no-cache -t voip_patrol
+docker build . --no-cache --network=host -t voip_patrol
 docker tag voip_patrol:latest jchavanton/voip_patrol:latest
 docker tag voip_patrol:latest jchavanton/voip_patrol:${TAG}
 echo "Don't forget to push !"

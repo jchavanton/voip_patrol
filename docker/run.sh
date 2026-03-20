@@ -3,7 +3,9 @@ DIR_PREFIX=`pwd`
 IMAGE=voip_patrol:latest
 CONTAINER_NAME=voip_patrol
 docker rm ${CONTAINER_NAME}
-docker run -d --net=host --name=${CONTAINER_NAME} ${IMAGE}
+docker run -d --net=host \
+--name=${CONTAINER_NAME} --volume $DIR_PREFIX/xml:/xml ${IMAGE}
+# --volume $DIR_PREFIX/xml:/xml \
 
 
 # PORT=5060

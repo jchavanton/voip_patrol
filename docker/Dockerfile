@@ -1,4 +1,4 @@
-FROM python:bullseye
+FROM debian:trixie
 
 ARG VERSION="0.7.8"
 ARG REPO="https://github.com/jchavanton/voip_patrol.git"

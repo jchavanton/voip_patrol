@@ -19,3 +19,9 @@
 #define PJSUA_DISABLE_AUTO_SEND_100 1
 
 #define PJ_HAS_IPV6 1
+
+#define PJSIP_TCP_KEEP_ALIVE_INTERVAL    90
+
+// TCP transport idle timeout in seconds (default is 33)
+// Increase to 1800s (1/2 hour) to keep connections alive during long calls
+#define PJSIP_TRANSPORT_IDLE_TIME 1800

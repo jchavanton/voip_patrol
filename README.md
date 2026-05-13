@@ -104,7 +104,7 @@ It is possible to test many scenarios that are not easy to test manually like a 
 ### Example: starting a TLS server
 ```bash
 ./voip_patrol \
-   --port 5060 \ # TLS port 5061 +1
+   --port 5060 \ # TLS port is this +1 (i.e. 5061)
    --conf "xml/tls_server.xml" \
    --tls-calist "tls/ca_list.pem" \
    --tls-privkey "tls/key.pem" \
@@ -155,18 +155,18 @@ It is possible to test many scenarios that are not easy to test manually like a 
 <config>
   <actions>
     <action type="accept"
-            match_account="default"
+            account="default"
             hangup="5"
             code="200" reason="OK"
     >
         <check-header name="Min-SE"/>
-        <!-- Chech that a header exists -->
+        <!-- Check that a header exists -->
         <check-header name="X-Foo" value="Bar"/>
-        <!-- Chech that a header exists and have a specific value -->
+        <!-- Check that a header exists and have a specific value -->
         <check-header name="From" regex="^.*sip:\+1234@example\.com"/>
-        <!-- Chech that a header exists and matches a specific regex -->
+        <!-- Check that a header exists and matches a specific regex -->
         <check-header name="To" regex="^.*sip:\+5678@example\.com" fail_on_match="true"/>
-        <!-- Chech that a header exists and NOT matches a specific regex -->
+        <!-- Check that a header exists and NOT matches a specific regex -->
         <check-header name="RURI" regex="^INVITE\ sip:\d{5}@(\d{1,3}\.){3}\d{1,3}:\d{1,5};.*transport=[a-zA-Z]{3};.*"/>
         <!-- Not really a header, but allows to check the Request URI on an incoming INVITE-->
     </action>
@@ -253,7 +253,7 @@ DISCONNECTED
 ### Example: re-invite with new codec
 ```xml
 <config>
-    <action>
+    <actions>
         <action type="codec" disable="all"/>
         <action type="codec" enable="pcma" priority="250"/>
         <action type="codec" enable="pcmu" priority="248"/>
@@ -276,9 +276,9 @@ DISCONNECTED
         <action type="codec" enable="pcma" priority="250"/>
         <!-- re-invite will now use pcma forcing a new session -->
 
-        <action type="wait" complete="true"> <!-- Wait until the calls are disconnected -->
-    <actions/>
-<config/>
+        <action type="wait" complete="true"/> <!-- Wait until the calls are disconnected -->
+    </actions>
+</config>
 ```
 
 ### Example: Overwriting local contact header
@@ -401,15 +401,22 @@ DISCONNECTED
 | early_media | bool | if "true" 183 with SDP and early media is used |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | code | int | SIP cause code to return must be >100 and <700 |
+| reason | string | SIP reason phrase for the response |
 | account | string | Account will be used if it matches the user part of an incoming call RURI or "default" will catch all |
 | response_delay | int | ms delay before reponse is sent, useful to test timeouts and race conditions |
 | call_count | int | The amount of calls to receive to consider the command completed, default -1 (considered completed) |
 | transport | string | Force a specific transport for all messages on accepted calls, default to all transport available |
+| max_duration | int | max call duration in seconds (test failure if exceeded) |
+| wait_until | string | call state to wait for before unblocking <NULL,CALLING,INCOMING,EARLY,CONNECTING,CONFIRMED,DISCONNECTED> |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
+| min_mos | float | minimum acceptable MOS score for the call to PASS |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory |
+| late_start | bool | if "true" no SDP will be included in the 200 OK and will result in a late offer in ACK |
 | hangup | int | call duration in second before hangup |
+| force_contact | string | local contact header will be overwritten by the given string |
 | label | string | test description or label |
+| play | string | path to a wav file to play once the call is connected |
 | record | bool | if "true" the call will be recorded once connected in /voice_files |
 | record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
@@ -420,24 +427,32 @@ DISCONNECTED
 | ---- | ---- | ----------- |
 | timer | string | control SIP session timers, possible values are : inactive, optional, required or always |
 | proxy | string | ip/hostname of a proxy where to send the call |
-| caller | string | From header user@host, only used if from it not specified |
+| caller | string | From header user@host, only used if from is not specified |
+| from | string | overrides caller for the From header user@host |
 | display_name | string | From and Contact header display name, example: "Alice" |
 | callee | string | request URI user@host (also used in the To header unless to_uri is specified) |
-| to_uri | string | used@host part of the URI in the To header |
+| to_uri | string | user@host part of the URI in the To header |
 | transport | string | force a specific transport <tcp,udp,tls,sips,tcp6,udp6,tls6,sips6> |
+| expected_cause_code | int | expected SIP response code, defaults to 200 |
+| wait_until | string | call state to wait for before unblocking <NULL,CALLING,INCOMING,EARLY,CONNECTING,CONFIRMED,DISCONNECTED> |
+| max_duration | int | max call duration in seconds (test failure if exceeded) |
+| max_ringing_duration | int | max ringing duration in seconds before cancel, default 60 |
+| min_mos | float | minimum acceptable MOS score for the call to PASS |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | record | bool | if "true" the call will be recorded once connected in /voice_files |
 | record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
+| play | string | path to a wav file to play once the call is connected |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 | force_contact | string | local contact header will be overwritten by the given string |
-| max_ringing_duration | int | max ringing duration in seconds before cancel, default 60 |
+| early_cancel | int | ms after early media when a CANCEL is sent |
 | hangup | int | call duration in second before hangup |
 | repeat | int | do this call multiple times |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
+| realm | string | authentication realm, defaults to "*" |
 | label | string | test description or label |
 
 ### register command parameters
@@ -447,7 +462,8 @@ DISCONNECTED
 | proxy | string | ip/hostname of a proxy where to send the register |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
-| account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
+| realm | string | authentication realm, defaults to "*" |
+| account | string | if not specified username is used, this is the account name and From/To/Contact header user part |
 | registrar | string | SIP UAS handling registration where the messages will be sent |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | unregister | bool | unregister the account <usename@registrar;transport=x> |
@@ -455,24 +471,21 @@ DISCONNECTED
 | instance_id | int | same as reg_id, if not present, it will be generated automatically |
 | rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
-| account | string | if not specified username is used, this is the the account name and From/To/Contact header user part |
-| registrar | string | SIP UAS handling registration where the messages will be sent |
-| transport | string | force a specific transport <tcp,udp,tls,sips> |
-| unregister | bool | unregister the account <usename@registrar;transport=x> |
-| reg_id | int | if present outbound and other related parameters will be added see RFC5626 |
-| instance_id | int | same as reg_id, if not present, it will be generated automatically |
-| rewrite_contact | bool | default true, detect public IP when registering and rewrite the contact header |
-| srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Used for incoming calls to this account |
+| expected_cause_code | int | expected SIP response code, defaults to 200 |
+| label | string | test description or label |
 
 ### message command parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | from | string | From header complete "\&quot;Display Name\&quot; <sip:test at 127.0.0.1>"  |
-| to_uri | string | used@host part of the URI in the To header |
+| to_uri | string | user@host part of the URI in the To header |
+| text | string | message body to send |
 | transport | string | force a specific transport <tcp,udp,tls,sips> |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
+| realm | string | authentication realm, defaults to "*" |
+| expected_cause_code | int | expected SIP response code, defaults to 200 |
 | label | string | test description or label |
 
 ### Example: sending a message
@@ -569,10 +582,10 @@ DISCONNECTED
 | server | string | turn server URI or IP:port |
 | username | string | turn server username |
 | password | string | turn server password |
-| password_hashed | bool | if "true" us hashed password, default plain password |
-| sip_stun_use | bool | if "true" SIP reflective IP is use with signaling |
-| media_stun_use | bool | if "true" STUN reflective IP is use with media/SDP |
-| stun_only | bool | if "true" TURN and ICE are disabled and only STUN is use |
+| password_hashed | bool | if "true" use hashed password, default plain password |
+| sip_stun_use | bool | if "true" SIP reflective IP is used with signaling |
+| media_stun_use | bool | if "true" STUN reflective IP is used with media/SDP |
+| stun_only | bool | if "true" TURN and ICE are disabled and only STUN is used |
 
 ### using multiple accounts
 When using multiple accounts, accounts can be created and selected with the following parameters.
@@ -586,7 +599,7 @@ When using multiple accounts, accounts can be created and selected with the foll
 | message | from |
 
 ### using env variable in scenario actions parameters
-Any value starting with `VP_ENV` will be replaced by the envrironment variable of the same name.
+Any value starting with `VP_ENV` will be replaced by the environment variable of the same name.
 Example : `username="VP_ENV_USERNAME"`
 ```bash
 export VP_ENV_PASSWORD=????????

@@ -1360,7 +1360,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 			LOG(logINFO) << __FUNCTION__ << ": action[wait] no more tests are running, exiting ... ";
 			completed = true;
 		} else if (duration_ms <= 0 && duration_ms != -1) {
-			LOG(logINFO) << __FUNCTION__ << ": action[wait] overall duration exceeded, exiting ... ";
+			LOG(logINFO) << __FUNCTION__ << ": action[wait] duration elapsed, returning ... ";
 			completed = true;
 		} else if (tests_running > 0 && complete_all) {
 			if (status_update) {

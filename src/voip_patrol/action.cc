@@ -20,6 +20,7 @@
 #include "action.hh"
 #include "util.hh"
 #include "string.h"
+#include <algorithm>
 #include <pjsua2/presence.hpp>
 
 namespace {
@@ -121,6 +122,32 @@ void apply_ipv6_account_config(AccountConfig &acc_cfg, const Config *config, con
 		acc_cfg.mediaConfig.transportConfig.publicAddress = config->ip_cfg.public_address;
 	}
 }
+
+/* Parse a comma-separated list of positive integers (e.g. "440,480") into a
+ * vector. Whitespace around entries is tolerated. Returns the default list
+ * (US ringback 440+480) if the input is empty. */
+std::vector<unsigned> parse_tones(const std::string &s) {
+	std::vector<unsigned> out;
+	if (s.empty()) {
+		out = {440u, 480u};
+		return out;
+	}
+	std::stringstream ss(s);
+	std::string item;
+	while (std::getline(ss, item, ',')) {
+		size_t start = item.find_first_not_of(" \t");
+		if (start == std::string::npos) continue;
+		try {
+			out.push_back((unsigned)std::stoul(item.substr(start)));
+		} catch (...) {
+			LOG(logERROR) << "parse_tones: skipping invalid entry '" << item << "'";
+		}
+	}
+	if (out.empty())
+		out = {440u, 480u};
+	return out;
+}
+
 } // namespace
 
 Action::Action(Config *cfg) : config{cfg} {
@@ -228,6 +255,9 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("tones", false, APType::apt_string));
+	do_call_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
@@ -268,6 +298,9 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("tones", false, APType::apt_string));
+	do_accept_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
@@ -711,6 +744,9 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	bool late_start {false};
 	bool record_early {false};
 	bool record {false};
+	bool detect_tone {false};
+	bool hangup_on_tone {true};
+	string tones_str {};
 	string srtp {"none"};
 	int code {200};
 	int call_count {-1};
@@ -738,6 +774,9 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
+		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
+		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
+		else if (param.name.compare("hangup_on_tone") == 0) hangup_on_tone = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("cancel") == 0) cancel_duration = param.i_val;
@@ -825,6 +864,9 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->late_start = late_start;
 	acc->record_early = record_early;
 	acc->record = record;
+	acc->detect_tone = detect_tone;
+	acc->hangup_on_tone = hangup_on_tone;
+	acc->tones = parse_tones(tones_str);
 	acc->play = play;
 	acc->play_dtmf = play_dtmf;
 	acc->timer = timer;
@@ -875,6 +917,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	bool late_start {false};
 	bool record {false};
 	bool record_early {false};
+	bool detect_tone {false};
+	bool hangup_on_tone {true};
+	string tones_str {};
 	string force_contact {};
 
 	for (auto param : params) {
@@ -899,6 +944,9 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
+		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
+		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
+		else if (param.name.compare("hangup_on_tone") == 0) hangup_on_tone = param.b_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
@@ -1048,9 +1096,12 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->rtp_stats = rtp_stats;
 		test->late_start = late_start;
 		test->record_early = record_early;
-		LOG(logERROR) <<__FUNCTION__<<": record early["<<record_early<<"]";
-
 		test->record = record;
+		test->detect_tone = detect_tone;
+		test->hangup_on_tone = hangup_on_tone;
+		test->tones = parse_tones(tones_str);
+		LOG(logINFO) <<__FUNCTION__<<": record_early["<<record_early<<"] detect_tone["
+		             <<detect_tone<<"] tones["<<tones_str<<"] hangup_on_tone["<<hangup_on_tone<<"]";
 		test->force_contact = force_contact;
 		test->srtp = srtp;
 		test->cancel = early_cancel;
@@ -1080,6 +1131,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 
 		prm.opt.audioCount = 1;
 		prm.opt.videoCount = 0;
+		prm.opt.textCount = 0;   // PSTN carriers (e.g. Flowroute) 606 on m=text
 		LOG(logINFO) << "call->test:" << test << " " << call->test->type;
 		LOG(logINFO) << "calling :" +callee;
 		if (transport_param == "tls") {
@@ -1252,12 +1304,13 @@ void Action::do_wait(vector<ActionParam> &params) {
 				int totalDurationMs = ci.totalDuration.sec*1000 + ci.totalDuration.msec;
 				if (ci.state == PJSIP_INV_STATE_CALLING || ci.state == PJSIP_INV_STATE_EARLY || ci.state == PJSIP_INV_STATE_INCOMING)  {
 					Test *test = call->test;
-					if (test->tone_detected) {
+					if (test->tone_detected && test->hangup_on_tone) {
 						LOG(logINFO) <<" tone detected hangup";
 						CallOpParam prm(true);
 						call->hangup(prm);
 					} else if (test->response_delay > 0 && totalDurationMs >= test->response_delay && ci.state == PJSIP_INV_STATE_INCOMING) {
 						CallOpParam prm;
+						prm.opt.textCount = 0;
 
 						// Explicitly answer with 100
 						CallOpParam prm_100;
@@ -1279,12 +1332,13 @@ void Action::do_wait(vector<ActionParam> &params) {
 						}
 					} else if (test->ring_duration > 0 && totalDurationMs >= (test->ring_duration * 1000 + test->response_delay)) {
 						CallOpParam prm;
+						prm.opt.textCount = 0;
 						//if (test->reason.size() > 0) prm.reason = test->reason;
 						prm.reason = "OK";
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
 						call->answer(prm);
-					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= (totalDurationMs-call->durationBeforeEarly)) {
+					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= std::max(0, totalDurationMs - call->durationBeforeEarly)) {
 						LOG(logINFO) <<" Call ringing ["<<call->getId()<<"] duration: "<<totalDurationMs<<"ms before ringing:"<<call->durationBeforeEarly<<"ms, max ringing duration:"<< (test->max_ringing_duration * 1000 + test->response_delay);
 						if (ci.totalDuration.sec > 0 && ci.totalDuration.msec < 110 && ci.totalDuration.sec % 10 == 0) {
 							LOG(logINFO) <<__FUNCTION__<<"[cancelling:call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
@@ -1311,6 +1365,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 							CallOpParam prm(true);
 							prm.opt.audioCount = 1;
 							prm.opt.videoCount = 0;
+							prm.opt.textCount = 0;
 							LOG(logINFO) <<__FUNCTION__<<": re-invite call in PJSIP_INV_STATE_CONFIRMED" ;
 							try {
 								call->reinvite(prm);

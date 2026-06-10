@@ -26,6 +26,7 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include <atomic>
 #include <pj/file_access.h>
 #include "ezxml/ezxml.h"
 #include "curl/email.h"
@@ -204,7 +205,11 @@ class Test {
 		bool late_start{false};
 		bool record_early{false};
 		bool record{false};
-		bool tone_detected{false};
+		bool detect_tone{false};
+		bool hangup_on_tone{true};                // hangup when tone detected
+		std::atomic<bool> tone_detected{false};   // written from pjmedia worker thread
+		std::atomic<unsigned> tone_detected_ms{0};
+		std::vector<unsigned> tones;              // frequencies (Hz) to watch
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -283,6 +288,9 @@ class TestAccount : public Account {
 		bool late_start {false};
 		bool record_early {false};
 		bool record {false};
+		bool detect_tone {false};
+		bool hangup_on_tone {true};
+		std::vector<unsigned> tones;
 		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};
@@ -321,7 +329,7 @@ class TestCall : public Call {
 		pjsua_player_id player_id{-1};
 		int role;
 		int rtt;
-		int durationBeforeEarly;
+		int durationBeforeEarly{0};
 		bool is_disconnecting(){return disconnecting;};
 		TestAccount *acc;
 	private:

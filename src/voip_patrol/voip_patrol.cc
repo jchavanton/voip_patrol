@@ -140,49 +140,55 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	return status;
 }
 
-pj_status_t tone_detected(pjmedia_port *port, void *user_data) {
+pj_status_t tone_detected(pjmedia_port *port, void *user_data,
+                          const pjmedia_tone_detect_event *event) {
+	PJ_UNUSED_ARG(port);
 	TestCall* call = (TestCall *)user_data;
-	if (call->test) {
-		LOG(logINFO) <<__FUNCTION__<<": tone_detected hanging up, test updated";
-		call->test->tone_detected = true;
-	} else {
-		LOG(logINFO) <<__FUNCTION__<<": tone_detected no test";
+	if (!call->test) {
+		LOG(logINFO) <<__FUNCTION__<<": tone detected but no test attached";
+		return PJ_SUCCESS;
 	}
-/*	if (call->recorder_id != -1){
-		pjsua_recorder_destroy(call->recorder_id);
-		call->recorder_id = -1;
-	}
-*/
-	// not from the call back
-/*	CallOpParam prm(true);
-	call->hangup(prm); */
-	return PJ_TRUE;
+	call->test->tone_detected_ms = event ? event->duration_ms : 0;
+	call->test->tone_detected = true;
+	LOG(logINFO) <<__FUNCTION__<<": tone detected after "
+	             << call->test->tone_detected_ms <<"ms, test flagged for hangup";
+	/* Hangup runs from do_wait on the main thread; this callback is on a
+	 * pjmedia worker, so we only flip the flag. */
+	return PJ_SUCCESS;
 }
 
-static pj_status_t detect_tone(const char *prefix, TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
-       pj_status_t status = PJ_SUCCESS;
-       // Create a recorder if none.
-       if (call->tone_detector_id < 0) {
-               char rec_fn[1024] = "";
-               CallInfo ci = call->getInfo();
-               sprintf(rec_fn,"/voice_files/%s%s_%s_rec.wav", prefix, ci.callIdString.c_str(), caller_contact);
-               call->test->record_fn = string(&rec_fn[0]);
-               const pj_str_t rec_file_name = pj_str(rec_fn);
-               LOG(logINFO) <<__FUNCTION__<<": [tone_detector] >> create:" << " fn:"<< rec_fn;
-               status = pjsua_tone_detector_create(&rec_file_name, 0, NULL, -1, 0, &call->tone_detector_id, &tone_detected, call);
-               if (status != PJ_SUCCESS) {
-                       LOG(logINFO) <<__FUNCTION__<<": [error] tone_detector_create failure\n";
-                       return status;
-               }
-               LOG(logINFO) <<__FUNCTION__<<": [tone_detector] >> created:" << call->tone_detector_id << " fn:"<< rec_fn;
-       }
-       int call_conf_port = pjsua_call_get_conf_port(call_id);
-       LOG(logINFO) <<__FUNCTION__<<": [tone_detector] call conf id:" << call_conf_port;
-       if (call_conf_port == -1) {
-               return PJ_FALSE;
-       }
-       status = pjsua_conf_connect(pjsua_call_get_conf_port(call_id), pjsua_recorder_get_conf_port(call->tone_detector_id));
-       return status;
+static pj_status_t start_tone_detector(TestCall* call, pjsua_call_id call_id) {
+	/* Idempotent: onCallMediaState can fire multiple times during early
+	 * media (codec change, re-INVITE). The detector is created and wired
+	 * to the conf bridge exactly once. */
+	if (call->tone_detector_id >= 0) {
+		return PJ_SUCCESS;
+	}
+
+	const std::vector<unsigned> &tones = call->test->tones;
+	if (tones.empty() || tones.size() > PJMEDIA_TONE_DETECT_MAX_FREQS) {
+		LOG(logERROR) <<__FUNCTION__<<": invalid tones list size:"<< tones.size();
+		return PJ_EINVAL;
+	}
+
+	pj_status_t status = pjsua_tone_detector_create(&tone_detected, call,
+	                                                tones.data(),
+	                                                (unsigned)tones.size(),
+	                                                &call->tone_detector_id);
+	if (status != PJ_SUCCESS) {
+		LOG(logINFO) <<__FUNCTION__<<": [error] tone_detector_create failed status:"<< status;
+		return status;
+	}
+	LOG(logINFO) <<__FUNCTION__<<": [tone_detector] created id:"<< call->tone_detector_id
+	             <<" watching "<< tones.size() <<" freq(s)";
+
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (call_conf_port == PJSUA_INVALID_ID) {
+		LOG(logINFO) <<__FUNCTION__<<": [tone_detector] no conf port for call yet";
+		return PJ_EBUSY;
+	}
+	return pjsua_conf_connect(call_conf_port,
+	                          pjsua_recorder_get_conf_port(call->tone_detector_id));
 }
 
 static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id call_id, const char *caller_contact) {
@@ -501,10 +507,10 @@ void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 
 void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	CallInfo ci = getInfo();
-	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early;
-	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->record_early) {
-		detect_tone("detect_tone_", this, ci.id, test->remote_user.c_str());
-		// record_call("early_", this, ci.id, test->remote_user.c_str());
+	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early
+	             <<" detect_tone:"<< test->detect_tone;
+	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->detect_tone) {
+		start_tone_detector(this, ci.id);
 	}
 }
 
@@ -772,7 +778,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			recorder_id = -1;
 		}
 		if (tone_detector_id != -1){
-			pjsua_recorder_destroy(tone_detector_id);
+			pjsua_tone_detector_destroy(tone_detector_id);
 			tone_detector_id = -1;
 		}
 	}
@@ -856,6 +862,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 
 	CallInfo ci = call->getInfo();
 	CallOpParam prm;
+	prm.opt.textCount = 0;   // PSTN carriers reject m=text with 606
 	AccountInfo acc_inf = getInfo();
 
 	LOG(logINFO) <<__FUNCTION__<<":"<<" ["<< acc_inf.uri <<"]id["<<call->getId()<<"]from["<<ci.remoteUri<<"]to["<<ci.localUri<<"]id["<<ci.callIdString<<"]";
@@ -885,6 +892,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->late_start = late_start;
 		call->test->record_early = record_early;
 		call->test->record = record;
+		call->test->detect_tone = detect_tone;
+		call->test->hangup_on_tone = hangup_on_tone;
+		call->test->tones = tones.empty() ? std::vector<unsigned>{440u, 480u} : tones;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
@@ -1045,7 +1055,10 @@ void Test::update_result() {
 		string jsonReason = reason;
 		jsonify(&jsonReason);
 
-			LOG(logINFO)<<__FUNCTION__<<"["<<this<<"]"<<" completed tone_detected:"<<tone_detected<<"\n";
+		const bool tone_detected_v = tone_detected.load();
+		const unsigned tone_detected_ms_v = tone_detected_ms.load();
+		LOG(logINFO)<<__FUNCTION__<<"["<<this<<"]"<<" completed tone_detected:"<< tone_detected_v
+		            <<" tone_detected_ms:"<< tone_detected_ms_v;
 		std::string result_line_json = "{"
 				"\"label\": \""+label+"\", "
 				"\"start\": \""+start_time+"\", "
@@ -1064,7 +1077,8 @@ void Test::update_result() {
 				"\"duration\": "+std::to_string(connect_duration)+", "
 				"\"expected_duration\": "+std::to_string(expected_duration)+", "
 				"\"max_duration\": "+std::to_string(max_duration)+", "
-				"\"tone_detected\": "+std::to_string(tone_detected)+", "
+				"\"tone_detected\": "+std::to_string(tone_detected_v)+", "
+				"\"tone_detected_ms\": "+std::to_string(tone_detected_ms_v)+", "
 				"\"hangup_duration\": "+std::to_string(hangup_duration);
 		if (dtmf_recv.length() > 0)
 			result_line_json += ", \"dtmf_recv\": \""+dtmf_recv+"\"";
@@ -1872,7 +1886,11 @@ int main(int argc, char **argv){
 		LOG(logINFO) <<__FUNCTION__<<": final wait complete all...";
 		vector<ActionParam> params = config.action.get_params("wait");
 		config.action.set_param_by_name(&params, "complete", "true");
-		config.action.set_param_by_name(&params, "ms", "30");
+		if (config.graceful_shutdown) { // make sure all the tests are completed
+			config.action.set_param_by_name(&params, "ms", "-1");
+		} else {
+			config.action.set_param_by_name(&params, "ms", "32000");
+		}
 		config.action.do_wait(params);
 
 		LOG(logINFO) <<__FUNCTION__<<": checking alerts...";

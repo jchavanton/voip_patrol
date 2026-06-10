@@ -308,6 +308,64 @@ DISCONNECTED
 </actions></config>
 ```
 
+### Example: hangup on tone detection
+Detects US ringback (440Hz + 480Hz) during early media and hangs up as soon as
+the tone is observed for ~60ms. Useful to verify that a carrier returns
+ringback within a target PDD, without staying on the call after.
+
+```xml
+<config>
+  <actions>
+    <action type="call"
+            transport="udp"
+            caller="2012772903@us-east-va.sip.flowroute.com"
+            callee="5144496444@us-east-va.sip.flowroute.com"
+            username="VP_ENV_USERNAME"
+            password="VP_ENV_PASSWORD"
+            expected_cause_code="487"
+            max_duration="20"
+            hangup="15"
+            detect_tone="true"/>
+    <action type="wait" complete="true"/>
+  </actions>
+</config>
+```
+Result JSON gets:
+```json
+"tone_detected": 1,
+"tone_detected_ms": 120
+```
+where `tone_detected_ms` is the time from when audio came up (first early-media
+SDP) to detection. `expected_cause_code="487"` because the call is cancelled
+by voip_patrol once the tone fires, so the carrier returns *Request Terminated*.
+
+#### Detect without hanging up
+Add `hangup_on_tone="false"` to keep the call running to its normal end while
+still recording the detection in the result JSON.
+
+```xml
+<action type="call"
+        ...
+        hangup="20"
+        detect_tone="true"
+        hangup_on_tone="false"/>
+```
+
+#### Detecting other call-progress tones
+The `tones` attribute takes a comma-separated list of frequencies (Hz) that
+must all be present at once. Up to 4 simultaneous frequencies are supported.
+
+```xml
+<!-- US dial tone (350 + 440 Hz) -->
+<action type="call" ... detect_tone="true" tones="350,440"/>
+
+<!-- US busy / reorder (480 + 620 Hz) -->
+<action type="call" ... detect_tone="true" tones="480,620"/>
+
+<!-- 1004 Hz milliwatt test tone (single frequency) -->
+<action type="call" ... detect_tone="true" tones="1004"/>
+```
+
 ### Example: WAIT action
 #### wait forever:
 ```xml

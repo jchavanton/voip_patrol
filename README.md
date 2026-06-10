@@ -308,6 +308,64 @@ DISCONNECTED
 </actions></config>
 ```
 
+### Example: hangup on tone detection
+Detects US ringback (440Hz + 480Hz) during early media and hangs up as soon as
+the tone is observed for ~60ms. Useful to verify that a carrier returns
+ringback within a target PDD, without staying on the call after.
+
+```xml
+<config>
+  <actions>
+    <action type="call"
+            transport="udp"
+            caller="2012772903@us-east-va.sip.flowroute.com"
+            callee="5144496444@us-east-va.sip.flowroute.com"
+            username="VP_ENV_USERNAME"
+            password="VP_ENV_PASSWORD"
+            expected_cause_code="487"
+            max_duration="20"
+            hangup="15"
+            detect_tone="true"/>
+    <action type="wait" complete="true"/>
+  </actions>
+</config>
+```
+Result JSON gets:
+```json
+"tone_detected": 1,
+"tone_detected_ms": 120
+```
+where `tone_detected_ms` is the time from when audio came up (first early-media
+SDP) to detection. `expected_cause_code="487"` because the call is cancelled
+by voip_patrol once the tone fires, so the carrier returns *Request Terminated*.
+
+#### Detect without hanging up
+Add `hangup_on_tone="false"` to keep the call running to its normal end while
+still recording the detection in the result JSON.
+
+```xml
+<action type="call"
+        ...
+        hangup="20"
+        detect_tone="true"
+        hangup_on_tone="false"/>
+```
+
+#### Detecting other call-progress tones
+The `tones` attribute takes a comma-separated list of frequencies (Hz) that
+must all be present at once. Up to 4 simultaneous frequencies are supported.
+
+```xml
+<!-- US dial tone (350 + 440 Hz) -->
+<action type="call" ... detect_tone="true" tones="350,440"/>
+
+<!-- US busy / reorder (480 + 620 Hz) -->
+<action type="call" ... detect_tone="true" tones="480,620"/>
+
+<!-- 1004 Hz milliwatt test tone (single frequency) -->
+<action type="call" ... detect_tone="true" tones="1004"/>
+```
+
 ### Example: WAIT action
 #### wait forever:
 ```xml
@@ -419,6 +477,9 @@ DISCONNECTED
 | play | string | path to a wav file to play once the call is connected |
 | record | bool | if "true" the call will be recorded once connected in /voice_files |
 | record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
+| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
+| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 
 ### call command parameters
@@ -444,6 +505,9 @@ DISCONNECTED
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | record | bool | if "true" the call will be recorded once connected in /voice_files |
 | record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
+| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
+| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | play | string | path to a wav file to play once the call is connected |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 | force_contact | string | local contact header will be overwritten by the given string |

@@ -140,21 +140,20 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	return status;
 }
 
-pj_status_t tone_detected(pjmedia_port *port, void *user_data,
-                          const pjmedia_tone_detect_event *event) {
+void tone_detected(pjmedia_port *port, void *user_data,
+                   const pjmedia_tone_detect_event *event) {
 	PJ_UNUSED_ARG(port);
 	TestCall* call = (TestCall *)user_data;
 	if (!call->test) {
 		LOG(logINFO) <<__FUNCTION__<<": tone detected but no test attached";
-		return PJ_SUCCESS;
+		return;
 	}
 	call->test->tone_detected_ms = event ? event->duration_ms : 0;
 	call->test->tone_detected = true;
 	LOG(logINFO) <<__FUNCTION__<<": tone detected after "
 	             << call->test->tone_detected_ms <<"ms, test flagged for hangup";
 	/* Hangup runs from do_wait on the main thread; this callback is on a
-	 * pjmedia worker, so we only flip the flag. */
-	return PJ_SUCCESS;
+	 * pjmedia event thread, so we only flip the flag. */
 }
 
 static pj_status_t start_tone_detector(TestCall* call, pjsua_call_id call_id) {

@@ -198,12 +198,11 @@ public:
 };
 
 vp_call_param::vp_call_param(const SipTxOption &tx_option) {
-	if (tx_option.isEmpty()) {
-		p_msg_data = NULL;
-	} else {
+	pjsua_msg_data_init(&msg_data);
+	if (!tx_option.isEmpty()) {
 		tx_option.toPj(msg_data);
-		p_msg_data = &msg_data;
 	}
+	p_msg_data = &msg_data;
 	p_opt = NULL;
 	p_reason = NULL;
 	sdp = NULL;
@@ -212,19 +211,17 @@ vp_call_param::vp_call_param(const SipTxOption &tx_option) {
 vp_call_param::vp_call_param(const SipTxOption &tx_option, const CallSetting &setting,
                        const string &reason_str, pj_pool_t *pool,
                        const string &sdp_str) {
-	if (tx_option.isEmpty()) {
-		p_msg_data = NULL;
-	} else {
+	pjsua_msg_data_init(&msg_data);
+	if (!tx_option.isEmpty()) {
 		tx_option.toPj(msg_data);
-		p_msg_data = &msg_data;
 	}
+	p_msg_data = &msg_data;
 
-	if (setting.isEmpty()) {
-		p_opt = NULL;
-	} else {
+	pjsua_call_setting_default(&opt);
+	if (!setting.isEmpty()) {
 		opt = setting.toPj();
-		p_opt = &opt;
 	}
+	p_opt = &opt;
 	reason = str2Pj(reason_str);
 	p_reason = (reason.slen == 0? NULL: &reason);
 

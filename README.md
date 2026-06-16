@@ -450,6 +450,7 @@ DISCONNECTED
 | early_cancel | int | ms after early media when a CANCEL is sent |
 | hangup | int | call duration in second before hangup |
 | repeat | int | do this call multiple times |
+| repeat_interval | int | ms to sleep between calls when `repeat` > 0, to avoid flooding the remote peer. Default 0 (no spacing). |
 | username | string | authentication username, account name, From/To/Contact header user part |
 | password | string | authentication password |
 | realm | string | authentication realm, defaults to "*" |

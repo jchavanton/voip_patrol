@@ -221,6 +221,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("wait_until", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("max_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("repeat", false, APType::apt_integer));
+	do_call_params.push_back(ActionParam("repeat_interval", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("max_ringing_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
@@ -868,6 +869,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	int early_cancel {0};
 	int re_invite_interval {0};
 	int repeat {0};
+	int repeat_interval {0};
 	bool recording {false};
 	bool rtp_stats {false};
 	bool late_start {false};
@@ -905,6 +907,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("re_invite_interval") == 0) re_invite_interval = param.i_val;
 		else if (param.name.compare("repeat") == 0) repeat = param.i_val;
+		else if (param.name.compare("repeat_interval") == 0) repeat_interval = param.i_val;
 		else if (param.name.compare("early_cancel") == 0) early_cancel = param.i_val;
 		else if (param.name.compare("recording") == 0) recording = true;
 	}
@@ -1114,6 +1117,13 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		}
 		pj_gettimeofday(&test->sip_latency.inviteSentTs);
 		repeat--;
+		/* Inter-call spacing to avoid flooding the remote peer. pjsua's
+		 * worker thread keeps processing SIP/media events while we sleep
+		 * here; only the next XML action is delayed. Skipped after the
+		 * final iteration so we don't add a tail delay. */
+		if (repeat >= 0 && repeat_interval > 0) {
+			pj_thread_sleep(repeat_interval);
+		}
 	} while (repeat >= 0);
 }
 

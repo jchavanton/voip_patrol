@@ -197,7 +197,8 @@ class Test {
 		std::string start_time;
 		std::string end_time;
 		float min_mos{0.0};
-		float mos{0.0};
+		float mos{0.0};        // Listening Quality (LQ), worst direction, lowest across streams
+		float mos_cq{0.0};     // Conversational Quality (LQ minus delay impairment)
 		bool rtp_stats{false};
 		bool late_start{false};
 		bool record_early{false};

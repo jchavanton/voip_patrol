@@ -373,17 +373,73 @@ void TestCall::onCallTsxState(OnCallTsxStateParam &prm) {
 	}
 }
 
-/* Convenient function to convert transmission factor to MOS */
+/* Convert an R-factor (0-100) to MOS using the ITU-T G.107 nonlinear
+ * mapping: MOS = 1 + 0.035*R + R*(R-60)*(100-R)*7e-6. Clamped to [1.0, 4.5].
+ *
+ * The previous implementation used a linear mapping (R*4.5/100), which
+ * matched the curve only at the extremes and underreported MOS by up to
+ * ~0.43 in the middle of the range — most visibly, clean PCMU calls
+ * (R≈93) read as 4.18 instead of the industry-standard 4.41. */
 static float rfactor_to_mos(float rfactor) {
-	float mos;
-	if (rfactor <= 0) {
-		mos = 0.0;
-	} else if (rfactor > 100) {
-		mos = 4.5;
-	} else {
-		mos = rfactor*4.5/100;
+	if (rfactor <= 0)
+		return 1.0f;
+	if (rfactor >= 100)
+		return 4.5f;
+	const float R = rfactor;
+	return 1.0f + 0.035f * R + R * (R - 60.0f) * (100.0f - R) * 7.0e-6f;
+}
+
+/* G.107 E-model per-codec values used in Ie_eff = Ie + (95-Ie)*Ppl /
+ * (Ppl/BurstR + Bpl).
+ *
+ * Narrowband codecs (G.729, iLBC, AMR-NB, GSM) use ITU-T G.113 Annex I
+ * values directly — the model was calibrated against this codec class so
+ * the numbers are honest.
+ *
+ * Wideband codecs (G.722, G.722.1, G.722.2/AMR-WB, Opus) are pinned to
+ * G.711-class values. The G.107 model penalises wideband codecs for
+ * being lossy compressors but gives them no credit for the extra
+ * bandwidth, so the standard values would make Opus and G.722 score
+ * worse than PCMU on a clean call — the opposite of what listeners hear.
+ * We treat wideband codecs as at-least equivalent to G.711.
+ *
+ * Opus additionally gets a slightly higher Bpl to credit better PLC
+ * and the possibility of in-band FEC, without assuming FEC is always
+ * active or always effective (single-packet FEC is defeated by bursty
+ * loss). With FEC reliably on, real Bpl is closer to 35-40, so this
+ * errs conservative. */
+struct codec_emodel {
+	const char *name;   /* pjmedia codec encoding name (case-insensitive prefix match) */
+	float Ie;           /* intrinsic codec impairment */
+	float Bpl;          /* packet-loss robustness */
+};
+
+static const codec_emodel CODEC_EMODELS[] = {
+	{ "PCMU",   0.0f, 25.1f },
+	{ "PCMA",   0.0f, 25.1f },
+	{ "G722",   0.0f, 25.1f },   /* wideband, pinned to G.711 (see comment above) */
+	{ "G7221",  0.0f, 25.1f },   /* G.722.1, same */
+	{ "G7222",  0.0f, 25.1f },   /* G.722.2 / AMR-WB, same */
+	{ "G729",  11.0f, 19.0f },
+	{ "iLBC",  11.0f, 11.7f },
+	{ "AMR",    5.0f, 10.0f },   /* AMR-NB 12.2 kbps */
+	{ "GSM",   20.0f, 10.0f },
+	{ "opus",   0.0f, 28.0f },   /* SILK 16kHz wideband speech; modest FEC credit */
+};
+
+/* Case-insensitive prefix lookup so things like "opus/48000/2" still match
+ * "opus". Falls back to G.711 values for unknown codecs. */
+static codec_emodel emodel_for_codec(const std::string &codec_name) {
+	for (size_t i = 0; i < sizeof(CODEC_EMODELS)/sizeof(CODEC_EMODELS[0]); ++i) {
+		const codec_emodel &c = CODEC_EMODELS[i];
+		if (pj_ansi_strnicmp(codec_name.c_str(), c.name,
+		                     (pj_ssize_t)strlen(c.name)) == 0) {
+			return c;
+		}
 	}
-	return mos;
+	LOG(logWARNING) << "emodel_for_codec: unknown codec '" << codec_name
+	                << "', falling back to G.711 (Ie=0, Bpl=25.1)";
+	return { "G711-fallback", 0.0f, 25.1f };
 }
 
 void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
@@ -433,10 +489,15 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 		// MOS-LQ - Listening Quality
 		/* represent loss dependent effective equipment impairment factor and percentage loss probability */
-		const int Bpl = 25; /* packet-loss robustness factor Bpl is defined as a codec-specific value. */
-		float Ie_eff_rx, Ppl_rx, Ppl_cut_rx, Ie_eff_tx, Ppl_tx, Ppl_cut_tx;
-		const int Ie = 0; /* Not used : Refer to Appendix I of [ITU-T G.113] for the currently recommended values of Ie.*/
+		const codec_emodel em = emodel_for_codec(infos.codecName);
+		const float Ie = em.Ie;
+		const float Bpl = em.Bpl;
+		float Ie_eff_rx, Ppl_rx, Ie_eff_tx, Ppl_tx;
 		float Ta = 0.0; /* Absolute Delay */
+		/* pjmedia's RtcpStreamStat.pkt counts all packets observed at the
+		 * RTP layer (including those later flagged as discard), so the
+		 * denominator pkt+loss already covers discards. loss and discard
+		 * are disjoint at the source. */
 		Ppl_rx = (rxStat.loss+rxStat.discard) * 100.0 / (rxStat.pkt + rxStat.loss);
 		Ppl_tx = (txStat.loss+txStat.discard) * 100.0 / (txStat.pkt + txStat.loss);
 
@@ -445,11 +506,15 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 		int rfactor_rx = 100 - Ie_eff_rx;
 		float mos_rx = rfactor_to_mos(rfactor_rx);
 		float BurstR_tx = 1.0;
-		Ie_eff_tx = (Ie + (95 - Ie) * Ppl_tx / (Ppl_rx/BurstR_tx + Bpl));
+		/* Was using Ppl_rx in the Tx denominator (copy-paste of the Rx
+		 * formula); Tx impairment must depend on Tx loss. */
+		Ie_eff_tx = (Ie + (95 - Ie) * Ppl_tx / (Ppl_tx/BurstR_tx + Bpl));
 		int rfactor_tx = 100 - Ie_eff_tx;
 		float mos_tx = rfactor_to_mos(rfactor_tx);
 
-		LOG(logINFO) << __FUNCTION__ <<": rtt:"<< rtcp.rttUsec.mean/1000 <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
+		LOG(logINFO) << __FUNCTION__ <<": codec:"<< infos.codecName <<" Ie:"<< Ie
+		             <<" Bpl:"<< Bpl <<" rtt:"<< rtcp.rttUsec.mean/1000
+		             <<" mos_lq_tx:"<<mos_tx<<" mos_lq_rx:"<<mos_rx;
 		rtt = rtcp.rttUsec.mean/1000;
 
 		// MOS-CQ - Conversational Quality
@@ -474,8 +539,23 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 			Id = 25.0 * (pow((1+pow(X,6.0*sT)),(1.0/(6.0*sT)))-3.0*pow((1.0+pow(X/3.0,6.0*sT)),(1.0/(6.0*sT)))+2);
 		}
 		int rfactor_tx_cq = rfactor_tx - Id;
-		float mos_tx_cq = rfactor_to_mos(rfactor_tx);
+		/* Was converting rfactor_tx (LQ) instead of rfactor_tx_cq, so
+		 * mos_tx_cq was identical to mos_tx_lq. */
+		float mos_tx_cq = rfactor_to_mos(rfactor_tx_cq);
 		LOG(logINFO) << __FUNCTION__ <<": Rx-mos-lq["<<mos_tx<<"] Rx-mos-cq["<<mos_tx_cq<<"] >> Ta["<<Ta<<"]RTCP_jitterX2ms["<<txStat.jitterUsec.mean/500<<"]";
+
+		/* Plumb the worst-direction MOS values into Test so min_mos can
+		 * actually gate pass/fail (LQ) and the JSON summary can report
+		 * CQ. Across multiple streams (e.g. after re-INVITE) keep the
+		 * lowest value seen. */
+		{
+			float worst_lq = (mos_rx    < mos_tx)    ? mos_rx    : mos_tx;
+			float worst_cq = (mos_rx_cq < mos_tx_cq) ? mos_rx_cq : mos_tx_cq;
+			if (test->mos == 0 || worst_lq < test->mos)
+				test->mos = worst_lq;
+			if (test->mos_cq == 0 || worst_cq < test->mos_cq)
+				test->mos_cq = worst_cq;
+		}
 
 		// Another interesting study to consider ...
 		// https://www.naun.org/main/NAUN/mcs/2002-124.pdf
@@ -493,7 +573,8 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"kbytes\": "+to_string(txStat.bytes/1024)+", "
 							"\"loss\": "+to_string(txStat.loss)+", "
 							"\"discard\": "+to_string(txStat.discard)+", "
-							"\"mos_lq\": "+to_string(mos_tx)+"} "
+							"\"mos_lq\": "+to_string(mos_tx)+", "
+							"\"mos_cq\": "+to_string(mos_tx_cq)+"} "
 						", \"Rx\":{"
 							"\"jitter_avg\": "+to_string(rxStat.jitterUsec.mean/1000)+", "
 							"\"jitter_max\": "+to_string(rxStat.jitterUsec.max/1000)+", "
@@ -501,7 +582,8 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"kbytes\": "+to_string(rxStat.bytes/1024)+", "
 							"\"loss\": "+to_string(rxStat.loss)+", "
 							"\"discard\": "+to_string(jbuf.discard)+", "
-							"\"mos_lq\": "+to_string(mos_rx)+"} "
+							"\"mos_lq\": "+to_string(mos_rx)+", "
+							"\"mos_cq\": "+to_string(mos_rx_cq)+"} "
 						"}";
 		test->rtp_stats_count++;
 		test->rtp_stats_ready = true;

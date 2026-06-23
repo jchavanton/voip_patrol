@@ -417,8 +417,11 @@ DISCONNECTED
 | force_contact | string | local contact header will be overwritten by the given string |
 | label | string | test description or label |
 | play | string | path to a wav file to play once the call is connected |
-| record | bool | if "true" the call will be recorded once connected in /voice_files |
-| record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
+| record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
+| record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
+| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
+| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 
 ### call command parameters
@@ -442,8 +445,11 @@ DISCONNECTED
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
-| record | bool | if "true" the call will be recorded once connected in /voice_files |
-| record_early | bool | if "true" the call will be recorded when early media starts in /voice_files. If call is answered after, recording will continue in the same file |
+| record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
+| record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
+| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
+| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | play | string | path to a wav file to play once the call is connected |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 | force_contact | string | local contact header will be overwritten by the given string |

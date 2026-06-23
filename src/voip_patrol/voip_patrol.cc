@@ -146,7 +146,7 @@ static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id
 	if (call->recorder_id < 0) {
 		char rec_fn[1024] = "";
 		CallInfo ci = call->getInfo();
-		sprintf(rec_fn,"/voice_files/%s%s_%s_rec.wav", prefix, ci.callIdString.c_str(), caller_contact);
+		sprintf(rec_fn,"%s%s%s_%s_rec.wav", call->test->config->record_dir.c_str(), prefix, ci.callIdString.c_str(), caller_contact);
 		call->test->record_fn = string(&rec_fn[0]);
 		const pj_str_t rec_file_name = pj_str(rec_fn);
 		status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &call->recorder_id);
@@ -1541,6 +1541,7 @@ int main(int argc, char **argv){
             " --bound-addr <IP>                 Bind transports to this IP interface\n"\
             " --rtp-port <1-65535>              Starting port of the range used for RTP\n"\
             " --rtp-port-end <1-65535>          End of of the range range used for RTP\n"\
+            " --record-dir <path>               Directory where call recordings are written (default /voice_files/)\n"\
             "                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -1587,6 +1588,13 @@ int main(int argc, char **argv){
 			config.rtp_cfg.port = atoi(argv[++i]);
 		} else if (arg == "--rtp-port-end") {
 			config.rtp_cfg.port_range = atoi(argv[++i]);
+		} else if (arg == "--record-dir") {
+			if (i + 1 < argc) {
+				config.record_dir = argv[++i];
+				if (!config.record_dir.empty() && config.record_dir.back() != '/') {
+					config.record_dir.push_back('/');
+				}
+			}
 		} else if (arg == "--tls-privkey") {
 			config.tls_cfg.private_key = argv[++i];
 		} else if (arg == "--tls-verify-client") {

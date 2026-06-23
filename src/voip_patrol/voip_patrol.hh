@@ -155,6 +155,7 @@ class Config {
 			int port;
 			int port_range;
 		} rtp_cfg;
+		std::string record_dir{"/voice_files/"};
 		std::vector<Test *> tests_with_rtp_stats;
 		VoipPatrolEnpoint *ep;
 		std::mutex process_result;

@@ -1512,6 +1512,7 @@ int main(int argc, char **argv){
 	bool tcp_only = false;
 	bool udp_only = false;
 	int timer_ms = 0;
+	int max_calls = 60;
 	config.rtp_cfg.port = 4000;
 	ep.config = &config;
 	config.ep = &ep;
@@ -1542,6 +1543,7 @@ int main(int argc, char **argv){
             " --rtp-port <1-65535>              Starting port of the range used for RTP\n"\
             " --rtp-port-end <1-65535>          End of of the range range used for RTP\n"\
             " --record-dir <path>               Directory where call recordings are written (default /voice_files/)\n"\
+            " --max-calls <N>                   Maximum number of concurrent calls (default 50)\n"\
             "                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -1554,6 +1556,10 @@ int main(int argc, char **argv){
 		} else if ( (arg == "-t") || (arg == "--timer_ms") ) {
 			if (i + 1 < argc) {
 				timer_ms = atoi(argv[++i]);
+			}
+		} else if ( arg == "--max-calls" ) {
+			if (i + 1 < argc) {
+				max_calls = atoi(argv[++i]);
 			}
 		} else if ( (arg == "--graceful-shutdown") ) {
 			config.graceful_shutdown = true;
@@ -1661,7 +1667,7 @@ int main(int argc, char **argv){
 			PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
 		}
 		EpConfig ep_cfg;
-		ep_cfg.uaConfig.maxCalls = 1000;
+		ep_cfg.uaConfig.maxCalls = max_calls;
 		ep_cfg.logConfig.level = log_level_file;
 		ep_cfg.logConfig.consoleLevel = log_level_console;
 		std::string pj_log_fn =  log_fn_pjsua;

@@ -1,6 +1,6 @@
 FROM debian:trixie
 
-ARG VERSION="tone_detector"
+ARG VERSION="0.9.1"
 ARG REPO="https://github.com/jchavanton/voip_patrol.git"
 
 RUN echo "installing dependencies" \

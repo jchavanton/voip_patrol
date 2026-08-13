@@ -134,8 +134,14 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 			return status;
 		}
 	}
+	int player_conf_port = pjsua_player_get_conf_port(call->player_id);
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (player_conf_port < 0 || call_conf_port < 0) {
+		LOG(logINFO) <<__FUNCTION__<<": [error] invalid conf port player["<<player_conf_port<<"] call["<<call_conf_port<<"]";
+		return PJ_EINVAL;
+	}
 	LOG(logINFO) <<__FUNCTION__<<": connecting player_id["<<call->player_id<<"]";
-	status = pjsua_conf_connect(pjsua_player_get_conf_port(call->player_id), pjsua_call_get_conf_port(call_id));
+	status = pjsua_conf_connect(player_conf_port, call_conf_port);
 	LOG(logINFO) <<__FUNCTION__<<": player connected";
 	return status;
 }
@@ -749,8 +755,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		durationBeforeEarly = ci.totalDuration.sec*1000 + ci.totalDuration.msec;
 		LOG(logINFO) <<__FUNCTION__<<": RINGING/EARLY PDD: "<< durationBeforeEarly;
 	}
-	// Create player and recorder
-	if (ci.state == PJSIP_INV_STATE_CONFIRMED){
+	// Create player and recorder.
+	// Skip when we already initiated hangup in the block above: pjsua starts
+	// tearing media down and the call's conf_slot may already be invalid.
+	if (ci.state == PJSIP_INV_STATE_CONFIRMED && !disconnecting){
 		if (test->play_dtmf.length() > 0) {
 			test->dtmf_sequence = parseDtmfSequence(test->play_dtmf);
 			test->dtmf_seq_index = 0;

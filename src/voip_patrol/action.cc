@@ -791,8 +791,14 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	vp::tolower(transport);
 	string transport_param = normalize_transport_param(transport);
 
+	// Always rebuild acc_cfg and modify/create the account so the accept
+	// action's parameters (transport, timer, srtp, force_contact, idUri) are
+	// applied even when reusing an existing account (e.g. "default").
+	// Binding sipConfig.transportId is what lets pjsua's Contact resolution
+	// use the transport's advertised (public) address rather than the bound
+	// interface IP returned by get_net_interface().
 	TestAccount *acc = config->findAccount(account_name);
-	if (!acc || force_contact != "") {
+	{
 		AccountConfig acc_cfg;
 		setTurnConfig(acc_cfg, config);
 		apply_ipv6_account_config(acc_cfg, config, account_name, transport);
@@ -846,6 +852,16 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		if (srtp.find("force") != std::string::npos) {
 			acc_cfg.mediaConfig.srtpUse = PJMEDIA_SRTP_MANDATORY;
 			LOG(logINFO) <<__FUNCTION__<<" Forcing SRTP";
+		}
+
+		// Config::createAccount unconditionally applies ip_cfg.bound/public
+		// addresses to mediaConfig.transportConfig, but modify() does not — so
+		// re-apply them here for the modify path.
+		if (!config->ip_cfg.bound_address.empty()) {
+			acc_cfg.mediaConfig.transportConfig.boundAddress = config->ip_cfg.bound_address;
+		}
+		if (!config->ip_cfg.public_address.empty()) {
+			acc_cfg.mediaConfig.transportConfig.publicAddress = config->ip_cfg.public_address;
 		}
 
 		if (acc) {

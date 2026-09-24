@@ -1595,6 +1595,7 @@ int main(int argc, char **argv){
 	bool udp_only = false;
 	int timer_ms = 0;
 	int max_calls = 60;
+	std::vector<std::string> nameservers;
 	config.rtp_cfg.port = 4000;
 	ep.config = &config;
 	config.ep = &ep;
@@ -1626,6 +1627,7 @@ int main(int argc, char **argv){
             " --rtp-port-end <1-65535>          End of of the range range used for RTP\n"\
             " --record-dir <path>               Directory where call recordings are written (default /voice_files/)\n"\
             " --max-calls <N>                   Maximum number of concurrent calls (default 50)\n"\
+            " --nameserver <IP|host>            DNS nameserver for SIP SRV/NAPTR resolution; repeat for multiple\n"\
             "                                                             \n";
 			return 0;
 		} else if ( (arg == "-v") || (arg == "--version") ) {
@@ -1642,6 +1644,10 @@ int main(int argc, char **argv){
 		} else if ( arg == "--max-calls" ) {
 			if (i + 1 < argc) {
 				max_calls = atoi(argv[++i]);
+			}
+		} else if ( arg == "--nameserver" ) {
+			if (i + 1 < argc) {
+				nameservers.push_back(argv[++i]);
 			}
 		} else if ( (arg == "--graceful-shutdown") ) {
 			config.graceful_shutdown = true;
@@ -1756,7 +1762,10 @@ int main(int argc, char **argv){
 		ep_cfg.logConfig.filename = pj_log_fn.c_str();
 		ep_cfg.medConfig.ecTailLen = 0; // disable echo canceller
 		ep_cfg.medConfig.noVad = 1;
-		// ep_cfg.uaConfig.nameserver.push_back("8.8.8.8");
+		for (const auto& ns : nameservers) {
+			ep_cfg.uaConfig.nameserver.push_back(ns);
+			LOG(logINFO) << "nameserver: " << ns;
+		}
 		ep.libInit(ep_cfg);
 		// pjsua_set_null_snd_dev() before calling pjsua_start().
 

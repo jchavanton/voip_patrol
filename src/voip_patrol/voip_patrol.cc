@@ -361,10 +361,15 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 
 TestCall::~TestCall() {
 	if (test) {
-		test->config->checking_calls.lock();
-		test->config->removeCall(this);
+		/* Cache config before delete: unlocking through test->config after
+		 * delete test is a use-after-free. Also skip removeCall from here —
+		 * ~TestCall is invoked *from* Config::removeCall (line 1263), so
+		 * calling it again would try to erase an already-erased entry, and
+		 * more importantly would re-enter delete-this recursively. */
+		Config *cfg = test->config;
+		std::lock_guard<std::mutex> lg(cfg->checking_calls);
 		delete test;
-		test->config->checking_calls.unlock();
+		test = nullptr;
 	}
 }
 

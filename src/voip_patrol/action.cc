@@ -1304,14 +1304,28 @@ void Action::do_wait(vector<ActionParam> &params) {
 			}
 		}
 
-		// prevent calls destruction while parsing looking at them
-		config->checking_calls.lock();
+		// prevent calls destruction while parsing looking at them.
+		// RAII lock: any exception from getInfo/answer/hangup below unwinds
+		// cleanly. Raw lock() + unlock() would leak the mutex on throw and
+		// permanently wedge do_wait (and self-deadlock the shutdown path,
+		// where ~TestCall re-acquires this same non-recursive mutex).
+		{
+		std::lock_guard<std::mutex> checking_calls_lg(config->checking_calls);
 
 		for (auto & call : config->calls) {
 			if (call->test && call->test->state == VPT_DONE){
 				continue;
 			} else if (call->test) {
-				CallInfo ci = call->getInfo();
+				CallInfo ci;
+				try {
+					ci = call->getInfo();
+				} catch (pj::Error &e) {
+					// 171140 = PJSIP_ESESSIONTERMINATED: the call was torn
+					// down between iterations. Skip; it will be reaped later.
+					if (e.status != 171140)
+						LOG(logERROR) <<__FUNCTION__<<" getInfo error: "<< e.status;
+					continue;
+				}
 				if (status_update) {
 					LOG(logDEBUG) <<__FUNCTION__<<": [call]["<<call->getId()<<"][test]["<<(ci.role==0?"CALLER":"CALLEE")<<"]["
 						     << ci.callIdString <<"]["<<ci.remoteUri<<"]["<<ci.stateText<<"|"<<ci.state<<"]duration["
@@ -1323,28 +1337,35 @@ void Action::do_wait(vector<ActionParam> &params) {
 					if (test->tone_detected && test->hangup_on_tone) {
 						LOG(logINFO) <<" tone detected hangup";
 						CallOpParam prm(true);
-						call->hangup(prm);
+						try { call->hangup(prm); }
+						catch (pj::Error &e) {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" hangup error: "<< e.status;
+						}
 					} else if (test->response_delay > 0 && totalDurationMs >= test->response_delay && ci.state == PJSIP_INV_STATE_INCOMING) {
 						CallOpParam prm;
 						prm.opt.textCount = 0;
 
-						// Explicitly answer with 100
-						CallOpParam prm_100;
-						prm_100.statusCode = PJSIP_SC_TRYING;
-						call->answer(prm_100);
+						try {
+							// Explicitly answer with 100
+							CallOpParam prm_100;
+							prm_100.statusCode = PJSIP_SC_TRYING;
+							call->answer(prm_100);
 
-						if (test->ring_duration > 0) {
-							prm.statusCode = PJSIP_SC_RINGING;
-							if (test->early_media)
-								prm.statusCode = PJSIP_SC_PROGRESS;
-							LOG(logINFO) <<" Answering call["<<call->getId()<<"] with "<<prm.statusCode<<" on call time: "<<totalDurationMs<<" ms";
-							call->answer(prm);
-						} else {
-							prm.reason = "OK";
+							if (test->ring_duration > 0) {
+								prm.statusCode = PJSIP_SC_RINGING;
+								if (test->early_media)
+									prm.statusCode = PJSIP_SC_PROGRESS;
+								LOG(logINFO) <<" Answering call["<<call->getId()<<"] with "<<prm.statusCode<<" on call time: "<<totalDurationMs<<" ms";
+								call->answer(prm);
+							} else {
+								prm.reason = "OK";
 
-							if (test->code) prm.statusCode = test->code;
-							else prm.statusCode = PJSIP_SC_OK;
-							call->answer(prm);
+								if (test->code) prm.statusCode = test->code;
+								else prm.statusCode = PJSIP_SC_OK;
+								call->answer(prm);
+							}
+						} catch (pj::Error &e) {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" answer error: "<< e.status;
 						}
 					} else if (test->ring_duration > 0 && totalDurationMs >= (test->ring_duration * 1000 + test->response_delay)) {
 						CallOpParam prm;
@@ -1353,7 +1374,10 @@ void Action::do_wait(vector<ActionParam> &params) {
 						prm.reason = "OK";
 						if (test->code) prm.statusCode = test->code;
 						else prm.statusCode = PJSIP_SC_OK;
-						call->answer(prm);
+						try { call->answer(prm); }
+						catch (pj::Error &e) {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" answer error: "<< e.status;
+						}
 					} else if (test->max_ringing_duration && (test->max_ringing_duration + test->response_delay) * 1000 <= std::max(0, totalDurationMs - call->durationBeforeEarly)) {
 						LOG(logINFO) <<" Call ringing ["<<call->getId()<<"] duration: "<<totalDurationMs<<"ms before ringing:"<<call->durationBeforeEarly<<"ms, max ringing duration:"<< (test->max_ringing_duration * 1000 + test->response_delay);
 						if (ci.totalDuration.sec > 0 && ci.totalDuration.msec < 110 && ci.totalDuration.sec % 10 == 0) {
@@ -1437,7 +1461,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 				pos++;
  			}
 		}
-		config->checking_calls.unlock();
+		} // release checking_calls lock_guard before sleeping
 
 		if (tests_running == 0 && complete_all) {
 			LOG(logINFO) << __FUNCTION__ << ": action[wait] no more tests are running, exiting ... ";

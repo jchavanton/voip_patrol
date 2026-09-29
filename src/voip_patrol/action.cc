@@ -1284,6 +1284,14 @@ void Action::do_wait(vector<ActionParam> &params) {
 			config->new_calls.erase(it);
 			break;
 		}
+		// Read call_count under the same lock onIncomingCall decrements it under, and
+		// count calls still queued: otherwise an arriving call can be in neither place.
+		tests_running += config->new_calls.size();
+		for (auto & account : config->accounts) {
+			if (account->call_count > 0 && (duration_ms > 0 || duration_ms == -1)) {
+				tests_running++;
+			}
+		}
 		config->new_calls_lock.unlock();
 
 		for (auto & account : config->accounts) {
@@ -1292,10 +1300,6 @@ void Action::do_wait(vector<ActionParam> &params) {
 				delete account->test;
 				account->test = NULL;
 			} else if (account->test) {
-				tests_running++;
-			}
-			// accept/call_count, are considered "tests_running" when maximum duration is either not specified or reached.
-			if (account->call_count > 0 && (duration_ms > 0 || duration_ms == -1)) {
 				tests_running++;
 			}
 			// accept/message_count, are considered "tests_running" when maximum duration is either not specified or reached.

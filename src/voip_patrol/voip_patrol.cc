@@ -927,9 +927,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	if (response_delay > 0) {
 		LOG(logINFO) << __FUNCTION__ << ": Not returning 100 due to response delay: " << response_delay << " ms";
 		calls.push_back(call);
+		config->new_calls_lock.lock();
 		if (call_count > 0)
 			call_count--;
-		config->new_calls_lock.lock();
 		config->new_calls.push_back(call);
 		config->new_calls_lock.unlock();
 		return;
@@ -955,9 +955,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 	call->answer(prm);
 
 	calls.push_back(call);
+	config->new_calls_lock.lock();
 	if (call_count > 0)
 		call_count--;
-	config->new_calls_lock.lock();
 	config->new_calls.push_back(call);
 	config->new_calls_lock.unlock();
 }

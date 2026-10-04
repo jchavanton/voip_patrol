@@ -225,7 +225,7 @@ static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id
 // on the player's conf port captures our outbound audio, kept apart from the inbound file.
 static pj_status_t record_tx_call(const char *prefix, TestCall* call, const char *caller_contact) {
 	if (call->player_id < 0) {
-		LOG(logINFO) <<__FUNCTION__<<": [tx recorder] no player (no play=), nothing to record";
+		LOG(logINFO) <<__FUNCTION__<<": [tx recorder] no player (the play file could not be opened), nothing to record";
 		return PJ_EINVAL;
 	}
 	pj_status_t status = PJ_SUCCESS;

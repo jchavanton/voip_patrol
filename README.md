@@ -476,6 +476,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | label | string | test description or label |
 | play | string | path to a wav file to play once the call is connected |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
+| record_tx | bool | if "true" the audio sent to the far end (the `play` file) is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`; requires `play` |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
 | detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
@@ -504,6 +505,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
+| record_tx | bool | if "true" the audio sent to the far end (the `play` file) is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`; requires `play` |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
 | detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |

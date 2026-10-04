@@ -221,6 +221,29 @@ static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id
 	return status;
 }
 
+// record_tx_call records what we send: the player feeds the call, so a second recorder
+// on the player's conf port captures our outbound audio, kept apart from the inbound file.
+static pj_status_t record_tx_call(const char *prefix, TestCall* call, const char *caller_contact) {
+	if (call->player_id < 0) {
+		LOG(logINFO) <<__FUNCTION__<<": [tx recorder] no player (no play=), nothing to record";
+		return PJ_EINVAL;
+	}
+	pj_status_t status = PJ_SUCCESS;
+	if (call->tx_recorder_id < 0) {
+		char rec_fn[1024] = "";
+		CallInfo ci = call->getInfo();
+		snprintf(rec_fn, sizeof(rec_fn), "%s%s%s_%s_tx.wav", call->test->config->record_dir.c_str(), prefix, ci.callIdString.c_str(), caller_contact);
+		const pj_str_t rec_file_name = pj_str(rec_fn);
+		status = pjsua_recorder_create(&rec_file_name, 0, NULL, -1, 0, &call->tx_recorder_id);
+		if (status != PJ_SUCCESS) {
+			LOG(logINFO) <<__FUNCTION__<<": [error] tx recorder create";
+			return status;
+		}
+		LOG(logINFO) <<__FUNCTION__<<": [tx recorder] >> created:" << call->tx_recorder_id << " fn:"<< rec_fn;
+	}
+	return pjsua_conf_connect(pjsua_player_get_conf_port(call->player_id), pjsua_recorder_get_conf_port(call->tx_recorder_id));
+}
+
 string get_call_state_string (call_state_t state) {
 	if (state == INV_STATE_CALLING) return "CALLING";
 	if (state == INV_STATE_INCOMING) return "INCOMING";
@@ -319,6 +342,10 @@ void TestCall::hangup(const CallOpParam &prm) {
 			pjsua_recorder_destroy(recorder_id);
 			recorder_id = -1;
 		}
+		if (tx_recorder_id != -1) {
+			pjsua_recorder_destroy(tx_recorder_id);
+			tx_recorder_id = -1;
+		}
 
 		Call::hangup(prm);
 }
@@ -352,6 +379,7 @@ TestCall::TestCall(TestAccount *p_acc, int call_id) : Call(*p_acc, call_id) {
 	test = NULL;
 	acc = p_acc;
 	recorder_id = -1;
+	tx_recorder_id = -1;
 	tone_detector_id = -1;
 	player_id = -1;
 	durationBeforeEarly = 0;
@@ -775,6 +803,9 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 				test->is_recording_running = true;
 			}
 		}
+		if (tx_recorder_id < 0 && test->record_tx) {
+			record_tx_call("record_", this, test->remote_user.c_str());
+		}
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
@@ -788,6 +819,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			LOG(logINFO) <<__FUNCTION__<<" [onCallState] destroying recorder_id="<<recorder_id;
 			pjsua_recorder_destroy(recorder_id);
 			recorder_id = -1;
+		}
+		if (tx_recorder_id != -1){
+			pjsua_recorder_destroy(tx_recorder_id);
+			tx_recorder_id = -1;
 		}
 		if (tone_detector_id != -1){
 			pjsua_tone_detector_destroy(tone_detector_id);
@@ -904,6 +939,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->late_start = late_start;
 		call->test->record_early = record_early;
 		call->test->record = record;
+		call->test->record_tx = record_tx;
 		call->test->detect_tone = detect_tone;
 		call->test->hangup_on_tone = hangup_on_tone;
 		call->test->tones = tones.empty() ? std::vector<unsigned>{440u, 480u} : tones;

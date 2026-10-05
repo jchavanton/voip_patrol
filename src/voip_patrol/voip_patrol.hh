@@ -205,6 +205,7 @@ class Test {
 		bool late_start{false};
 		bool record_early{false};
 		bool record{false};
+		bool record_tx{false};      // also record what we send, to <...>_tx.wav
 		bool detect_tone{false};
 		bool hangup_on_tone{true};                // hangup when tone detected
 		std::atomic<bool> tone_detected{false};   // written from pjmedia worker thread
@@ -288,6 +289,7 @@ class TestAccount : public Account {
 		bool late_start {false};
 		bool record_early {false};
 		bool record {false};
+		bool record_tx {false};
 		bool detect_tone {false};
 		bool hangup_on_tone {true};
 		std::vector<unsigned> tones;
@@ -325,6 +327,7 @@ class TestCall : public Call {
 		void makeCall(const string &dst_uri, const CallOpParam &prm, const string &to_uri);
 		void hangup(const CallOpParam &prm);
 		pjsua_recorder_id recorder_id{-1};
+		pjsua_recorder_id tx_recorder_id{-1};
 		pjsua_recorder_id tone_detector_id{-1};
 		pjsua_player_id player_id{-1};
 		int role;

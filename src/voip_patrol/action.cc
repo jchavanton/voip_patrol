@@ -255,6 +255,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("record_tx", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("tones", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
@@ -298,6 +299,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("record_tx", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("tones", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
@@ -744,6 +746,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	bool late_start {false};
 	bool record_early {false};
 	bool record {false};
+	bool record_tx {false};
 	bool detect_tone {false};
 	bool hangup_on_tone {true};
 	string tones_str {};
@@ -774,6 +777,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
+		else if (param.name.compare("record_tx") == 0) record_tx = param.b_val;
 		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
 		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
 		else if (param.name.compare("hangup_on_tone") == 0) hangup_on_tone = param.b_val;
@@ -880,6 +884,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->late_start = late_start;
 	acc->record_early = record_early;
 	acc->record = record;
+	acc->record_tx = record_tx;
 	acc->detect_tone = detect_tone;
 	acc->hangup_on_tone = hangup_on_tone;
 	acc->tones = parse_tones(tones_str);
@@ -932,6 +937,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	bool rtp_stats {false};
 	bool late_start {false};
 	bool record {false};
+	bool record_tx {false};
 	bool record_early {false};
 	bool detect_tone {false};
 	bool hangup_on_tone {true};
@@ -960,6 +966,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
+		else if (param.name.compare("record_tx") == 0) record_tx = param.b_val;
 		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
 		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
 		else if (param.name.compare("hangup_on_tone") == 0) hangup_on_tone = param.b_val;
@@ -1113,6 +1120,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->late_start = late_start;
 		test->record_early = record_early;
 		test->record = record;
+		test->record_tx = record_tx;
 		test->detect_tone = detect_tone;
 		test->hangup_on_tone = hangup_on_tone;
 		test->tones = parse_tones(tones_str);

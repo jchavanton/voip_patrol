@@ -17,6 +17,11 @@
  */
 
 #include "voip_patrol.hh"
+#include <pjmedia/null_port.h>
+
+// Forward declarations for meter sink.
+static void attach_meter_sink(TestCall *call, pjsua_call_id call_id);
+static void detach_meter_sink(TestCall *call);
 #include "mod_voip_patrol.hh"
 #include "action.hh"
 #include "check.hh"
@@ -346,6 +351,7 @@ void TestCall::hangup(const CallOpParam &prm) {
 			pjsua_recorder_destroy(tx_recorder_id);
 			tx_recorder_id = -1;
 		}
+		detach_meter_sink(this);
 
 		Call::hangup(prm);
 }
@@ -538,6 +544,113 @@ static codec_emodel emodel_for_codec(const std::string &codec_name) {
 	return { "G711-fallback", 0.0f, 25.1f };
 }
 
+/* Create a null sink port and connect the call -> null, so pjmedia's
+ * port->bridge signal-level meter on the call conf port stays populated.
+ * Called at CONFIRMED time only when the test has no recorder and no
+ * tone detector; otherwise those already consume the port. */
+static void attach_meter_sink(TestCall *call, pjsua_call_id call_id) {
+	if (!call || call->meter_sink_slot != PJSUA_INVALID_ID) return;
+	if (!call->test || !call->test->energy_stats) return;
+	if (call->test->record || call->test->detect_tone) return;
+
+	pj_pool_t *pool = pjsua_pool_create("vp-meter", 512, 512);
+	if (!pool) return;
+
+	pjmedia_port *port = nullptr;
+	pj_status_t status = pjmedia_null_port_create(pool, 8000, 1, 160, 16, &port);
+	if (status != PJ_SUCCESS) {
+		pj_pool_release(pool);
+		return;
+	}
+
+	pjsua_conf_port_id slot = PJSUA_INVALID_ID;
+	status = pjsua_conf_add_port(pool, port, &slot);
+	if (status != PJ_SUCCESS) {
+		pj_pool_release(pool);
+		return;
+	}
+
+	status = pjsua_conf_connect(pjsua_call_get_conf_port(call_id), slot);
+	if (status != PJ_SUCCESS) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return;
+	}
+
+	call->meter_sink_port = port;
+	call->meter_sink_pool = pool;
+	call->meter_sink_slot = slot;
+	LOG(logINFO) <<"attach_meter_sink: slot="<< slot;
+}
+
+static void detach_meter_sink(TestCall *call) {
+	if (!call || call->meter_sink_slot == PJSUA_INVALID_ID) return;
+	pjsua_conf_remove_port(call->meter_sink_slot);
+	call->meter_sink_slot = PJSUA_INVALID_ID;
+	call->meter_sink_port = nullptr;
+	if (call->meter_sink_pool) {
+		pj_pool_release(call->meter_sink_pool);
+		call->meter_sink_pool = nullptr;
+	}
+}
+
+/* Sample the call's conf-port signal levels on a CONFIRMED call and
+ * fold the values into Test counters. Called from do_wait's 100 ms
+ * status tick: the underlying tx_level/rx_level fields in pjmedia are
+ * overwritten every bridge frame (~20 ms), so a single read at
+ * stream-destroy would be meaningless. We under-sample by design;
+ * 100 ms is still fast enough to catch any sub-second speech burst,
+ * and it's cheap (just a mutexed field read in pjmedia). */
+void sample_signal_levels(TestCall *call) {
+	if (!call || !call->test) return;
+	Test *test = call->test;
+
+	/* Use the raw pjsua C API on the call conference port directly.
+	 * pjsua2's AudioMedia::getRxLevel/getTxLevel wrap the same call but
+	 * flip the naming in a confusing way; bypassing them keeps the
+	 * TX/RX direction unambiguous and avoids a getAudioMedia() lookup
+	 * that can throw during media-state transitions.
+	 *
+	 * On a call conf port:
+	 *   tx_level (bridge -> port) = audio about to be encoded for outbound RTP
+	 *   rx_level (port -> bridge) = audio decoded from inbound RTP
+	 */
+	pjsua_call_id cid = call->getId();
+	if (cid == PJSUA_INVALID_ID) return;
+	pjsua_conf_port_id slot = pjsua_call_get_conf_port(cid);
+	if (slot != PJSUA_INVALID_ID) {
+		unsigned tx = 0, rx = 0;
+		if (pjsua_conf_get_signal_level(slot, &tx, &rx) == PJ_SUCCESS) {
+			if (tx > test->tx_level_peak) test->tx_level_peak = tx;
+			if (rx > test->rx_level_peak) test->rx_level_peak = rx;
+			test->tx_level_sum += tx;
+			test->rx_level_sum += rx;
+			test->tx_level_samples++;
+			test->rx_level_samples++;
+			if (tx > VOICE_LEVEL_THRESHOLD) test->tx_voice_frames++;
+			if (rx > VOICE_LEVEL_THRESHOLD) test->rx_voice_frames++;
+		}
+	}
+
+	/* Also sample the player port when one is attached. The player is a
+	 * source into the bridge, so only its rx_level (port->bridge) is
+	 * meaningful; that is the outbound audio about to be mixed into the
+	 * call. Uses the raw pjsua C API because voip_patrol tracks
+	 * player_id as pjsua_player_id, not pjsua2::AudioMediaPlayer. */
+	if (call->player_id >= 0) {
+		pjsua_conf_port_id pslot = pjsua_player_get_conf_port(call->player_id);
+		if (pslot != PJSUA_INVALID_ID) {
+			unsigned level = 0;
+			if (pjsua_conf_get_signal_level(pslot, NULL, &level) == PJ_SUCCESS) {
+				if (level > test->tx_player_level_peak) test->tx_player_level_peak = level;
+				test->tx_player_level_sum += level;
+				test->tx_player_level_samples++;
+				if (level > VOICE_LEVEL_THRESHOLD) test->tx_player_voice_frames++;
+			}
+		}
+	}
+}
+
 void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 	LOG(logINFO) << __FUNCTION__ << ":"<<prm.digit;
 	test->dtmf_recv.append(prm.digit);
@@ -657,6 +770,30 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 
 		if (test->rtp_stats_count > 0)
 			test->rtp_stats_json = test->rtp_stats_json + ',';
+
+		// Energy fields are opt-in via energy_stats="true" on the action so
+		// the default rtp_stats output stays lean. When off, the Tx/Rx
+		// blocks end right after mos_cq; when on, we append the sampled
+		// level_* counters plus the player_* cross-check on Tx.
+		string tx_energy_json = "";
+		string rx_energy_json = "";
+		if (test->energy_stats) {
+			tx_energy_json = ", "
+				"\"level_peak\": "+to_string(test->tx_level_peak)+", "
+				"\"level_avg\": "+to_string(test->tx_level_samples ? test->tx_level_sum / test->tx_level_samples : 0)+", "
+				"\"voice_frames\": "+to_string(test->tx_voice_frames)+", "
+				"\"samples\": "+to_string(test->tx_level_samples)+", "
+				"\"player_level_peak\": "+to_string(test->tx_player_level_peak)+", "
+				"\"player_level_avg\": "+to_string(test->tx_player_level_samples ? test->tx_player_level_sum / test->tx_player_level_samples : 0)+", "
+				"\"player_voice_frames\": "+to_string(test->tx_player_voice_frames)+", "
+				"\"player_samples\": "+to_string(test->tx_player_level_samples);
+			rx_energy_json = ", "
+				"\"level_peak\": "+to_string(test->rx_level_peak)+", "
+				"\"level_avg\": "+to_string(test->rx_level_samples ? test->rx_level_sum / test->rx_level_samples : 0)+", "
+				"\"voice_frames\": "+to_string(test->rx_voice_frames)+", "
+				"\"samples\": "+to_string(test->rx_level_samples);
+		}
+
 		test->rtp_stats_json = test->rtp_stats_json + "{\"rtt\":"+to_string(rtt)+","
 						"\"remote_rtp_socket\": \""+infos.remoteRtpAddress+"\", "
 						"\"codec_name\": \""+infos.codecName+"\", "
@@ -669,7 +806,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"loss\": "+to_string(txStat.loss)+", "
 							"\"discard\": "+to_string(txStat.discard)+", "
 							"\"mos_lq\": "+to_string(mos_tx)+", "
-							"\"mos_cq\": "+to_string(mos_tx_cq)+"} "
+							"\"mos_cq\": "+to_string(mos_tx_cq)+tx_energy_json+"} "
 						", \"Rx\":{"
 							"\"jitter_avg\": "+to_string(rxStat.jitterUsec.mean/1000)+", "
 							"\"jitter_max\": "+to_string(rxStat.jitterUsec.max/1000)+", "
@@ -678,7 +815,7 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 							"\"loss\": "+to_string(rxStat.loss)+", "
 							"\"discard\": "+to_string(jbuf.discard)+", "
 							"\"mos_lq\": "+to_string(mos_rx)+", "
-							"\"mos_cq\": "+to_string(mos_rx_cq)+"} "
+							"\"mos_cq\": "+to_string(mos_rx_cq)+rx_energy_json+"} "
 						"}";
 		test->rtp_stats_count++;
 		test->rtp_stats_ready = true;
@@ -806,6 +943,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 		if (tx_recorder_id < 0 && test->record_tx) {
 			record_tx_call("record_", this, test->remote_user.c_str());
 		}
+		attach_meter_sink(this, ci.id);
 	}
 	if (ci.state == PJSIP_INV_STATE_DISCONNECTED) {
 		std::string res = "call[" + std::to_string(ci.lastStatusCode) + "] reason["+ ci.lastReason +"]";
@@ -936,6 +1074,7 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->state = VPT_RUN_WAIT;
 		call->test->rtp_stats = rtp_stats = true;
 		LOG(logINFO) <<__FUNCTION__<<": rtp_stats:" << rtp_stats;
+		call->test->energy_stats = energy_stats;
 		call->test->late_start = late_start;
 		call->test->record_early = record_early;
 		call->test->record = record;

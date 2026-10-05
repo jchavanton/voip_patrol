@@ -85,7 +85,15 @@ It is possible to test many scenarios that are not easy to test manually like a 
         "kbytes": 127,
         "loss": 0,
         "discard": 0,
-        "mos_lq": 4.5
+        "mos_lq": 4.5,
+        "level_peak": 81,
+        "level_avg": 24,
+        "voice_frames": 97,
+        "samples": 150,
+        "player_level_peak": 81,
+        "player_level_avg": 24,
+        "player_voice_frames": 97,
+        "player_samples": 150
       },
       "Rx": {
         "jitter_avg": 0,
@@ -94,12 +102,42 @@ It is possible to test many scenarios that are not easy to test manually like a 
         "kbytes": 127,
         "loss": 0,
         "discard": 0,
-        "mos_lq": 4.5
+        "mos_lq": 4.5,
+        "level_peak": 78,
+        "level_avg": 15,
+        "voice_frames": 71,
+        "samples": 150
       }
     }
   }
 }
 ```
+
+### Signal-level sampling
+
+Set `energy_stats="true"` on a `call` or `accept` action.
+
+| field | meaning |
+|---|---|
+| `level_peak` | maximum sampled level over the call (0..255) |
+| `level_avg` | arithmetic mean of all samples |
+| `voice_frames` | count of samples whose level exceeded the voice threshold (3) |
+| `samples` | total number of samples taken (~10 Hz × duration_sec) |
+
+| level  | approx dBov | typical signal |
+|-------:|------------:|----------------|
+| 0..3   |  < −70      | digital silence / mute (below the voice-frame threshold) |
+| 8      |     −64     | low-level comfort noise, breath |
+| 16     |     −56     | quiet room noise |
+| 32     |     −48     | distant / whispered speech |
+| 64     |     −39     | soft speech |
+| 96     |     −31     | quiet conversational voice |
+| 120    |     −26     | **ITU-T P.56 nominal active speech level** |
+| 128    |     −25     | normal conversational voice |
+| 160    |     −18     | loud / emphatic voice |
+| 192    |     −12     | shouting |
+| 224    |      −6     | near-clip / screaming into the handset |
+| 255    |       0     | digital full scale (clipping) |
 
 ### Example: starting a TLS server
 ```bash
@@ -469,6 +507,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | min_mos | float | minimum acceptable MOS score for the call to PASS |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| energy_stats | bool | if "true" the json report will include a signal level stats |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory |
 | late_start | bool | if "true" no SDP will be included in the 200 OK and will result in a late offer in ACK |
 | hangup | int | call duration in second before hangup |
@@ -502,6 +541,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | min_mos | float | minimum acceptable MOS score for the call to PASS |
 | re_invite_interval | int | Interval in seconds at which a re-invite with SDP will be sent |
 | rtp_stats | bool | if "true" the json report will include a report on RTP transmission |
+| energy_stats | bool | if "true" the json report will include a signal level stats |
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |

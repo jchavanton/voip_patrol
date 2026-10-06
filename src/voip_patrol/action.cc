@@ -252,6 +252,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("max_ringing_duration", false, APType::apt_integer));
 	do_call_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_call_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("energy_stats", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record", false, APType::apt_bool));
@@ -296,6 +297,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("re_invite_interval", false, APType::apt_integer));
 	do_accept_params.push_back(ActionParam("min_mos", false, APType::apt_float));
 	do_accept_params.push_back(ActionParam("rtp_stats", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("energy_stats", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("late_start", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record", false, APType::apt_bool));
@@ -743,6 +745,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	int re_invite_interval {0};
 	call_state_t wait_until {INV_STATE_NULL};
 	bool rtp_stats {false};
+	bool energy_stats {false};
 	bool late_start {false};
 	bool record_early {false};
 	bool record {false};
@@ -772,6 +775,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("early_media") == 0) early_media = param.b_val;
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
+		else if (param.name.compare("energy_stats") == 0) energy_stats = param.b_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
@@ -881,6 +885,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->ring_duration = ring_duration;
 	acc->accept_label = label;
 	acc->rtp_stats = rtp_stats;
+	acc->energy_stats = energy_stats;
 	acc->late_start = late_start;
 	acc->record_early = record_early;
 	acc->record = record;
@@ -935,6 +940,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	int repeat_interval {0};
 	bool recording {false};
 	bool rtp_stats {false};
+	bool energy_stats {false};
 	bool late_start {false};
 	bool record {false};
 	bool record_tx {false};
@@ -963,6 +969,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
+		else if (param.name.compare("energy_stats") == 0) energy_stats = param.b_val;
 		else if (param.name.compare("late_start") == 0) late_start = param.b_val;
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
@@ -1117,6 +1124,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->re_invite_next = re_invite_interval;
 		test->recording = recording;
 		test->rtp_stats = rtp_stats;
+		test->energy_stats = energy_stats;
 		test->late_start = late_start;
 		test->record_early = record_early;
 		test->record = record;
@@ -1411,6 +1419,7 @@ void Action::do_wait(vector<ActionParam> &params) {
 					call->test->setup_duration = ci.totalDuration.sec - ci.connectDuration.sec;
 					call->test->result_cause_code = (int)ci.lastStatusCode;
 					call->test->reason = ci.lastReason;
+					if (call->test->energy_stats) sample_signal_levels(call);
 					// check re-invite
 					if (call->test->re_invite_interval && ci.connectDuration.sec >= call->test->re_invite_next){
 						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {

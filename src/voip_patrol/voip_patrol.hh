@@ -179,6 +179,13 @@ string get_call_state_string (call_state_t state);
 
 const char default_playback_file[] = "voice_ref_files/reference_8000.wav";
 
+/* Any sampled level strictly above this counts as a "voice" frame.
+ * getRxLevel reports 0..255 (via mu-law of mean |amplitude|); comfort
+ * noise / DTX typically sits at 0-2, real speech is well above 10. */
+constexpr unsigned VOICE_LEVEL_THRESHOLD = 3;
+
+void sample_signal_levels(TestCall *call);
+
 typedef enum test_run_state {
 	VPT_RUN,              // test is running
 	VPT_RUN_WAIT,         // test is running and will block execution when command wait is used
@@ -202,6 +209,7 @@ class Test {
 		float mos{0.0};        // Listening Quality (LQ), worst direction, lowest across streams
 		float mos_cq{0.0};     // Conversational Quality (LQ minus delay impairment)
 		bool rtp_stats{false};
+		bool energy_stats{false};   // enables signal-level sampling (level_* fields + meter sink)
 		bool late_start{false};
 		bool record_early{false};
 		bool record{false};
@@ -222,6 +230,26 @@ class Test {
 		int max_duration{0};
 		int ring_duration{0};
 		int rtp_stats_count{0};
+		/* Signal-level sampling (polled from do_wait while CONFIRMED).
+		 * getRxLevel/getTxLevel return the mean |amplitude| of the last
+		 * bridge frame, mapped to 0..255; it's a snapshot that gets
+		 * overwritten every ptime, so we must aggregate here. */
+		unsigned rx_level_peak{0};
+		unsigned tx_level_peak{0};
+		unsigned long long rx_level_sum{0};
+		unsigned long long tx_level_sum{0};
+		unsigned rx_level_samples{0};
+		unsigned tx_level_samples{0};
+		unsigned rx_voice_frames{0};  /* samples where level > VOICE_LEVEL_THRESHOLD */
+		unsigned tx_voice_frames{0};
+		/* Also sample the player port directly as a cross-check for
+		 * the outbound signal: the player feeds the call conf port, so
+		 * its port->bridge level is exactly the audio about to be mixed
+		 * into the call. Only populated while player_id>=0. */
+		unsigned tx_player_level_peak{0};
+		unsigned long long tx_player_level_sum{0};
+		unsigned tx_player_level_samples{0};
+		unsigned tx_player_voice_frames{0};
 		int max_ringing_duration{0};
 		int response_delay{0};
 		int cancel{0};
@@ -286,6 +314,7 @@ class TestAccount : public Account {
 		int ring_duration {0};
 		int response_delay {0};
 		bool rtp_stats {false};
+		bool energy_stats {false};
 		bool late_start {false};
 		bool record_early {false};
 		bool record {false};
@@ -329,6 +358,14 @@ class TestCall : public Call {
 		pjsua_recorder_id recorder_id{-1};
 		pjsua_recorder_id tx_recorder_id{-1};
 		pjsua_recorder_id tone_detector_id{-1};
+		/* Dedicated meter sink: pjmedia only populates a conf port's
+		 * port->bridge signal-level meter when something downstream is
+		 * actively consuming the port. If the test has no recorder and
+		 * no tone detector, we attach a null port purely to keep the
+		 * meter alive so sample_signal_levels can read inbound RX. */
+		pjmedia_port *meter_sink_port{nullptr};
+		pj_pool_t *meter_sink_pool{nullptr};
+		pjsua_conf_port_id meter_sink_slot{PJSUA_INVALID_ID};
 		pjsua_player_id player_id{-1};
 		int role;
 		int rtt;

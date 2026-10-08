@@ -188,8 +188,11 @@ bool Action::set_param(ActionParam &param, const char *val) {
 		subst = true;
 	}
 	if (param.type == APType::apt_bool) {
-		if (subst) tmp_val = get_env(val).c_str();
-		else tmp_val = val;
+		string env_val; // keeps the substituted value alive while tmp_val points into it
+		if (subst) {
+			env_val = get_env(val);
+			tmp_val = env_val.c_str();
+		} else tmp_val = val;
 		if( strcmp(tmp_val, "false") ==  0 )  param.b_val = false;
 		else param.b_val = true;
 	} else if (param.type == APType::apt_integer) {
@@ -205,6 +208,7 @@ bool Action::set_param(ActionParam &param, const char *val) {
 		    param.s_val = val;
 		}
 	}
+	param.set = true;
 	return true;
 }
 
@@ -418,7 +422,7 @@ void Action::do_message(vector<ActionParam> &params, vector<ActionCheck> &checks
 		else if (param.name.compare("password") == 0) password = param.s_val;
 		else if (param.name.compare("realm") == 0 && param.s_val != "") realm = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
-		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
+		else if (param.name.compare("expected_cause_code") == 0 && param.set) expected_cause_code = param.i_val;
 	}
 
 	TestAccount *acc = config->findAccount(from);
@@ -511,7 +515,7 @@ void Action::do_register(vector<ActionParam> &params, vector<ActionCheck> &check
 		else if (param.name.compare("instance_id") == 0) instance_id = param.s_val;
 		else if (param.name.compare("unregister") == 0) unregister = param.b_val;
 		else if (param.name.compare("rewrite_contact") == 0) rewrite_contact = param.b_val;
-		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
+		else if (param.name.compare("expected_cause_code") == 0 && param.set) expected_cause_code = param.i_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 	}
 
@@ -784,7 +788,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("record_tx") == 0) record_tx = param.b_val;
 		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
 		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
-		else if (param.name.compare("hangup_on_tone") == 0) hangup_on_tone = param.b_val;
+		else if (param.name.compare("hangup_on_tone") == 0 && param.set) hangup_on_tone = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("cancel") == 0) cancel_duration = param.i_val;
@@ -965,7 +969,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("realm") == 0 && param.s_val != "") realm = param.s_val;
 		else if (param.name.compare("label") == 0) label = param.s_val;
 		else if (param.name.compare("proxy") == 0) proxy = param.s_val;
-		else if (param.name.compare("expected_cause_code") == 0) expected_cause_code = param.i_val;
+		else if (param.name.compare("expected_cause_code") == 0 && param.set) expected_cause_code = param.i_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("min_mos") == 0) min_mos = param.f_val;
 		else if (param.name.compare("rtp_stats") == 0) rtp_stats = param.b_val;
@@ -976,7 +980,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("record_tx") == 0) record_tx = param.b_val;
 		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
 		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
-		else if (param.name.compare("hangup_on_tone") == 0) hangup_on_tone = param.b_val;
+		else if (param.name.compare("hangup_on_tone") == 0 && param.set) hangup_on_tone = param.b_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;

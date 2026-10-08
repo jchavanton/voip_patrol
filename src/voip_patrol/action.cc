@@ -188,8 +188,11 @@ bool Action::set_param(ActionParam &param, const char *val) {
 		subst = true;
 	}
 	if (param.type == APType::apt_bool) {
-		if (subst) tmp_val = get_env(val).c_str();
-		else tmp_val = val;
+		string env_val; // keeps the substituted value alive while tmp_val points into it
+		if (subst) {
+			env_val = get_env(val);
+			tmp_val = env_val.c_str();
+		} else tmp_val = val;
 		if( strcmp(tmp_val, "false") ==  0 )  param.b_val = false;
 		else param.b_val = true;
 	} else if (param.type == APType::apt_integer) {

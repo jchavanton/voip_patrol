@@ -40,6 +40,7 @@ struct ActionParam {
 	float f_val;
 	bool b_val;
 	bool required;
+	bool set {false}; // present in the XML; lets a parser keep its own default when unset
 };
 
 

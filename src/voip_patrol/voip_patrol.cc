@@ -826,8 +826,8 @@ void TestCall::onStreamDestroyed(OnStreamDestroyedParam &prm) {
 						"}";
 		test->rtp_stats_count++;
 		test->rtp_stats_ready = true;
-		if (ci.state == PJSIP_INV_STATE_CONFIRMED) return;
-		test->update_result();
+		/* Do not complete the test here: CallInfo may still hold a provisional code.
+		   onCallState() and the main loop complete it and pick up rtp_stats_ready. */
 	} catch (pj::Error e)  {
 			LOG(logERROR) <<__FUNCTION__<<" error :" << e.status << std::endl;
 	}

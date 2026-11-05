@@ -127,6 +127,12 @@ static std::vector<Test::DtmfSequenceItem> parseDtmfSequence(const std::string &
 
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
+	// "silence" disables playback entirely: no player is opened, so nothing is
+	// mixed into the outbound audio. record_tx guards on player_id and will log.
+	if (call->test->play == "silence") {
+		LOG(logINFO) <<__FUNCTION__<<": play=silence, skipping player";
+		return PJ_SUCCESS;
+	}
 	// Create a player if none.
 	if (call->player_id < 0) {
 		char * fn = new char [call->test->play.length()+1];

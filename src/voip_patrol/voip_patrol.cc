@@ -317,11 +317,17 @@ static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id
 	return status;
 }
 
-// record_tx_call records what we send: the player feeds the call, so a second recorder
-// on the player's conf port captures our outbound audio, kept apart from the inbound file.
+// record_tx_call records what we send: the audio source (file player or
+// tonegen) feeds the call, so a second recorder on that source's conf port
+// captures our outbound audio, kept apart from the inbound file.
 static pj_status_t record_tx_call(const char *prefix, TestCall* call, const char *caller_contact) {
-	if (call->player_id < 0) {
-		LOG(logWARNING) <<__FUNCTION__<<": [tx recorder] no player (the play file could not be opened), nothing to record";
+	pjsua_conf_port_id src_slot = PJSUA_INVALID_ID;
+	if (call->player_id >= 0) {
+		src_slot = pjsua_player_get_conf_port(call->player_id);
+	} else if (call->tonegen_slot != PJSUA_INVALID_ID) {
+		src_slot = call->tonegen_slot;
+	} else {
+		LOG(logWARNING) <<__FUNCTION__<<": [tx recorder] no audio source (neither player nor tonegen), nothing to record";
 		return PJ_EINVAL;
 	}
 	pj_status_t status = PJ_SUCCESS;
@@ -337,7 +343,7 @@ static pj_status_t record_tx_call(const char *prefix, TestCall* call, const char
 		}
 		LOG(logINFO) <<__FUNCTION__<<": [tx recorder] >> created:" << call->tx_recorder_id << " fn:"<< rec_fn;
 	}
-	status = pjsua_conf_connect(pjsua_player_get_conf_port(call->player_id), pjsua_recorder_get_conf_port(call->tx_recorder_id));
+	status = pjsua_conf_connect(src_slot, pjsua_recorder_get_conf_port(call->tx_recorder_id));
 	if (status != PJ_SUCCESS) {
 		// Unconnected, it would only hold a conf slot and record silence.
 		LOG(logWARNING) <<__FUNCTION__<<": [tx recorder] connect failed: " << status;

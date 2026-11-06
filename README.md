@@ -514,6 +514,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | force_contact | string | local contact header will be overwritten by the given string |
 | label | string | test description or label |
 | play | string | path to a wav file to play once the call is connected. Set to `silence` to disable playback entirely (no audio is sent, and `record_tx` has nothing to record) |
+| generate_tones | string | synthesize audio tones onto the call using PJSIP's built-in tone generator (looped). Takes precedence over `play`. Format: `freq1[+freq2][,on_ms[,off_ms]]`. Examples: `440+480,2000,4000` (US ringback), `480+620,500,500` (busy), `350+440` (dial tone, 1000 ms on, continuous), `1000` (single 1 kHz test tone). Empty value = disabled |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
 | record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`: the `play` file, or the default `voice_ref_files/reference_8000.wav` when `play` is not set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
@@ -551,6 +552,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | play | string | path to a wav file to play once the call is connected. Set to `silence` to disable playback entirely (no audio is sent, and `record_tx` has nothing to record) |
+| generate_tones | string | synthesize audio tones onto the call using PJSIP's built-in tone generator (looped). Takes precedence over `play`. Format: `freq1[+freq2][,on_ms[,off_ms]]`. Examples: `440+480,2000,4000` (US ringback), `480+620,500,500` (busy), `350+440` (dial tone, 1000 ms on, continuous), `1000` (single 1 kHz test tone). Empty value = disabled |
 | play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 | force_contact | string | local contact header will be overwritten by the given string |
 | early_cancel | int | ms after early media when a CANCEL is sent |

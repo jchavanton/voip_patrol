@@ -148,6 +148,51 @@ std::vector<unsigned> parse_tones(const std::string &s) {
 	return out;
 }
 
+/* Parse the generate_tones action parameter, format:
+ *   "freq1[+freq2][,on_ms[,off_ms]]"
+ *   "440"            -> single 440 Hz tone, on=1000 ms, off=0
+ *   "440+480"        -> dual 440+480 Hz, on=1000 ms, off=0
+ *   "440+480,2000"   -> on=2000 ms, off=0
+ *   "440+480,2000,4000" -> on=2000 ms, off=4000 ms
+ * freqs=empty means feature disabled. Defaults filled in by caller. */
+static void parse_generate_tones(const std::string &s,
+                                 std::vector<unsigned> &freqs,
+                                 int &on_ms, int &off_ms) {
+	freqs.clear();
+	if (s.empty()) return;
+
+	std::stringstream ss(s);
+	std::string segment;
+	int segment_idx = 0;
+	while (std::getline(ss, segment, ',')) {
+		size_t start = segment.find_first_not_of(" \t");
+		if (start == std::string::npos) { segment_idx++; continue; }
+		std::string token = segment.substr(start);
+
+		if (segment_idx == 0) {
+			std::stringstream fs(token);
+			std::string f;
+			while (std::getline(fs, f, '+')) {
+				try {
+					freqs.push_back((unsigned)std::stoul(f));
+				} catch (...) {
+					LOG(logERROR) << "parse_generate_tones: bad freq '" << f << "'";
+				}
+			}
+		} else if (segment_idx == 1) {
+			try { on_ms = std::stoi(token); }
+			catch (...) { LOG(logERROR) << "parse_generate_tones: bad on_ms '" << token << "'"; }
+		} else if (segment_idx == 2) {
+			try { off_ms = std::stoi(token); }
+			catch (...) { LOG(logERROR) << "parse_generate_tones: bad off_ms '" << token << "'"; }
+		}
+		segment_idx++;
+	}
+	if (freqs.empty()) {
+		LOG(logERROR) << "parse_generate_tones: no valid frequencies in '" << s << "', disabling";
+	}
+}
+
 } // namespace
 
 Action::Action(Config *cfg) : config{cfg} {
@@ -264,6 +309,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("tones", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
+	do_call_params.push_back(ActionParam("generate_tones", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup", false, APType::apt_integer));
@@ -309,6 +355,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("tones", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
+	do_accept_params.push_back(ActionParam("generate_tones", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("force_contact", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("play", false, APType::apt_string));
@@ -756,6 +803,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	bool record_tx {false};
 	bool detect_tone {false};
 	bool hangup_on_tone {true};
+	string generate_tones_str {};
 	string tones_str {};
 	string srtp {"none"};
 	int code {200};
@@ -789,6 +837,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
 		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
 		else if (param.name.compare("hangup_on_tone") == 0 && param.set) hangup_on_tone = param.b_val;
+		else if (param.name.compare("generate_tones") == 0) generate_tones_str = param.s_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
 		else if (param.name.compare("cancel") == 0) cancel_duration = param.i_val;
@@ -897,6 +946,10 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->detect_tone = detect_tone;
 	acc->hangup_on_tone = hangup_on_tone;
 	acc->tones = parse_tones(tones_str);
+	acc->gen_tone_on_ms = 1000;
+	acc->gen_tone_off_ms = 0;
+	parse_generate_tones(generate_tones_str, acc->gen_tone_freqs,
+	                     acc->gen_tone_on_ms, acc->gen_tone_off_ms);
 	acc->play = play;
 	acc->play_dtmf = play_dtmf;
 	acc->timer = timer;
@@ -951,6 +1004,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	bool record_early {false};
 	bool detect_tone {false};
 	bool hangup_on_tone {true};
+	string generate_tones_str {};
 	string tones_str {};
 	string force_contact {};
 
@@ -981,6 +1035,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
 		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
 		else if (param.name.compare("hangup_on_tone") == 0 && param.set) hangup_on_tone = param.b_val;
+		else if (param.name.compare("generate_tones") == 0) generate_tones_str = param.s_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
 		else if (param.name.compare("max_duration") == 0) max_duration = param.i_val;
@@ -1136,8 +1191,13 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->detect_tone = detect_tone;
 		test->hangup_on_tone = hangup_on_tone;
 		test->tones = parse_tones(tones_str);
+		test->gen_tone_on_ms = 1000;
+		test->gen_tone_off_ms = 0;
+		parse_generate_tones(generate_tones_str, test->gen_tone_freqs,
+		                     test->gen_tone_on_ms, test->gen_tone_off_ms);
 		LOG(logINFO) <<__FUNCTION__<<": record_early["<<record_early<<"] detect_tone["
-		             <<detect_tone<<"] tones["<<tones_str<<"] hangup_on_tone["<<hangup_on_tone<<"]";
+		             <<detect_tone<<"] tones["<<tones_str<<"] hangup_on_tone["<<hangup_on_tone
+		             <<"] generate_tones["<<generate_tones_str<<"]";
 		test->force_contact = force_contact;
 		test->srtp = srtp;
 		test->cancel = early_cancel;

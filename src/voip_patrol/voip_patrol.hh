@@ -218,7 +218,14 @@ class Test {
 		bool hangup_on_tone{true};                // hangup when tone detected
 		std::atomic<bool> tone_detected{false};   // written from pjmedia worker thread
 		std::atomic<unsigned> tone_detected_ms{0};
-		std::vector<unsigned> tones;              // frequencies (Hz) to watch
+		std::vector<unsigned> tones;              // frequencies (Hz) to watch (detect_tone)
+		/* Synthesized tone source. Parsed from action param
+		 *   generate_tones="freq1[+freq2][,on_ms[,off_ms]]"
+		 * Enabled iff gen_tone_freqs is non-empty. gen_tone_freqs[0] is freq1,
+		 * gen_tone_freqs[1] (optional) is freq2 of a single tonegen descriptor. */
+		std::vector<unsigned> gen_tone_freqs;
+		int gen_tone_on_ms{1000};
+		int gen_tone_off_ms{0};
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -322,6 +329,9 @@ class TestAccount : public Account {
 		bool detect_tone {false};
 		bool hangup_on_tone {true};
 		std::vector<unsigned> tones;
+		std::vector<unsigned> gen_tone_freqs;
+		int gen_tone_on_ms {1000};
+		int gen_tone_off_ms {0};
 		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};
@@ -367,6 +377,13 @@ class TestCall : public Call {
 		pj_pool_t *meter_sink_pool{nullptr};
 		pjsua_conf_port_id meter_sink_slot{PJSUA_INVALID_ID};
 		pjsua_player_id player_id{-1};
+		/* Synthesized tone source (pjmedia_tonegen). Mutually exclusive with
+		 * the player in practice: stream_to_call opens either a file player
+		 * or a tonegen port and connects it to the call conf slot. Pool owns
+		 * the port memory; conf slot must be removed before releasing pool. */
+		pjmedia_port *tonegen_port{nullptr};
+		pj_pool_t *tonegen_pool{nullptr};
+		pjsua_conf_port_id tonegen_slot{PJSUA_INVALID_ID};
 		int role;
 		int rtt;
 		int durationBeforeEarly{0};

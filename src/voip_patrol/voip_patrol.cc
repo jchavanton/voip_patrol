@@ -125,8 +125,93 @@ static std::vector<Test::DtmfSequenceItem> parseDtmfSequence(const std::string &
 	return seq;
 }
 
+/* Open a pjmedia_tonegen port seeded with the parsed generate_tones spec
+ * (freq1[+freq2], on_ms, off_ms) and connect it to the call conf slot.
+ * Looping is on so the pattern repeats for the call's lifetime. Cleanup
+ * happens in TestCall::hangup/onCallState via detach_tonegen below, which
+ * must run before the owning pool is released. */
+static pj_status_t tonegen_to_call(TestCall* call, pjsua_call_id call_id) {
+	if (call->tonegen_slot != PJSUA_INVALID_ID) return PJ_SUCCESS;
+	if (call->test->gen_tone_freqs.empty()) {
+		LOG(logWARNING) <<__FUNCTION__<<": generate_tones enabled but freq list empty, skipping";
+		return PJ_EINVAL;
+	}
+
+	pj_pool_t *pool = pjsua_pool_create("vp-tonegen", 1024, 1024);
+	if (!pool) return PJ_ENOMEM;
+
+	pjmedia_port *port = nullptr;
+	pj_status_t status = pjmedia_tonegen_create(pool, 8000, 1, 160, 16,
+	                                            PJMEDIA_TONEGEN_LOOP, &port);
+	if (status != PJ_SUCCESS) {
+		LOG(logERROR) <<__FUNCTION__<<": tonegen_create failed: "<< status;
+		pj_pool_release(pool);
+		return status;
+	}
+
+	/* One descriptor carrying freq1 and optional freq2. Covers the common
+	 * two-tone patterns (ringback 440+480, busy 480+620, dial 350+440). */
+	pjmedia_tone_desc td;
+	pj_bzero(&td, sizeof(td));
+	td.freq1 = (short) call->test->gen_tone_freqs[0];
+	td.freq2 = (call->test->gen_tone_freqs.size() > 1) ? (short) call->test->gen_tone_freqs[1] : 0;
+	td.on_msec = (short) call->test->gen_tone_on_ms;
+	td.off_msec = (short) call->test->gen_tone_off_ms;
+	td.volume = 0;
+	td.flags = 0;
+	status = pjmedia_tonegen_play(port, 1, &td, 0);
+	if (status != PJ_SUCCESS) {
+		LOG(logERROR) <<__FUNCTION__<<": tonegen_play failed: "<< status;
+		pj_pool_release(pool);
+		return status;
+	}
+
+	pjsua_conf_port_id slot = PJSUA_INVALID_ID;
+	status = pjsua_conf_add_port(pool, port, &slot);
+	if (status != PJ_SUCCESS) {
+		pj_pool_release(pool);
+		return status;
+	}
+
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (call_conf_port < 0) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return PJ_EINVAL;
+	}
+	status = pjsua_conf_connect(slot, call_conf_port);
+	if (status != PJ_SUCCESS) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return status;
+	}
+
+	call->tonegen_port = port;
+	call->tonegen_pool = pool;
+	call->tonegen_slot = slot;
+	LOG(logINFO) <<__FUNCTION__<<": tonegen slot="<< slot <<" freq1="<< td.freq1
+	             <<" freq2="<< td.freq2 <<" on="<< td.on_msec <<" off="<< td.off_msec;
+	return PJ_SUCCESS;
+}
+
+static void detach_tonegen(TestCall *call) {
+	if (!call || call->tonegen_slot == PJSUA_INVALID_ID) return;
+	pjsua_conf_remove_port(call->tonegen_slot);
+	call->tonegen_slot = PJSUA_INVALID_ID;
+	call->tonegen_port = nullptr;
+	if (call->tonegen_pool) {
+		pj_pool_release(call->tonegen_pool);
+		call->tonegen_pool = nullptr;
+	}
+}
+
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
+	// A non-empty generate_tones freq list bypasses the file player and opens
+	// a pjmedia_tonegen instead. Takes precedence over play=<wav>.
+	if (!call->test->gen_tone_freqs.empty()) {
+		return tonegen_to_call(call, call_id);
+	}
 	// "silence" disables playback entirely: no player is opened, so nothing is
 	// mixed into the outbound audio. record_tx guards on player_id and will log.
 	if (call->test->play == "silence") {
@@ -364,6 +449,7 @@ void TestCall::hangup(const CallOpParam &prm) {
 			pjsua_recorder_destroy(tx_recorder_id);
 			tx_recorder_id = -1;
 		}
+		detach_tonegen(this);
 		detach_meter_sink(this);
 
 		Call::hangup(prm);
@@ -979,6 +1065,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			pjsua_tone_detector_destroy(tone_detector_id);
 			tone_detector_id = -1;
 		}
+		detach_tonegen(this);
 	}
 }
 
@@ -1095,6 +1182,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->detect_tone = detect_tone;
 		call->test->hangup_on_tone = hangup_on_tone;
 		call->test->tones = tones.empty() ? std::vector<unsigned>{440u, 480u} : tones;
+		call->test->gen_tone_freqs = gen_tone_freqs;
+		call->test->gen_tone_on_ms = gen_tone_on_ms;
+		call->test->gen_tone_off_ms = gen_tone_off_ms;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;

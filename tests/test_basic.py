@@ -80,6 +80,46 @@ def test_tones_detected(run_scenario):
     )
 
 
+def test_tonegen_emits_audio(run_scenario):
+    """UAC plays 440+480 tones; assert the tonegen is actually pumping
+    audio samples into the call's outbound conf slot.
+
+    This sidesteps the self-loopback Rx-discard limitation: we read the
+    *Tx* side's player_level_* counters, which are sampled directly at
+    the tonegen's conf port before frames leave the bridge. If the
+    tonegen produces audio, these counters go up; they don't care
+    whether the far end ever hears anything.
+
+    The record-side Rx remains unverifiable in shape B — see
+    test_tones_detected for that.
+    """
+    r = run_scenario(
+        "tones_detect.xml.j2",
+        tones_value="440+480,2000,4000",
+        detect_tone_freqs="440,480",
+        energy_stats=True,
+        hangup_s=4,
+    )
+    assert r.exit_code == 0
+
+    call = _entries(r.results, "call")
+    assert call, "no 'call' entry in results"
+    rtp = call[0].get("rtp_stats") or []
+    assert rtp, f"energy_stats=true but no rtp_stats block: {call[0]}"
+    tx = rtp[0]["Tx"]
+    # player_* counters reflect the signal read at the tonegen port,
+    # independently of what makes it onto the wire.
+    assert tx.get("player_samples", 0) > 0, (
+        f"tonegen never sampled any frames: Tx={tx}"
+    )
+    assert tx.get("player_level_peak", 0) > 0, (
+        f"tonegen attached but emitted silence (peak=0): Tx={tx}"
+    )
+    assert tx.get("player_voice_frames", 0) > 0, (
+        f"tonegen samples were all below the voice threshold: Tx={tx}"
+    )
+
+
 @pytest.mark.xfail(
     reason="single-process self-loopback: same RTP discard issue as "
     "test_tones_detected prevents inbound RFC 2833 DTMF from reaching "

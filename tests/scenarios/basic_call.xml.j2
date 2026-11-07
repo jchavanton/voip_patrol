@@ -33,7 +33,8 @@ All play/dtmf behaviour is driven by the test-supplied blocks.
             max_duration="{{ hangup_s | default(3) + 5 }}"
             expected_cause_code="200"
             hangup="{{ hangup_s | default(3) }}"
-            rtp_stats="true">
+            rtp_stats="true"
+            {% if energy_stats | default(false) %}energy_stats="true"{% endif %}>
       {% block call_play %}{% endblock %}
     </action>
 

@@ -7,11 +7,10 @@ peer.
 
 ## Prereqs
 
-* A built `voip_patrol` binary (the harness looks at
+* Docker — no host build, no host Python needed. **or**
+* A built `voip_patrol` binary + Python ≥ 3.9 (the harness looks at
   `$VOIP_PATROL_BIN`, then `./voip_patrol`, then
   `./build-master/voip_patrol`, then `./build-manual/voip_patrol`).
-* **Either** Docker (recommended — no Python on your host)
-  **or** Python ≥ 3.9.
 
 ## Run in a container (recommended)
 
@@ -22,10 +21,14 @@ docker build -f tests/Dockerfile.test -t voip_patrol-tests .
 docker run --rm voip_patrol-tests
 ```
 
-The image is `python:3.12-slim` + the runtime libs voip_patrol links
-against (libasound2, libopus0, libssl3, libcurl4) + pytest + Jinja2.
-It copies the pre-built `./voip_patrol` binary in and runs `pytest`
-against it. No host Python changes.
+`tests/Dockerfile.test` is a two-stage build. Stage 1 compiles
+pjproject + voip_patrol from the in-tree source (same recipe as
+`docker/Dockerfile`). Stage 2 is `python:3.12-slim-trixie` with the
+runtime libs voip_patrol links against (libasound2, libopus0, libssl3,
+libcurl4) + pytest + Jinja2. No host changes.
+
+First build takes a few minutes (pjproject configure + build);
+subsequent builds reuse the cached layers.
 
 ## Run on the host
 

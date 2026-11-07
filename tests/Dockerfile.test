@@ -1,20 +1,61 @@
-# Self-test runner for voip_patrol.
+# Self-contained build + test pipeline for voip_patrol.
 #
-# Expects a locally-built ./voip_patrol binary at the repo root (same layout
-# the production Dockerfile produces). The image installs pytest + Jinja2
-# and runs the suite against the copied binary over 127.0.0.1 — no external
-# peer needed, everything is loopback inside the container.
+# Stage 1 (builder) mirrors the production docker/Dockerfile recipe:
+# compiles pjproject from the in-tree submodule, then CMakeLists.txt +
+# make produces the voip_patrol binary. No host build needed; the
+# image is reproducible from the repo state alone.
+#
+# Stage 2 (runner) is python:3.12-slim-trixie with just the runtime
+# libs voip_patrol links against + pytest + Jinja2. Copies the binary
+# and voice_ref_files from stage 1, then runs the test suite.
 #
 # Build (from repo root):
 #   docker build -f tests/Dockerfile.test -t voip_patrol-tests .
 # Run:
 #   docker run --rm voip_patrol-tests
-# Pinned to trixie so glibc is new enough to load a binary built on Ubuntu
-# 24.04 (glibc 2.39); bookworm has 2.36 and would refuse at startup.
-FROM python:3.12-slim-trixie
 
-# Runtime libs the pjproject/voip_patrol binary dynamically links against.
-# Kept minimal: no build-essential, no dev headers.
+# ---- Stage 1: build ---------------------------------------------------------
+FROM debian:trixie AS builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        pkg-config \
+        libcurl4-openssl-dev \
+        libasound2-dev \
+        libopus-dev \
+        libssl-dev \
+        uuid-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy the whole source tree. The per-Dockerfile .dockerignore
+# (tests/Dockerfile.test.dockerignore) controls what gets sent.
+COPY . /build
+
+# Same recipe as docker/Dockerfile: seed pjproject's config_site.h,
+# configure+build pjproject, then cmake+make the top-level target.
+# make install drops the pj* static libs under /usr/local/lib where
+# the top-level CMakeLists.txt's linker finds them.
+RUN cp include/config_site.h pjproject/pjlib/include/pj/config_site.h \
+    && find pjproject -name "*.depend" -delete \
+    && cd pjproject \
+    && ./configure --disable-libwebrtc --disable-opencore-amr \
+    && make \
+    && make install \
+    && cd /build \
+    && cmake CMakeLists.txt \
+    && make -j"$(nproc)"
+
+# ---- Stage 2: run tests -----------------------------------------------------
+# Pinned to trixie so glibc matches what stage 1 built against (debian:trixie).
+FROM python:3.12-slim-trixie AS runner
+
+# Only runtime deps for the binary. pjproject is statically linked;
+# we need the shared libs it was linked against (curl, openssl, opus,
+# asound).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libasound2 \
@@ -28,10 +69,9 @@ WORKDIR /vp
 COPY tests/requirements.txt tests/requirements.txt
 RUN pip install --no-cache-dir -r tests/requirements.txt
 
-# Binary + runtime assets. The harness looks for ./voip_patrol by default,
-# so WORKDIR=/vp with the binary at /vp/voip_patrol just works.
-COPY voip_patrol /vp/voip_patrol
-COPY voice_ref_files /vp/voice_ref_files
+# Bring the freshly-built binary and the voice samples over.
+COPY --from=builder /build/voip_patrol /vp/voip_patrol
+COPY --from=builder /build/voice_ref_files /vp/voice_ref_files
 COPY tests /vp/tests
 
 ENV VOIP_PATROL_BIN=/vp/voip_patrol

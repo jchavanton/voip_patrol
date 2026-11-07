@@ -1,0 +1,38 @@
+# Self-test runner for voip_patrol.
+#
+# Expects a locally-built ./voip_patrol binary at the repo root (same layout
+# the production Dockerfile produces). The image installs pytest + Jinja2
+# and runs the suite against the copied binary over 127.0.0.1 — no external
+# peer needed, everything is loopback inside the container.
+#
+# Build (from repo root):
+#   docker build -f tests/Dockerfile.test -t voip_patrol-tests .
+# Run:
+#   docker run --rm voip_patrol-tests
+# Pinned to trixie so glibc is new enough to load a binary built on Ubuntu
+# 24.04 (glibc 2.39); bookworm has 2.36 and would refuse at startup.
+FROM python:3.12-slim-trixie
+
+# Runtime libs the pjproject/voip_patrol binary dynamically links against.
+# Kept minimal: no build-essential, no dev headers.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libasound2 \
+        libopus0 \
+        libssl3 \
+        libcurl4 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /vp
+
+COPY tests/requirements.txt tests/requirements.txt
+RUN pip install --no-cache-dir -r tests/requirements.txt
+
+# Binary + runtime assets. The harness looks for ./voip_patrol by default,
+# so WORKDIR=/vp with the binary at /vp/voip_patrol just works.
+COPY voip_patrol /vp/voip_patrol
+COPY voice_ref_files /vp/voice_ref_files
+COPY tests /vp/tests
+
+ENV VOIP_PATROL_BIN=/vp/voip_patrol
+ENTRYPOINT ["pytest", "tests/", "-v"]

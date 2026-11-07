@@ -158,11 +158,11 @@ Set `energy_stats="true"` on a `call` or `accept` action.
     <action type="accept"
             account="default"
             hangup="5"
-            play_dtmf="0123456789#*"
-            play="voice_ref_files/f.wav"
             code="200" reason="YES"
-            ring_duration="5"
-    />
+            ring_duration="5">
+      <play type="file" value="voice_ref_files/f.wav"/>
+      <play type="dtmf" value="0123456789#*"/>
+    </action>
     <!-- DTMF will be sent using RFC2833 -->
     <!-- note: wait for new incoming calls
                forever and generate test results -->
@@ -337,9 +337,9 @@ DISCONNECTED
         rtp_stats="true"
         late_start="false"
         force_contact="sip:+15147371787@10.10.2.5:5777"
-        play="/git/voip_patrol/voice_ref_files/reference_8000_12s.wav"
         hangup="5">
 
+    <play type="file" value="/git/voip_patrol/voice_ref_files/reference_8000_12s.wav"/>
     <x-header name="Foo" value="Bar"/>
     </action>
     <action type="wait" complete="true" />

@@ -812,21 +812,25 @@ void sample_signal_levels(TestCall *call) {
 		}
 	}
 
-	/* Also sample the player port when one is attached. The player is a
-	 * source into the bridge, so only its rx_level (port->bridge) is
-	 * meaningful; that is the outbound audio about to be mixed into the
-	 * call. Uses the raw pjsua C API because voip_patrol tracks
-	 * player_id as pjsua_player_id, not pjsua2::AudioMediaPlayer. */
+	/* Also sample whichever audio source feeds the call: the file player
+	 * (play_id) or the tonegen conf slot. Both are sources into the
+	 * bridge, so only rx_level (port->bridge) is meaningful — that's the
+	 * outbound audio about to be mixed into the call. Uses the raw pjsua
+	 * C API because voip_patrol tracks player_id as pjsua_player_id, not
+	 * pjsua2::AudioMediaPlayer. */
+	pjsua_conf_port_id src_slot = PJSUA_INVALID_ID;
 	if (call->player_id >= 0) {
-		pjsua_conf_port_id pslot = pjsua_player_get_conf_port(call->player_id);
-		if (pslot != PJSUA_INVALID_ID) {
-			unsigned level = 0;
-			if (pjsua_conf_get_signal_level(pslot, NULL, &level) == PJ_SUCCESS) {
-				if (level > test->tx_player_level_peak) test->tx_player_level_peak = level;
-				test->tx_player_level_sum += level;
-				test->tx_player_level_samples++;
-				if (level > VOICE_LEVEL_THRESHOLD) test->tx_player_voice_frames++;
-			}
+		src_slot = pjsua_player_get_conf_port(call->player_id);
+	} else if (call->tonegen_slot != PJSUA_INVALID_ID) {
+		src_slot = call->tonegen_slot;
+	}
+	if (src_slot != PJSUA_INVALID_ID) {
+		unsigned level = 0;
+		if (pjsua_conf_get_signal_level(src_slot, NULL, &level) == PJ_SUCCESS) {
+			if (level > test->tx_player_level_peak) test->tx_player_level_peak = level;
+			test->tx_player_level_sum += level;
+			test->tx_player_level_samples++;
+			if (level > VOICE_LEVEL_THRESHOLD) test->tx_player_voice_frames++;
 		}
 	}
 }

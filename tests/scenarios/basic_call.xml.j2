@@ -1,0 +1,42 @@
+{#
+Shape B scenario: one voip_patrol instance plays both sides.
+The accept action binds "default" (catch-all) on the SIP port we were
+started with; the call action targets the same 127.0.0.1:<port>.
+All play/dtmf behaviour is driven by the test-supplied blocks.
+#}
+<config>
+  <actions>
+    <action type="codec" disable="all"/>
+    <action type="codec" enable="pcmu" priority="250"/>
+
+    <action type="accept"
+            transport="udp"
+            account="default"
+            code="200" reason="OK"
+            ring_duration="1"
+            hangup="{{ hangup_s | default(3) }}"
+            rtp_stats="true"
+            {% if detect_tone_freqs is defined %}
+            detect_tone="true"
+            tones="{{ detect_tone_freqs }}"
+            hangup_on_tone="false"
+            {% endif %}
+            record="false">
+      {% block accept_play %}{% endblock %}
+    </action>
+
+    <action type="call"
+            transport="udp"
+            label="selftest"
+            caller="selftest@127.0.0.1"
+            callee="selftest@127.0.0.1:{{ sip_port }}"
+            max_duration="{{ hangup_s | default(3) + 5 }}"
+            expected_cause_code="200"
+            hangup="{{ hangup_s | default(3) }}"
+            rtp_stats="true">
+      {% block call_play %}{% endblock %}
+    </action>
+
+    <action type="wait" complete="true"/>
+  </actions>
+</config>

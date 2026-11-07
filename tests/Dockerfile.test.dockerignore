@@ -1,0 +1,26 @@
+# Per-Dockerfile ignore for tests/Dockerfile.test (Docker/BuildKit convention).
+# This image expects a locally-built voip_patrol binary at the repo root
+# and the voice_ref_files/ dir. The repo-level .dockerignore excludes
+# voip_patrol (because the production image builds it from source), so we
+# re-include only the paths this image actually needs.
+
+# Start from the repo-level rules (same exclusions).
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+pjproject
+results.json
+results.json.pjsua
+pjlog*
+test_*
+.git
+.gitignore
+docker
+xml
+build-*
+include
+
+# Do NOT exclude voip_patrol, voice_ref_files, or tests/ — those are the
+# payload for this image. (The repo-level .dockerignore excludes
+# voip_patrol; this file replaces it entirely for Dockerfile.test.)

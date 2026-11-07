@@ -580,6 +580,22 @@ Audio playback and DTMF for an `<action type="accept"/>` or `<action type="call"
 </action>
 ```
 
+> ⚠ **Migration notice.** This replaces the old `play`, `play_dtmf`, and `generate_tones` attributes on `<action type="accept"/>` and `<action type="call"/>`. Those attributes are gone. The default when no `<play>` child is given is now **silence** instead of the reference wav. Scenarios that relied on the implicit playback need to add:
+>
+> ```xml
+> <play type="file"/>                       <!-- uses voice_ref_files/reference_8000.wav -->
+> <play type="file" value="path/to.wav"/>   <!-- uses a custom file -->
+> ```
+>
+> Old → new attribute mapping:
+>
+> | old attribute | replacement |
+> | ------------- | ----------- |
+> | `play="path.wav"` | `<play type="file" value="path.wav"/>` |
+> | `play="silence"` (or absent) | nothing — silence is the default |
+> | `generate_tones="440+480,2000,4000"` | `<play type="tones" value="440+480,2000,4000"/>` |
+> | `play_dtmf="0123#"` | `<play type="dtmf" value="0123#"/>` |
+
 ### register command parameters
 
 | Name | Type | Description |

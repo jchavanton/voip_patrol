@@ -177,8 +177,6 @@ typedef enum call_wait_state {
 call_state_t get_call_state_from_string (string state);
 string get_call_state_string (call_state_t state);
 
-const char default_playback_file[] = "voice_ref_files/reference_8000.wav";
-
 /* Any sampled level strictly above this counts as a "voice" frame.
  * getRxLevel reports 0..255 (via mu-law of mean |amplitude|); comfort
  * noise / DTX typically sits at 0-2, real speech is well above 10. */
@@ -219,13 +217,8 @@ class Test {
 		std::atomic<bool> tone_detected{false};   // written from pjmedia worker thread
 		std::atomic<unsigned> tone_detected_ms{0};
 		std::vector<unsigned> tones;              // frequencies (Hz) to watch (detect_tone)
-		/* Synthesized tone source. Parsed from action param
-		 *   generate_tones="freq1[+freq2][,on_ms[,off_ms]]"
-		 * Enabled iff gen_tone_freqs is non-empty. gen_tone_freqs[0] is freq1,
-		 * gen_tone_freqs[1] (optional) is freq2 of a single tonegen descriptor. */
-		std::vector<unsigned> gen_tone_freqs;
-		int gen_tone_on_ms{1000};
-		int gen_tone_off_ms{0};
+		/* Audio source + DTMF resolved from <play> sub-tags on the action. */
+		PlayConfig play;
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -285,8 +278,6 @@ class Test {
 		string record_fn;
 		string reference_fn;
 		string rtp_stats_json;
-		string play;
-		string play_dtmf;
 		struct DtmfSequenceItem {
 			int delay_ms;
 			std::string digits;
@@ -329,17 +320,13 @@ class TestAccount : public Account {
 		bool detect_tone {false};
 		bool hangup_on_tone {true};
 		std::vector<unsigned> tones;
-		std::vector<unsigned> gen_tone_freqs;
-		int gen_tone_on_ms {1000};
-		int gen_tone_off_ms {0};
+		PlayConfig play;
 		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};
 		SipHeaderVector x_headers;
 		int call_count {-1};
 		int message_count {-1};
-		string play;
-		string play_dtmf;
 		string timer;
 		string srtp;
 		call_state_t wait_state;

@@ -125,15 +125,90 @@ static std::vector<Test::DtmfSequenceItem> parseDtmfSequence(const std::string &
 	return seq;
 }
 
-/* Open a pjmedia_tonegen port seeded with the parsed generate_tones spec
- * (freq1[+freq2], on_ms, off_ms) and connect it to the call conf slot.
+/* Parse the value of <play type="tones" value="..."/>, format:
+ *   "freq1[+freq2][,on_ms[,off_ms]]"
+ *   "440"               single 440 Hz, on_ms left at default
+ *   "440+480"           dual-tone, on_ms left at default
+ *   "440+480,2000"      on=2000
+ *   "440+480,2000,4000" on=2000, off=4000
+ * Caller fills defaults before calling. */
+static void parse_play_tones_value(const std::string &s, PlayConfig &cfg) {
+	cfg.freqs.clear();
+	if (s.empty()) return;
+	std::stringstream ss(s);
+	std::string segment;
+	int segment_idx = 0;
+	while (std::getline(ss, segment, ',')) {
+		size_t start = segment.find_first_not_of(" \t");
+		if (start == std::string::npos) { segment_idx++; continue; }
+		std::string token = segment.substr(start);
+		if (segment_idx == 0) {
+			std::stringstream fs(token);
+			std::string f;
+			while (std::getline(fs, f, '+')) {
+				try { cfg.freqs.push_back((unsigned)std::stoul(f)); }
+				catch (...) { LOG(logERROR) << "parse_play_tones_value: bad freq '" << f << "'"; }
+			}
+		} else if (segment_idx == 1) {
+			try { cfg.tone_on_ms = std::stoi(token); }
+			catch (...) { LOG(logERROR) << "parse_play_tones_value: bad on_ms '" << token << "'"; }
+		} else if (segment_idx == 2) {
+			try { cfg.tone_off_ms = std::stoi(token); }
+			catch (...) { LOG(logERROR) << "parse_play_tones_value: bad off_ms '" << token << "'"; }
+		}
+		segment_idx++;
+	}
+}
+
+/* Walk every <play> child of an <action> element and fold the results into
+ * one PlayConfig. Precedence: if multiple audio-source tags (file/tones/
+ * silence) appear, the last one wins — with a warning. Multiple
+ * <play type="dtmf"/> tags behave the same. */
+static PlayConfig parse_play_children(ezxml_t xml_action) {
+	PlayConfig cfg;
+	bool audio_src_set = false;
+	bool dtmf_set = false;
+	for (ezxml_t xml_play = ezxml_child(xml_action, "play"); xml_play; xml_play = xml_play->next) {
+		const char *type_attr = ezxml_attr(xml_play, "type");
+		const char *value_attr = ezxml_attr(xml_play, "value");
+		std::string type = type_attr ? type_attr : "file";
+		std::string value = value_attr ? value_attr : "";
+
+		if (type == "file") {
+			if (audio_src_set) LOG(logWARNING) << "parse_play_children: overriding previous <play> audio source";
+			cfg.kind = PlayConfig::FILE;
+			if (!value.empty()) cfg.file = value;
+			audio_src_set = true;
+		} else if (type == "tones") {
+			if (audio_src_set) LOG(logWARNING) << "parse_play_children: overriding previous <play> audio source";
+			cfg.kind = PlayConfig::TONES;
+			parse_play_tones_value(value, cfg);
+			if (cfg.freqs.empty()) LOG(logERROR) << "parse_play_children: <play type=tones> value='" << value << "' has no valid frequencies";
+			audio_src_set = true;
+		} else if (type == "silence") {
+			if (audio_src_set) LOG(logWARNING) << "parse_play_children: overriding previous <play> audio source";
+			cfg.kind = PlayConfig::SILENCE;
+			audio_src_set = true;
+		} else if (type == "dtmf") {
+			if (dtmf_set) LOG(logWARNING) << "parse_play_children: overriding previous <play type=dtmf>";
+			cfg.dtmf = value;
+			dtmf_set = true;
+		} else {
+			LOG(logERROR) << "parse_play_children: unknown <play type=\"" << type << "\">";
+		}
+	}
+	return cfg;
+}
+
+/* Open a pjmedia_tonegen port seeded with the resolved <play type="tones">
+ * spec (freq1[+freq2], on_ms, off_ms) and connect it to the call conf slot.
  * Looping is on so the pattern repeats for the call's lifetime. Cleanup
  * happens in TestCall::hangup/onCallState via detach_tonegen below, which
  * must run before the owning pool is released. */
 static pj_status_t tonegen_to_call(TestCall* call, pjsua_call_id call_id) {
 	if (call->tonegen_slot != PJSUA_INVALID_ID) return PJ_SUCCESS;
-	if (call->test->gen_tone_freqs.empty()) {
-		LOG(logWARNING) <<__FUNCTION__<<": generate_tones enabled but freq list empty, skipping";
+	if (call->test->play.freqs.empty()) {
+		LOG(logWARNING) <<__FUNCTION__<<": <play type=tones> freq list empty, skipping";
 		return PJ_EINVAL;
 	}
 
@@ -153,10 +228,10 @@ static pj_status_t tonegen_to_call(TestCall* call, pjsua_call_id call_id) {
 	 * two-tone patterns (ringback 440+480, busy 480+620, dial 350+440). */
 	pjmedia_tone_desc td;
 	pj_bzero(&td, sizeof(td));
-	td.freq1 = (short) call->test->gen_tone_freqs[0];
-	td.freq2 = (call->test->gen_tone_freqs.size() > 1) ? (short) call->test->gen_tone_freqs[1] : 0;
-	td.on_msec = (short) call->test->gen_tone_on_ms;
-	td.off_msec = (short) call->test->gen_tone_off_ms;
+	td.freq1 = (short) call->test->play.freqs[0];
+	td.freq2 = (call->test->play.freqs.size() > 1) ? (short) call->test->play.freqs[1] : 0;
+	td.on_msec = (short) call->test->play.tone_on_ms;
+	td.off_msec = (short) call->test->play.tone_off_ms;
 	td.volume = 0;
 	td.flags = 0;
 	status = pjmedia_tonegen_play(port, 1, &td, 0);
@@ -207,21 +282,21 @@ static void detach_tonegen(TestCall *call) {
 
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
-	// A non-empty generate_tones freq list bypasses the file player and opens
-	// a pjmedia_tonegen instead. Takes precedence over play=<wav>.
-	if (!call->test->gen_tone_freqs.empty()) {
+	const PlayConfig &play = call->test->play;
+	// <play type="tones"> opens a pjmedia_tonegen instead of a file player.
+	if (play.kind == PlayConfig::TONES) {
 		return tonegen_to_call(call, call_id);
 	}
-	// "silence" disables playback entirely: no player is opened, so nothing is
-	// mixed into the outbound audio. record_tx guards on player_id and will log.
-	if (call->test->play == "silence") {
-		LOG(logINFO) <<__FUNCTION__<<": play=silence, skipping player";
+	// <play type="silence"> emits nothing. record_tx guards on player_id/
+	// tonegen_slot and will log.
+	if (play.kind == PlayConfig::SILENCE) {
+		LOG(logINFO) <<__FUNCTION__<<": <play type=silence>, skipping player";
 		return PJ_SUCCESS;
 	}
-	// Create a player if none.
+	// Default: FILE. Create a player if none.
 	if (call->player_id < 0) {
-		char * fn = new char [call->test->play.length()+1];
-		strcpy (fn, call->test->play.c_str());
+		char * fn = new char [play.file.length()+1];
+		strcpy (fn, play.file.c_str());
 		const pj_str_t file_name = pj_str(fn);
 		status = pjsua_player_create(&file_name, 0, &call->player_id);
 		delete[] fn;
@@ -1034,10 +1109,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	// Skip when we already initiated hangup in the block above: pjsua starts
 	// tearing media down and the call's conf_slot may already be invalid.
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED && !disconnecting){
-		if (test->play_dtmf.length() > 0) {
-			test->dtmf_sequence = parseDtmfSequence(test->play_dtmf);
+		if (test->play.dtmf.length() > 0) {
+			test->dtmf_sequence = parseDtmfSequence(test->play.dtmf);
 			test->dtmf_seq_index = 0;
-			LOG(logINFO) <<__FUNCTION__<<": [dtmf] parsed " << test->dtmf_sequence.size() << " chunks from: " << test->play_dtmf;
+			LOG(logINFO) <<__FUNCTION__<<": [dtmf] parsed " << test->dtmf_sequence.size() << " chunks from: " << test->play.dtmf;
 		}
 		stream_to_call(this, ci.id, test->remote_user.c_str());
 		if (!test->is_recording_running && test->record) {
@@ -1188,18 +1263,17 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->detect_tone = detect_tone;
 		call->test->hangup_on_tone = hangup_on_tone;
 		call->test->tones = tones.empty() ? std::vector<unsigned>{440u, 480u} : tones;
-		call->test->gen_tone_freqs = gen_tone_freqs;
-		call->test->gen_tone_on_ms = gen_tone_on_ms;
-		call->test->gen_tone_off_ms = gen_tone_off_ms;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
 		call->test->play = play;
-		LOG(logINFO) <<__FUNCTION__<<": play file:" << play;
+		LOG(logINFO) <<__FUNCTION__<<": play kind:" << (int)play.kind
+		             <<" file:" << play.file
+		             <<" freqs:" << play.freqs.size()
+		             <<" dtmf:" << play.dtmf;
 		if (wait_state != INV_STATE_NULL)
 			call->test->state = VPT_RUN_WAIT;
 
-		call->test->play_dtmf = play_dtmf;
 		call->test->early_media = early_media;
 		call->test->response_delay = response_delay;
 	}
@@ -1559,8 +1633,7 @@ void Config::createDefaultAccount() {
 	acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
 
 	TestAccount *acc = createAccount(acc_cfg);
-	acc->play = default_playback_file;
-	LOG(logINFO) <<__FUNCTION__<<" created:"<<default_playback_file <<" TURN:"<< acc_cfg.natConfig.turnEnabled;
+	LOG(logINFO) <<__FUNCTION__<<" created, default play:"<< acc->play.file <<" TURN:"<< acc_cfg.natConfig.turnEnabled;
 }
 
 TestAccount* Config::createAccount(AccountConfig acc_cfg) {
@@ -1585,7 +1658,6 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	account->create(acc_cfg);
 	AccountInfo acc_inf = account->getInfo();
 	LOG(logINFO) <<__FUNCTION__<< ": ["<< acc_inf.id << "]["<<acc_inf.uri<<"]";
-	account->play = default_playback_file;
 	return account;
 }
 
@@ -1722,11 +1794,12 @@ replay:
 			for (auto &param : params) {
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
+			PlayConfig play_cfg = parse_play_children(xml_action);
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
 			else if ( action_type.compare("message") == 0 ) action.do_message(params, checks, x_hdrs);
 			else if ( action_type.compare("accept_message") == 0 ) action.do_accept_message(params, checks, x_hdrs);
-			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs);
-			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
+			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs, play_cfg);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs, play_cfg);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 			else if ( action_type.compare("codec") == 0 ) action.do_codec(params);

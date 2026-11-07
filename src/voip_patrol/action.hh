@@ -36,8 +36,8 @@ enum class APType { apt_integer, apt_string, apt_float, apt_bool };
  * voip_patrol.cc's XML dispatch, consumed by stream_to_call. */
 struct PlayConfig {
 	enum Kind { FILE, TONES, SILENCE };
-	Kind kind {FILE};
-	string file {"voice_ref_files/reference_8000.wav"};
+	Kind kind {SILENCE};          // default: emit nothing unless <play> explicitly asks for audio
+	string file {"voice_ref_files/reference_8000.wav"};  // used when kind=FILE
 	vector<unsigned> freqs;       // used when kind=TONES
 	int tone_on_ms {1000};
 	int tone_off_ms {0};

@@ -514,13 +514,13 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | force_contact | string | local contact header will be overwritten by the given string |
 | label | string | test description or label |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
-| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Sources what we send: the active `<play type="file"/>` file, the `<play type="tones"/>` generator, or (default) `voice_ref_files/reference_8000.wav` |
+| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
 | detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 
-Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (see the `<play>` section below). Defaults when no `<play>` is given: play `voice_ref_files/reference_8000.wav` once connected and send no DTMF.
+Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (see the `<play>` section below). Default when no `<play>` is given: emit nothing on the outbound audio and send no DTMF.
 
 ### call command parameters
 
@@ -545,7 +545,7 @@ Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
-| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`: the `play` file, or the default `voice_ref_files/reference_8000.wav` when `play` is not set |
+| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
 | detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
@@ -566,7 +566,7 @@ Audio playback and DTMF for an `<action type="accept"/>` or `<action type="call"
 
 | type | value | description |
 | ---- | ----- | ----------- |
-| file | path | wav file to play once the call is connected. Default when no `<play>` is given: `voice_ref_files/reference_8000.wav` |
+| file | path | wav file to play once the call is connected. If `value` is omitted, defaults to `voice_ref_files/reference_8000.wav` |
 | tones | spec | synthesize tones with PJSIP's built-in generator (looped). Format: `freq1[+freq2][,on_ms[,off_ms]]`. Examples: `440+480,2000,4000` (US ringback), `480+620,500,500` (busy), `350+440` (dial tone, 1000 ms on, continuous), `1000` (single 1 kHz test tone) |
 | silence | (ignored) | emit nothing on the outbound audio stream |
 | dtmf | digits | DTMF symbols to send once connected. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax: `w` = 500 ms pause, `W` = 1 s pause |

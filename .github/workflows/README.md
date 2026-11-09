@@ -18,20 +18,32 @@ disposable container.
 
 ## Threat model (public repo + self-hosted runner)
 
-Four mitigations layered:
+Three mitigations layered:
 
-1. **First-time contributor approval** — GitHub Settings gate.
+1. **First-time contributor approval** — GitHub Settings gate. Fork
+   PRs from new contributors won't run the workflow until a
+   maintainer approves.
 2. **Dockerized workflow steps** — the runner host sees only docker
-   commands; PR-controlled code runs inside the container.
-3. **`--ephemeral` runner** — the agent self-unregisters after one
-   job; systemd restarts it with a fresh token for the next.
-4. **Trigger filter** — only `push` to `master` and
-   `pull_request` to `master`. We deliberately avoid
-   `pull_request_target`, which would run against the base ref with
-   repository secrets exposed.
+   commands; PR-controlled code runs inside the disposable
+   container. The container has no bind-mounts into the host and no
+   injected secrets.
+3. **Trigger filter** — only `push` to `master` and `pull_request`
+   to `master`. We deliberately avoid `pull_request_target`, which
+   would run against the base ref with repository secrets exposed
+   to fork code.
 
-If any of those four stops working, re-tighten before the next
-contributor PR.
+> An earlier revision added a fourth layer (`--ephemeral` runner,
+> self-unregisters after each job). That turned out not to interact
+> cleanly with systemd `Restart=always` — once credentials were
+> deleted by the ephemeral exit, the restart loop couldn't
+> re-register itself without a new one-shot token on every bounce.
+> We now run the agent in **persistent** mode instead: credentials
+> stay on disk, the agent reconnects between jobs. Re-tightening
+> with ephemeral would need an `ExecStartPre` script that mints a
+> fresh registration token via a GitHub PAT — a credential the
+> ephemeral setup was supposed to avoid in the first place. Not
+> worth the trade. If this ever becomes necessary, the docs for
+> that path are at <https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/autoscaling-with-self-hosted-runners>.
 
 ## One-time GitHub UI configuration
 
@@ -51,15 +63,13 @@ one hour and are single-use.
 
 ## One-time ovh3 host setup
 
-Run as a user with sudo, not as root. Replace `jchavanton`
-with your login if different.
+Run as a user with sudo, not as root.
 
 ```sh
 # 1. Dedicated unprivileged user for the runner.
 sudo adduser --disabled-password --gecos "GitHub Actions runner" gh-runner
-sudo usermod -aG docker gh-runner  # created in step 2
 
-# 2. Install Docker.
+# 2. Install Docker from docker.com's apt repo.
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -72,15 +82,16 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
     docker-buildx-plugin docker-compose-plugin
+sudo usermod -aG docker gh-runner
 
-# Confirm docker works without sudo (log out and back in first if adduser
-# was just run so the gh-runner group membership kicks in).
+# Confirm Docker works as gh-runner (no sudo needed):
 sudo -iu gh-runner docker run --rm hello-world
 
 # 3. Install the runner agent as gh-runner. The URL + token come
 #    from the "New self-hosted runner" page in GitHub Settings.
-#    Replace both before running. The token is single-use and
-#    expires in 1 hour.
+#    The token is single-use and expires in 1 hour. No --ephemeral:
+#    credentials persist across restarts so systemd Restart=always
+#    actually works.
 sudo -iu gh-runner bash -c '
   mkdir -p ~/actions-runner && cd ~/actions-runner
   VERSION=2.338.2   # check the GitHub "New self-hosted runner" page for the latest;
@@ -96,19 +107,17 @@ sudo -iu gh-runner bash -c '
     --name   ovh3 \
     --labels ovh3 \
     --work   _work \
-    --ephemeral \
     --unattended \
     --replace
 '
 
-# 4. systemd service so the runner auto-restarts and survives
-#    reboots. --ephemeral makes the agent exit cleanly after each
-#    job; Restart=always re-launches it, and on startup it
-#    re-registers if needed. Rotating tokens are handled by
-#    GitHub's config.sh --ephemeral flow.
+# 4. systemd service. Restart=always brings the agent back if it
+#    crashes or GitHub drops the connection; persistent credentials
+#    mean no token is needed at restart time. TimeoutStopSec covers
+#    an in-flight docker build + pytest.
 sudo bash -c 'cat > /etc/systemd/system/gh-runner.service' <<'UNIT'
 [Unit]
-Description=GitHub Actions runner (voip_patrol, ovh3, ephemeral)
+Description=GitHub Actions runner (voip_patrol, ovh3)
 After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service
@@ -118,12 +127,9 @@ Type=simple
 User=gh-runner
 WorkingDirectory=/home/gh-runner/actions-runner
 ExecStart=/home/gh-runner/actions-runner/run.sh
-# Give docker builds breathing room on shutdown.
-KillMode=process
-KillSignal=SIGTERM
-TimeoutStopSec=5min
 Restart=always
 RestartSec=10
+TimeoutStopSec=15min
 
 [Install]
 WantedBy=multi-user.target
@@ -147,15 +153,16 @@ Then watch the run under the Actions tab. First build takes
 ~3-5 min (pjproject compile); cached rebuilds run in well under a
 minute once the layer cache warms up.
 
-## Ephemeral token refresh — if the runner stops re-registering
+## Rotating the agent's registration
 
-`--ephemeral` lets the runner pick up exactly one job, finish, and
-exit with status 0. systemd restarts `run.sh`, which internally
-asks GitHub for a fresh single-use registration token using the
-credentials written by `config.sh`. If that ever breaks (expired
-credentials file, revoked registration, etc.):
+The agent uses the credentials written by `config.sh` at install time
+and needs no token for day-to-day operation. You only need new tokens
+to re-register — for example if the credentials file is lost, the
+runner entry on GitHub is manually revoked, or the agent is being
+moved to a different repo.
 
 ```sh
+sudo systemctl stop gh-runner.service
 sudo -iu gh-runner bash -c '
   cd ~/actions-runner
   ./config.sh remove --token REPLACE_WITH_REMOVAL_TOKEN
@@ -164,15 +171,17 @@ sudo -iu gh-runner bash -c '
               --name   ovh3 \
               --labels ovh3 \
               --work   _work \
-              --ephemeral \
               --unattended \
               --replace
 '
-sudo systemctl restart gh-runner.service
+sudo systemctl start gh-runner.service
 ```
 
-Both tokens come from Settings → Actions → Runners → ovh3 (remove
-token) and "New self-hosted runner" (registration token).
+Both tokens come from Settings → Actions → Runners → ovh3 → **Remove
+runner** (removal token) and **New self-hosted runner** (registration
+token). If the local `.credentials` file is already gone, the
+`config.sh remove` step prints "Cannot connect to server … Skipping"
+— that's fine, continue to the register step.
 
 ## Decommissioning the runner
 

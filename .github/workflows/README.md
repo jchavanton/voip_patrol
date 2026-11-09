@@ -83,7 +83,9 @@ sudo -iu gh-runner docker run --rm hello-world
 #    expires in 1 hour.
 sudo -iu gh-runner bash -c '
   mkdir -p ~/actions-runner && cd ~/actions-runner
-  VERSION=2.321.0   # check the GitHub "New self-hosted runner" page for the latest
+  VERSION=2.338.2   # check the GitHub "New self-hosted runner" page for the latest;
+                    # GitHub enforces a minimum (currently >= 2.329.0) and will
+                    # refuse registration from older agents with a 404.
   curl -o actions-runner.tar.gz -L \
     https://github.com/actions/runner/releases/download/v${VERSION}/actions-runner-linux-x64-${VERSION}.tar.gz
   tar xzf actions-runner.tar.gz

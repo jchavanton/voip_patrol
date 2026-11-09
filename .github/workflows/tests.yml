@@ -1,0 +1,54 @@
+name: tests
+
+# Trigger only on in-repo branches:
+# - push: covers master and any pushed topic branch inside the repo
+# - pull_request: fork PRs still appear here, but are gated by the
+#   "Require approval for first-time contributors" setting
+#   (Settings -> Actions -> General -> Fork pull request workflows).
+# Workflow steps run inside a disposable Docker container so the
+# self-hosted runner's host OS never executes PR code directly.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Cancel in-flight runs for the same ref if a new push lands.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest (shape B self-tests)
+    # Targets the single ovh3 runner. "self-hosted" is implicit when
+    # any label is set, but we keep it explicit so the matcher is
+    # unambiguous if more runners get added later.
+    runs-on: [self-hosted, linux, ovh3]
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # pjproject is a submodule; tests/Dockerfile.test builds it
+          # from source in stage 1, so we need the full submodule tree.
+          submodules: recursive
+
+      - name: Build test image
+        # One docker build produces the whole pipeline: pjproject +
+        # voip_patrol + Python runtime + pytest. All subsequent CI
+        # work happens inside this image.
+        run: docker build -f tests/Dockerfile.test -t voip_patrol-tests:${{ github.sha }} .
+
+      - name: Run tests
+        # --rm so the container disappears after the job. No host
+        # mount, no network outside what docker gives, no secrets.
+        run: docker run --rm voip_patrol-tests:${{ github.sha }}
+
+      - name: Clean up image
+        # Ephemeral runner would wipe this anyway, but be explicit so
+        # the host doesn't accumulate images if the --ephemeral
+        # unregister ever fails.
+        if: always()
+        run: docker rmi voip_patrol-tests:${{ github.sha }} || true

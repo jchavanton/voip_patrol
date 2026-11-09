@@ -4,14 +4,20 @@ Every test here is single-process: one voip_patrol instance plays both
 the UAC and the UAS, calling itself over 127.0.0.1. Asserts read the
 NDJSON result file; no log scraping.
 
-Note on account selection: the caller and callee use *different*
-user parts (caller@... and callee@...) so that voip_patrol's
-onSelectAccount picks the "default" (catch-all) account for the UAS
-side. If both sides used the same user, findAccount() would match
-the caller's account for the incoming leg and skip the accept
-action's config entirely (code, ring_duration, etc.). That trap
-isn't obvious from the XML; worth remembering when adding scenarios.
-"""
+Two shape-B quirks worth remembering when writing scenarios:
+
+1. Account selection. The caller and callee use *different* user
+   parts (caller@... and callee@...) so that voip_patrol's
+   onSelectAccount picks the "default" (catch-all) account for the
+   UAS side. If both sides used the same user, findAccount() would
+   match the caller's account for the incoming leg and skip the
+   accept action's config entirely (code, ring_duration, etc.).
+
+2. RTP needs an active audio source. A silent call in shape B emits
+   zero RTP packets, so anything that rides on the RTP stream —
+   notably RFC 2833 DTMF — never crosses the loopback. The DTMF
+   scenario attaches a tone generator alongside the DTMF payload to
+   keep RTP flowing."""
 from __future__ import annotations
 
 import pytest
@@ -112,16 +118,15 @@ def test_tonegen_emits_audio(run_scenario):
     )
 
 
-@pytest.mark.xfail(
-    reason="single-process self-loopback: audio-level round-trip (tones, "
-    "levels) works once caller/callee users are distinct, but RFC 2833 "
-    "telephone-event packets still don't surface on the receiver — "
-    "either payload-type negotiation collides across legs or pjsua's "
-    "DTMF receiver filters our own transmission. Needs investigation.",
-    strict=True,
-)
 def test_dtmf_roundtrip(run_scenario):
-    """UAC sends '123*', UAS reports dtmf_recv on the accept result."""
+    """UAC sends '123*', UAS reports dtmf_recv on the accept result.
+
+    Note: dtmf.xml.j2 attaches a tone generator alongside the DTMF
+    stream. RFC 2833 telephone-event packets ride on an active RTP
+    stream; in shape B, a call with no audio source emits zero RTP
+    and the telephone-events never cross the loopback. The tones
+    aren't observed by this assertion — they're just there to keep
+    the RTP path alive."""
     digits = "123*#"
     r = run_scenario(
         "dtmf.xml.j2",

@@ -731,7 +731,7 @@ static codec_emodel emodel_for_codec(const std::string &codec_name) {
 static void attach_meter_sink(TestCall *call, pjsua_call_id call_id) {
 	if (!call || call->meter_sink_slot != PJSUA_INVALID_ID) return;
 	if (!call->test || !call->test->energy_stats) return;
-	if (call->test->record || call->test->detect_tone) return;
+	if (call->test->record || !call->test->tones.empty()) return;
 
 	pj_pool_t *pool = pjsua_pool_create("vp-meter", 512, 512);
 	if (!pool) return;
@@ -842,9 +842,10 @@ void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 
 void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	CallInfo ci = getInfo();
+	const bool detect_tone = !test->tones.empty();
 	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early
-	             <<" detect_tone:"<< test->detect_tone;
-	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->detect_tone) {
+	             <<" detect_tone:"<< detect_tone;
+	if (test && ci.state == PJSIP_INV_STATE_EARLY && detect_tone) {
 		start_tone_detector(this, ci.id);
 	}
 }
@@ -1264,9 +1265,9 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->record_early = record_early;
 		call->test->record = record;
 		call->test->record_tx = record_tx;
-		call->test->detect_tone = detect_tone;
 		call->test->hangup_on_tone = hangup_on_tone;
-		call->test->tones = tones.empty() ? std::vector<unsigned>{440u, 480u} : tones;
+		// Empty tones = detect_tone disabled; no silent fallback to a default pair.
+		call->test->tones = tones;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;

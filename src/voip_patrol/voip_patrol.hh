@@ -212,11 +212,13 @@ class Test {
 		bool record_early{false};
 		bool record{false};
 		bool record_tx{false};      // also record what we send, to <...>_tx.wav
-		bool detect_tone{false};
 		bool hangup_on_tone{true};                // hangup when tone detected
 		std::atomic<bool> tone_detected{false};   // written from pjmedia worker thread
 		std::atomic<unsigned> tone_detected_ms{0};
-		std::vector<unsigned> tones;              // frequencies (Hz) to watch (detect_tone)
+		/* Frequencies (Hz) to watch via pjmedia_tone_detect. Non-empty
+		 * enables detection; empty disables it. Parsed from the
+		 * detect_tone="440,480" action attribute. */
+		std::vector<unsigned> tones;
 		/* Audio source + DTMF resolved from <play> sub-tags on the action. */
 		PlayConfig play;
 		string force_contact{""};
@@ -317,9 +319,8 @@ class TestAccount : public Account {
 		bool record_early {false};
 		bool record {false};
 		bool record_tx {false};
-		bool detect_tone {false};
 		bool hangup_on_tone {true};
-		std::vector<unsigned> tones;
+		std::vector<unsigned> tones;  // non-empty = detect_tone enabled
 		PlayConfig play;
 		bool unregistering {false};
 		string force_contact;

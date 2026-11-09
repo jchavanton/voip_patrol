@@ -18,8 +18,7 @@ All play/dtmf behaviour is driven by the test-supplied blocks.
             hangup="{{ hangup_s | default(3) }}"
             rtp_stats="true"
             {% if detect_tone_freqs is defined %}
-            detect_tone="true"
-            tones="{{ detect_tone_freqs }}"
+            detect_tone="{{ detect_tone_freqs }}"
             hangup_on_tone="false"
             {% endif %}
             record="false">

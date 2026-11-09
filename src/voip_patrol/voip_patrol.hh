@@ -372,6 +372,15 @@ class TestCall : public Call {
 		pjmedia_port *tonegen_port{nullptr};
 		pj_pool_t *tonegen_pool{nullptr};
 		pjsua_conf_port_id tonegen_slot{PJSUA_INVALID_ID};
+		/* Silent audio source. Attached when play.kind == SILENCE (or no
+		 * <play> is declared) so the conf bridge has something to pump
+		 * into the call. That keeps RTP TX ticking, which is what makes
+		 * RFC 2833 DTMF (and other things that ride on an active stream)
+		 * actually cross the wire. Null port, same pool pattern as
+		 * meter_sink / tonegen. */
+		pjmedia_port *silence_port{nullptr};
+		pj_pool_t *silence_pool{nullptr};
+		pjsua_conf_port_id silence_slot{PJSUA_INVALID_ID};
 		int role;
 		int rtt;
 		int durationBeforeEarly{0};

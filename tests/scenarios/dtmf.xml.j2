@@ -1,4 +1,12 @@
 {% extends "basic_call.xml.j2" %}
+{#
+DTMF is sent as RFC 2833 telephone-event RTP packets, which only flow
+on a stream that is actively transmitting RTP. In shape B, a call with
+no audio source emits zero RTP packets (pjsua doesn't pump an idle
+stream), so the telephone-events never cross the loopback. Attaching a
+tone generator keeps RTP flowing; the DTMF packets ride on top.
+#}
 {% block call_play %}
+      <play type="tones" value="400+600,10000,0"/>
       <play type="dtmf" value="{{ dtmf_value }}"/>
 {% endblock %}

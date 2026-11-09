@@ -578,31 +578,7 @@ Audio playback and DTMF for an `<action type="accept"/>` or `<action type="call"
 </action>
 ```
 
-> ⚠ **Migration notice.** This replaces the old `play`, `play_dtmf`, and `generate_tones` attributes on `<action type="accept"/>` and `<action type="call"/>`. Those attributes are gone. The default when no `<play>` child is given is now **silence** instead of the reference wav. Scenarios that relied on the implicit playback need to add:
->
-> ```xml
-> <play type="file"/>                       <!-- uses voice_ref_files/reference_8000.wav -->
-> <play type="file" value="path/to.wav"/>   <!-- uses a custom file -->
-> ```
->
-> Old → new attribute mapping:
->
-> | old attribute | replacement |
-> | ------------- | ----------- |
-> | `play="path.wav"` | `<play type="file" value="path.wav"/>` |
-> | `play="silence"` (or absent) | nothing — silence is the default |
-> | `generate_tones="440+480,2000,4000"` | `<play type="tones" value="440+480,2000,4000"/>` |
-> | `play_dtmf="0123#"` | `<play type="dtmf" value="0123#"/>` |
-
-> ⚠ **Migration notice.** The separate `detect_tone` (bool) + `tones` (string) attribute pair has been collapsed into a single `detect_tone="freq1,freq2,…"` string. Non-empty value enables detection; empty or absent disables it. The old `tones` attribute is gone, and so is the `440,480` default that silently kicked in when `detect_tone="true"` had no `tones` set.
->
-> Old → new attribute mapping:
->
-> | old attributes | replacement |
-> | -------------- | ----------- |
-> | `detect_tone="true" tones="440,480"` | `detect_tone="440,480"` |
-> | `detect_tone="true"` (no `tones`) | `detect_tone="440,480"` (explicit — no silent default) |
-> | `detect_tone="false"` or absent | absent (or `detect_tone=""`) |
+> ⚠ **Upgrading from voip_patrol 0.x?** The `<play>` sub-tag and the `detect_tone` consolidation are breaking XML changes introduced in 1.0. See [Migration to version 1.x](#migration-to-version-1x) at the end of this README.
 
 ### register command parameters
 
@@ -770,3 +746,48 @@ voip_patrol/docker$ tree
 PJSUA2 : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
 http://www.pjsip.org
 http://www.pjsip.org/docs/book-latest/PJSUA2Doc.pdf
+
+## Migration to version 1.x
+
+voip_patrol 1.0 cleans up two long-standing wrinkles in the scenario XML:
+the playback/DTMF attributes that had grown mutually overlapping, and the
+`detect_tone` / `tones` pair that required both attributes to express one
+concept. These are breaking changes. Scenarios written for 0.x will not run
+unchanged on 1.x — the sections below have the full old → new mapping.
+
+### What changed in 1.0
+
+- `play`, `play_dtmf`, and `generate_tones` attributes on `<action type="accept"/>` / `<action type="call"/>` have been **removed**. Playback and DTMF are now configured via `<play>` sub-tags (see the `<play>` sub-tag section above).
+- The default when no `<play>` child is given is now **silence** instead of `voice_ref_files/reference_8000.wav`.
+- `detect_tone` is now a **string** carrying the frequency list (e.g. `detect_tone="440,480"`). The separate `tones` attribute has been removed.
+- The implicit `440,480` default that kicked in when `detect_tone="true"` was set without an explicit `tones` is gone. If you want US ringback detection you must now ask for it explicitly: `detect_tone="440,480"`.
+
+### Playback and DTMF
+
+Old `<action>` attributes map to child `<play>` tags:
+
+| 0.x attribute | 1.x replacement |
+| ------------- | --------------- |
+| `play="path.wav"` | `<play type="file" value="path.wav"/>` |
+| `play="silence"` (or absent) | nothing — silence is the default |
+| `generate_tones="440+480,2000,4000"` | `<play type="tones" value="440+480,2000,4000"/>` |
+| `play_dtmf="0123#"` | `<play type="dtmf" value="0123#"/>` |
+
+Scenarios that relied on the implicit reference-wav playback must add an
+explicit `<play>` child to keep the old behaviour:
+
+```xml
+<play type="file"/>                       <!-- uses voice_ref_files/reference_8000.wav -->
+<play type="file" value="path/to.wav"/>   <!-- uses a custom file -->
+```
+
+### Tone detection
+
+The `detect_tone` + `tones` attribute pair has been collapsed into one
+string attribute carrying the frequency list:
+
+| 0.x attributes | 1.x replacement |
+| -------------- | --------------- |
+| `detect_tone="true" tones="440,480"` | `detect_tone="440,480"` |
+| `detect_tone="true"` (no `tones`) | `detect_tone="440,480"` (explicit — no silent default) |
+| `detect_tone="false"` or absent | absent (or `detect_tone=""`) |

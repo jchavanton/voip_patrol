@@ -4,20 +4,14 @@ Every test here is single-process: one voip_patrol instance plays both
 the UAC and the UAS, calling itself over 127.0.0.1. Asserts read the
 NDJSON result file; no log scraping.
 
-Two shape-B quirks worth remembering when writing scenarios:
+Shape-B quirk worth remembering when writing scenarios:
 
-1. Account selection. The caller and callee use *different* user
-   parts (caller@... and callee@...) so that voip_patrol's
-   onSelectAccount picks the "default" (catch-all) account for the
-   UAS side. If both sides used the same user, findAccount() would
-   match the caller's account for the incoming leg and skip the
-   accept action's config entirely (code, ring_duration, etc.).
-
-2. RTP needs an active audio source. A silent call in shape B emits
-   zero RTP packets, so anything that rides on the RTP stream —
-   notably RFC 2833 DTMF — never crosses the loopback. The DTMF
-   scenario attaches a tone generator alongside the DTMF payload to
-   keep RTP flowing."""
+Account selection. The caller and callee use *different* user parts
+(caller@... and callee@...) so that voip_patrol's onSelectAccount
+picks the "default" (catch-all) account for the UAS side. If both
+sides used the same user, findAccount() would match the caller's
+account for the incoming leg and skip the accept action's config
+entirely (code, ring_duration, etc.)."""
 from __future__ import annotations
 
 import pytest
@@ -121,12 +115,10 @@ def test_tonegen_emits_audio(run_scenario):
 def test_dtmf_roundtrip(run_scenario):
     """UAC sends '123*', UAS reports dtmf_recv on the accept result.
 
-    Note: dtmf.xml.j2 attaches a tone generator alongside the DTMF
-    stream. RFC 2833 telephone-event packets ride on an active RTP
-    stream; in shape B, a call with no audio source emits zero RTP
-    and the telephone-events never cross the loopback. The tones
-    aren't observed by this assertion — they're just there to keep
-    the RTP path alive."""
+    RFC 2833 telephone-event packets ride on an active RTP stream.
+    SILENCE mode (the default, and the explicit <play type="silence">)
+    attaches a null-port source so the bridge pumps silent frames and
+    RTP TX stays active — DTMF packets ride on that flow."""
     digits = "123*#"
     r = run_scenario(
         "dtmf.xml.j2",
@@ -176,10 +168,13 @@ def test_play_file_emits_audio(run_scenario, voice_ref_dir):
 
 
 def test_play_silence_is_silent(run_scenario):
-    """<play type="silence"> must not open any audio source. We can't
-    read a non-existent counter, so instead we assert tx_player_samples
-    is zero *or* missing — either way, nothing is sampling the source
-    port because no source exists."""
+    """<play type="silence"> attaches a null source — silent audio, but
+    RTP still flows. The counters we expect:
+      tx_player_samples > 0   — source is attached and being sampled
+      tx_player_voice_frames == 0 — but the samples are all silent
+      tx_player_level_peak < VOICE_LEVEL_THRESHOLD — silent peak
+    This proves the stream stays active (so DTMF etc. can ride on it)
+    while nothing audible is produced."""
     r = run_scenario(
         "play_silence.xml.j2",
         energy_stats=True,
@@ -192,19 +187,19 @@ def test_play_silence_is_silent(run_scenario):
     rtp = call[0].get("rtp_stats") or []
     assert rtp, "energy_stats=true should always emit rtp_stats"
     tx = rtp[0]["Tx"]
-    # No player, no tonegen → no source slot → no samples taken.
-    assert tx.get("player_samples", 0) == 0, (
-        f"<play type=silence> opened something that got sampled: Tx={tx}"
+    assert tx.get("player_samples", 0) > 0, (
+        f"<play type=silence> did not attach a source — RTP will be idle "
+        f"and anything riding on it (DTMF) will fail: Tx={tx}"
     )
     assert tx.get("player_voice_frames", 0) == 0, (
-        f"<play type=silence> emitted voice-level audio: Tx={tx}"
+        f"<play type=silence> emitted non-silent audio: Tx={tx}"
     )
 
 
 def test_default_no_play_is_silent(run_scenario):
-    """The absence of any <play> child must default to silence (behaviour
-    introduced by commit 5d680e8). Same assertion as the explicit silence
-    test — zero source-port samples."""
+    """The absence of any <play> child defaults to <play type="silence">:
+    a silent source is attached and RTP flows. Same assertions as the
+    explicit silence case."""
     r = run_scenario("basic_call.xml.j2", energy_stats=True, hangup_s=3)
     assert r.exit_code == 0
 
@@ -213,9 +208,12 @@ def test_default_no_play_is_silent(run_scenario):
     rtp = call[0].get("rtp_stats") or []
     assert rtp
     tx = rtp[0]["Tx"]
-    assert tx.get("player_samples", 0) == 0, (
-        f"default (no <play>) is sampling a source — did the default kind "
-        f"regress from SILENCE back to FILE? Tx={tx}"
+    assert tx.get("player_samples", 0) > 0, (
+        f"default (no <play>) did not attach a silent source — the "
+        f"default-to-silence path should still keep RTP flowing: Tx={tx}"
+    )
+    assert tx.get("player_voice_frames", 0) == 0, (
+        f"default (no <play>) emitted non-silent audio: Tx={tx}"
     )
 
 

@@ -280,6 +280,66 @@ static void detach_tonegen(TestCall *call) {
 	}
 }
 
+/* Attach a pjmedia_null_port as the call's audio source. The conf bridge
+ * reads zero-valued frames from it and pumps them into the stream, which
+ * (a) emits silent PCMU on the wire so RTP TX stays active, and
+ * (b) gives RFC 2833 DTMF and anything else that rides on an active RTP
+ *     stream a flow to ride on.
+ * Without this, a call with no <play> source sits idle and the bridge
+ * never calls put_frame on the stream — so no RTP ever leaves. */
+static pj_status_t silence_to_call(TestCall* call, pjsua_call_id call_id) {
+	if (call->silence_slot != PJSUA_INVALID_ID) return PJ_SUCCESS;
+
+	pj_pool_t *pool = pjsua_pool_create("vp-silence", 512, 512);
+	if (!pool) return PJ_ENOMEM;
+
+	pjmedia_port *port = nullptr;
+	pj_status_t status = pjmedia_null_port_create(pool, 8000, 1, 160, 16, &port);
+	if (status != PJ_SUCCESS) {
+		LOG(logERROR) <<__FUNCTION__<<": null_port_create failed: "<< status;
+		pj_pool_release(pool);
+		return status;
+	}
+
+	pjsua_conf_port_id slot = PJSUA_INVALID_ID;
+	status = pjsua_conf_add_port(pool, port, &slot);
+	if (status != PJ_SUCCESS) {
+		pj_pool_release(pool);
+		return status;
+	}
+
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (call_conf_port < 0) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return PJ_EINVAL;
+	}
+	status = pjsua_conf_connect(slot, call_conf_port);
+	if (status != PJ_SUCCESS) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return status;
+	}
+
+	call->silence_port = port;
+	call->silence_pool = pool;
+	call->silence_slot = slot;
+	LOG(logINFO) <<__FUNCTION__<<": silence slot="<< slot
+	             <<" attached so RTP flows";
+	return PJ_SUCCESS;
+}
+
+static void detach_silence(TestCall *call) {
+	if (!call || call->silence_slot == PJSUA_INVALID_ID) return;
+	pjsua_conf_remove_port(call->silence_slot);
+	call->silence_slot = PJSUA_INVALID_ID;
+	call->silence_port = nullptr;
+	if (call->silence_pool) {
+		pj_pool_release(call->silence_pool);
+		call->silence_pool = nullptr;
+	}
+}
+
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
 	const PlayConfig &play = call->test->play;
@@ -287,11 +347,12 @@ static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const c
 	if (play.kind == PlayConfig::TONES) {
 		return tonegen_to_call(call, call_id);
 	}
-	// <play type="silence"> emits nothing. record_tx guards on player_id/
-	// tonegen_slot and will log.
+	// <play type="silence"> (or no <play> at all — SILENCE is the default)
+	// attaches a silent null source so the bridge drives the stream and
+	// RTP keeps flowing. Needed for DTMF and anything else riding the
+	// RTP stream to actually reach the far end.
 	if (play.kind == PlayConfig::SILENCE) {
-		LOG(logINFO) <<__FUNCTION__<<": <play type=silence>, skipping player";
-		return PJ_SUCCESS;
+		return silence_to_call(call, call_id);
 	}
 	// Default: FILE. Create a player if none.
 	if (call->player_id < 0) {
@@ -531,6 +592,7 @@ void TestCall::hangup(const CallOpParam &prm) {
 			tx_recorder_id = -1;
 		}
 		detach_tonegen(this);
+		detach_silence(this);
 		detach_meter_sink(this);
 
 		Call::hangup(prm);
@@ -823,6 +885,8 @@ void sample_signal_levels(TestCall *call) {
 		src_slot = pjsua_player_get_conf_port(call->player_id);
 	} else if (call->tonegen_slot != PJSUA_INVALID_ID) {
 		src_slot = call->tonegen_slot;
+	} else if (call->silence_slot != PJSUA_INVALID_ID) {
+		src_slot = call->silence_slot;
 	}
 	if (src_slot != PJSUA_INVALID_ID) {
 		unsigned level = 0;
@@ -1152,6 +1216,7 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			tone_detector_id = -1;
 		}
 		detach_tonegen(this);
+		detach_silence(this);
 	}
 }
 

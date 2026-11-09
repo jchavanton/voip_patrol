@@ -124,14 +124,12 @@ void apply_ipv6_account_config(AccountConfig &acc_cfg, const Config *config, con
 }
 
 /* Parse a comma-separated list of positive integers (e.g. "440,480") into a
- * vector. Whitespace around entries is tolerated. Returns the default list
- * (US ringback 440+480) if the input is empty. */
+ * vector. Whitespace around entries is tolerated. Returns an empty vector
+ * for empty or all-invalid input — callers treat empty as "feature off"
+ * (tone detection disabled). */
 std::vector<unsigned> parse_tones(const std::string &s) {
 	std::vector<unsigned> out;
-	if (s.empty()) {
-		out = {440u, 480u};
-		return out;
-	}
+	if (s.empty()) return out;
 	std::stringstream ss(s);
 	std::string item;
 	while (std::getline(ss, item, ',')) {
@@ -143,8 +141,6 @@ std::vector<unsigned> parse_tones(const std::string &s) {
 			LOG(logERROR) << "parse_tones: skipping invalid entry '" << item << "'";
 		}
 	}
-	if (out.empty())
-		out = {440u, 480u};
 	return out;
 }
 
@@ -261,8 +257,7 @@ void Action::init_actions_params() {
 	do_call_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("record_tx", false, APType::apt_bool));
-	do_call_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
-	do_call_params.push_back(ActionParam("tones", false, APType::apt_string));
+	do_call_params.push_back(ActionParam("detect_tone", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
 	do_call_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_call_params.push_back(ActionParam("force_contact", false, APType::apt_string));
@@ -304,8 +299,7 @@ void Action::init_actions_params() {
 	do_accept_params.push_back(ActionParam("record_early", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("record_tx", false, APType::apt_bool));
-	do_accept_params.push_back(ActionParam("detect_tone", false, APType::apt_bool));
-	do_accept_params.push_back(ActionParam("tones", false, APType::apt_string));
+	do_accept_params.push_back(ActionParam("detect_tone", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("hangup_on_tone", false, APType::apt_bool));
 	do_accept_params.push_back(ActionParam("srtp", false, APType::apt_string));
 	do_accept_params.push_back(ActionParam("force_contact", false, APType::apt_string));
@@ -748,9 +742,8 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	bool record_early {false};
 	bool record {false};
 	bool record_tx {false};
-	bool detect_tone {false};
 	bool hangup_on_tone {true};
-	string tones_str {};
+	string detect_tone_str {};
 	string srtp {"none"};
 	int code {200};
 	int call_count {-1};
@@ -778,8 +771,7 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
 		else if (param.name.compare("record_tx") == 0) record_tx = param.b_val;
-		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
-		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
+		else if (param.name.compare("detect_tone") == 0) detect_tone_str = param.s_val;
 		else if (param.name.compare("hangup_on_tone") == 0 && param.set) hangup_on_tone = param.b_val;
 		else if (param.name.compare("wait_until") == 0) wait_until = get_call_state_from_string(param.s_val);
 		else if (param.name.compare("hangup") == 0) hangup_duration = param.i_val;
@@ -886,9 +878,8 @@ void Action::do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks,
 	acc->record_early = record_early;
 	acc->record = record;
 	acc->record_tx = record_tx;
-	acc->detect_tone = detect_tone;
 	acc->hangup_on_tone = hangup_on_tone;
-	acc->tones = parse_tones(tones_str);
+	acc->tones = parse_tones(detect_tone_str);
 	acc->play = play;
 	acc->timer = timer;
 	acc->early_media = early_media;
@@ -937,9 +928,8 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 	bool record {false};
 	bool record_tx {false};
 	bool record_early {false};
-	bool detect_tone {false};
 	bool hangup_on_tone {true};
-	string tones_str {};
+	string detect_tone_str {};
 	string force_contact {};
 
 	for (auto param : params) {
@@ -964,8 +954,7 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		else if (param.name.compare("record_early") == 0) record_early = param.b_val;
 		else if (param.name.compare("record") == 0) record = param.b_val;
 		else if (param.name.compare("record_tx") == 0) record_tx = param.b_val;
-		else if (param.name.compare("detect_tone") == 0) detect_tone = param.b_val;
-		else if (param.name.compare("tones") == 0) tones_str = param.s_val;
+		else if (param.name.compare("detect_tone") == 0) detect_tone_str = param.s_val;
 		else if (param.name.compare("hangup_on_tone") == 0 && param.set) hangup_on_tone = param.b_val;
 		else if (param.name.compare("srtp") == 0 && param.s_val.length() > 0) srtp = param.s_val;
 		else if (param.name.compare("force_contact") == 0) force_contact = param.s_val;
@@ -1118,11 +1107,10 @@ void Action::do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, S
 		test->record_early = record_early;
 		test->record = record;
 		test->record_tx = record_tx;
-		test->detect_tone = detect_tone;
 		test->hangup_on_tone = hangup_on_tone;
-		test->tones = parse_tones(tones_str);
-		LOG(logINFO) <<__FUNCTION__<<": record_early["<<record_early<<"] detect_tone["
-		             <<detect_tone<<"] tones["<<tones_str<<"] hangup_on_tone["<<hangup_on_tone
+		test->tones = parse_tones(detect_tone_str);
+		LOG(logINFO) <<__FUNCTION__<<": record_early["<<record_early
+		             <<"] detect_tone["<<detect_tone_str<<"] hangup_on_tone["<<hangup_on_tone
 		             <<"] play.kind["<<(int)play.kind<<"] play.dtmf["<<play.dtmf<<"]";
 		test->force_contact = force_contact;
 		test->srtp = srtp;

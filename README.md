@@ -363,7 +363,7 @@ ringback within a target PDD, without staying on the call after.
             expected_cause_code="487"
             max_duration="20"
             hangup="15"
-            detect_tone="true"/>
+            detect_tone="440,480"/>
     <action type="wait" complete="true"/>
   </actions>
 </config>
@@ -385,23 +385,23 @@ still recording the detection in the result JSON.
 <action type="call"
         ...
         hangup="20"
-        detect_tone="true"
+        detect_tone="440,480"
         hangup_on_tone="false"/>
 ```
 
 #### Detecting other call-progress tones
-The `tones` attribute takes a comma-separated list of frequencies (Hz) that
-must all be present at once. Up to 4 simultaneous frequencies are supported.
+`detect_tone` takes a comma-separated list of frequencies (Hz) that must all
+be present at once. Up to 4 simultaneous frequencies are supported.
 
 ```xml
 <!-- US dial tone (350 + 440 Hz) -->
-<action type="call" ... detect_tone="true" tones="350,440"/>
+<action type="call" ... detect_tone="350,440"/>
 
 <!-- US busy / reorder (480 + 620 Hz) -->
-<action type="call" ... detect_tone="true" tones="480,620"/>
+<action type="call" ... detect_tone="480,620"/>
 
 <!-- 1004 Hz milliwatt test tone (single frequency) -->
-<action type="call" ... detect_tone="true" tones="1004"/>
+<action type="call" ... detect_tone="1004"/>
 ```
 
 ### Example: WAIT action
@@ -516,8 +516,7 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
 | record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
-| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
-| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 
 Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (see the `<play>` section below). Default when no `<play>` is given: emit nothing on the outbound audio and send no DTMF.
@@ -547,8 +546,7 @@ Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
 | record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
-| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
-| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | force_contact | string | local contact header will be overwritten by the given string |
 | early_cancel | int | ms after early media when a CANCEL is sent |
@@ -595,6 +593,16 @@ Audio playback and DTMF for an `<action type="accept"/>` or `<action type="call"
 > | `play="silence"` (or absent) | nothing — silence is the default |
 > | `generate_tones="440+480,2000,4000"` | `<play type="tones" value="440+480,2000,4000"/>` |
 > | `play_dtmf="0123#"` | `<play type="dtmf" value="0123#"/>` |
+
+> ⚠ **Migration notice.** The separate `detect_tone` (bool) + `tones` (string) attribute pair has been collapsed into a single `detect_tone="freq1,freq2,…"` string. Non-empty value enables detection; empty or absent disables it. The old `tones` attribute is gone, and so is the `440,480` default that silently kicked in when `detect_tone="true"` had no `tones` set.
+>
+> Old → new attribute mapping:
+>
+> | old attributes | replacement |
+> | -------------- | ----------- |
+> | `detect_tone="true" tones="440,480"` | `detect_tone="440,480"` |
+> | `detect_tone="true"` (no `tones`) | `detect_tone="440,480"` (explicit — no silent default) |
+> | `detect_tone="false"` or absent | absent (or `detect_tone=""`) |
 
 ### register command parameters
 

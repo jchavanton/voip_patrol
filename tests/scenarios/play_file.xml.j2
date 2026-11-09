@@ -1,0 +1,4 @@
+{% extends "basic_call.xml.j2" %}
+{% block call_play %}
+      <play type="file" value="{{ file_value | default('voice_ref_files/reference_8000.wav') }}"/>
+{% endblock %}

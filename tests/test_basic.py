@@ -4,14 +4,13 @@ Every test here is single-process: one voip_patrol instance plays both
 the UAC and the UAS, calling itself over 127.0.0.1. Asserts read the
 NDJSON result file; no log scraping.
 
-Known limitation of this shape: when both legs run in the same pjsua
-instance and loopback via 127.0.0.1, the UAS side's jitter buffer
-discards almost every received RTP frame (observed as rtp_stats
-Rx discard ~= pkt). The symptom is that media-observing tests
-(tone detection, in-band DTMF) see nothing even though bytes are on
-the wire. Marked xfail below; the fix likely needs either two
-processes (shape A) or a self-loopback workaround in voip_patrol
-(distinct SSRCs per leg, or a one-frame delay between tx and rx).
+Note on account selection: the caller and callee use *different*
+user parts (caller@... and callee@...) so that voip_patrol's
+onSelectAccount picks the "default" (catch-all) account for the UAS
+side. If both sides used the same user, findAccount() would match
+the caller's account for the incoming leg and skip the accept
+action's config entirely (code, ring_duration, etc.). That trap
+isn't obvious from the XML; worth remembering when adding scenarios.
 """
 from __future__ import annotations
 
@@ -44,13 +43,6 @@ def test_basic_call_pass(run_scenario):
     assert accept[0]["cause_code"] == 200
 
 
-@pytest.mark.xfail(
-    reason="single-process self-loopback: UAS's jitter buffer discards "
-    "~100% of RTP frames (Rx discard ~= Rx pkt), so the tone detector "
-    "never sees sustained energy. Needs shape A (two processes) or a "
-    "self-loopback fix in voip_patrol.",
-    strict=True,
-)
 def test_tones_detected(run_scenario):
     """UAC plays a 440+480 ringback, UAS watches for 440+480, asserts detection.
 
@@ -121,9 +113,11 @@ def test_tonegen_emits_audio(run_scenario):
 
 
 @pytest.mark.xfail(
-    reason="single-process self-loopback: same RTP discard issue as "
-    "test_tones_detected prevents inbound RFC 2833 DTMF from reaching "
-    "the receiver.",
+    reason="single-process self-loopback: audio-level round-trip (tones, "
+    "levels) works once caller/callee users are distinct, but RFC 2833 "
+    "telephone-event packets still don't surface on the receiver — "
+    "either payload-type negotiation collides across legs or pjsua's "
+    "DTMF receiver filters our own transmission. Needs investigation.",
     strict=True,
 )
 def test_dtmf_roundtrip(run_scenario):
@@ -142,3 +136,131 @@ def test_dtmf_roundtrip(run_scenario):
     # DTMF sequence is sent with inter-digit pauses; everything asked for
     # must land. Order matters: RFC 2833 preserves it.
     assert recv == digits, f"dtmf_recv={recv!r} != sent={digits!r}"
+
+
+# --- <play> dispatch coverage ------------------------------------------------
+# The three tests below lock down the three audio-source branches of
+# stream_to_call (file, silence, default-silence) via the tx_player_*
+# energy counters sampled at the source conf port. Nothing here depends
+# on the broken self-loopback, so all three pass in shape B.
+
+
+def test_play_file_emits_audio(run_scenario, voice_ref_dir):
+    """<play type="file"> opens pjsua's file player and feeds it into the
+    call. tx_player_samples > 0 proves the player is sampling, and
+    tx_player_voice_frames > 0 proves the wav has non-silent content."""
+    r = run_scenario(
+        "play_file.xml.j2",
+        energy_stats=True,
+        hangup_s=4,
+    )
+    assert r.exit_code == 0, f"voip_patrol exited {r.exit_code}"
+
+    call = _entries(r.results, "call")
+    assert call, "no 'call' entry in results"
+    rtp = call[0].get("rtp_stats") or []
+    assert rtp, f"energy_stats=true but no rtp_stats block: {call[0]}"
+    tx = rtp[0]["Tx"]
+    assert tx.get("player_samples", 0) > 0, (
+        f"file player never sampled any frames: Tx={tx}"
+    )
+    assert tx.get("player_voice_frames", 0) > 0, (
+        f"file player samples were all below the voice threshold "
+        f"(is reference_8000.wav silent?): Tx={tx}"
+    )
+
+
+def test_play_silence_is_silent(run_scenario):
+    """<play type="silence"> must not open any audio source. We can't
+    read a non-existent counter, so instead we assert tx_player_samples
+    is zero *or* missing — either way, nothing is sampling the source
+    port because no source exists."""
+    r = run_scenario(
+        "play_silence.xml.j2",
+        energy_stats=True,
+        hangup_s=3,
+    )
+    assert r.exit_code == 0
+
+    call = _entries(r.results, "call")
+    assert call, "no 'call' entry in results"
+    rtp = call[0].get("rtp_stats") or []
+    assert rtp, "energy_stats=true should always emit rtp_stats"
+    tx = rtp[0]["Tx"]
+    # No player, no tonegen → no source slot → no samples taken.
+    assert tx.get("player_samples", 0) == 0, (
+        f"<play type=silence> opened something that got sampled: Tx={tx}"
+    )
+    assert tx.get("player_voice_frames", 0) == 0, (
+        f"<play type=silence> emitted voice-level audio: Tx={tx}"
+    )
+
+
+def test_default_no_play_is_silent(run_scenario):
+    """The absence of any <play> child must default to silence (behaviour
+    introduced by commit 5d680e8). Same assertion as the explicit silence
+    test — zero source-port samples."""
+    r = run_scenario("basic_call.xml.j2", energy_stats=True, hangup_s=3)
+    assert r.exit_code == 0
+
+    call = _entries(r.results, "call")
+    assert call, "no 'call' entry in results"
+    rtp = call[0].get("rtp_stats") or []
+    assert rtp
+    tx = rtp[0]["Tx"]
+    assert tx.get("player_samples", 0) == 0, (
+        f"default (no <play>) is sampling a source — did the default kind "
+        f"regress from SILENCE back to FILE? Tx={tx}"
+    )
+
+
+# --- miscellaneous dispatch regressions --------------------------------------
+
+
+def test_expected_cause_code_mismatch_fails(run_scenario):
+    """UAS answers 486 Busy Here, UAC still expects 200. The call test
+    row must report FAIL (not PASS) and carry the real cause_code 486.
+    Catches regressions in update_result's pass/fail accounting."""
+    r = run_scenario(
+        "basic_call.xml.j2",
+        accept_code=486,
+        accept_reason="Busy Here",
+        expected_cause_code=200,   # intentional mismatch
+        hangup_s=3,
+    )
+    # The process still exits 0 — a test-level FAIL isn't a process-level
+    # error; voip_patrol just reports it in the JSON.
+    assert r.exit_code == 0
+
+    call = _entries(r.results, "call")
+    assert call, "no 'call' entry in results"
+    c = call[0]
+    assert c["cause_code"] == 486, f"expected cause_code=486, got {c}"
+    assert c["expected_cause_code"] == 200
+    assert c["result"] == "FAIL", f"mismatch should flip to FAIL, got: {c}"
+
+
+def test_unknown_play_type_is_noisy_but_safe(run_scenario):
+    """<play type="xyz"> is a malformed input. The parser logs an error
+    and falls back to default behaviour (silence); the scenario must
+    still complete cleanly — no crash, call still answers 200."""
+    r = run_scenario("play_bad_type.xml.j2", hangup_s=3)
+    assert r.exit_code == 0, (
+        f"bad <play type> crashed voip_patrol (exit={r.exit_code})\n"
+        f"stderr:\n{r.stderr}"
+    )
+
+    call = _entries(r.results, "call")
+    accept = _entries(r.results, "accept")
+    assert call and accept, "scenario didn't complete"
+    assert call[0]["result"] == "PASS", (
+        f"bad <play> type should fall through to defaults and still pass; "
+        f"got: {call[0]}"
+    )
+    # The parser is expected to log this; we check the log rather than
+    # asserting on a particular JSON field because the error is a parse
+    # concern, not something update_result surfaces.
+    assert "unknown <play type=\"xyz\">" in r.log_text, (
+        "parser should log an error line for unknown <play type>; "
+        f"not found in vp.log\nlog tail:\n{r.log_text[-2000:]}"
+    )

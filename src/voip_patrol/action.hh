@@ -30,6 +30,20 @@ using namespace std;
 
 enum class APType { apt_integer, apt_string, apt_float, apt_bool };
 
+/* Audio/DTMF source resolved from zero or more <play> child tags on an
+ * <action type="accept|call">. Defaults match the historical behaviour:
+ * play the reference wav and send no DTMF. Values parsed in
+ * voip_patrol.cc's XML dispatch, consumed by stream_to_call. */
+struct PlayConfig {
+	enum Kind { FILE, TONES, SILENCE };
+	Kind kind {SILENCE};          // default: emit nothing unless <play> explicitly asks for audio
+	string file {"voice_ref_files/reference_8000.wav"};  // used when kind=FILE
+	vector<unsigned> freqs;       // used when kind=TONES
+	int tone_on_ms {1000};
+	int tone_off_ms {0};
+	string dtmf;                  // independent of kind
+};
+
 struct ActionParam {
 	ActionParam(string name, bool required, APType type, string s_val="", int i_val=0, float f_val=0.0, bool b_val=false)
                  : type(type), required(required), name(name), i_val(i_val), s_val(s_val), f_val(f_val) , b_val(b_val) {}
@@ -52,8 +66,8 @@ class Action {
 			bool set_param_by_name(vector<ActionParam> *params, const string name, const char *val=nullptr);
 			void do_message(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers);
 			void do_accept_message(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers);
-			void do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers);
-			void do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers);
+			void do_call(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers, const PlayConfig &play);
+			void do_accept(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers, const PlayConfig &play);
 			void do_wait(vector<ActionParam> &params);
 			void do_register(vector<ActionParam> &params, vector<ActionCheck> &checks, pj::SipHeaderVector &x_headers);
 			void do_alert(vector<ActionParam> &params);

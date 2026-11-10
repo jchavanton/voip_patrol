@@ -177,8 +177,6 @@ typedef enum call_wait_state {
 call_state_t get_call_state_from_string (string state);
 string get_call_state_string (call_state_t state);
 
-const char default_playback_file[] = "voice_ref_files/reference_8000.wav";
-
 /* Any sampled level strictly above this counts as a "voice" frame.
  * getRxLevel reports 0..255 (via mu-law of mean |amplitude|); comfort
  * noise / DTX typically sits at 0-2, real speech is well above 10. */
@@ -214,11 +212,15 @@ class Test {
 		bool record_early{false};
 		bool record{false};
 		bool record_tx{false};      // also record what we send, to <...>_tx.wav
-		bool detect_tone{false};
 		bool hangup_on_tone{true};                // hangup when tone detected
 		std::atomic<bool> tone_detected{false};   // written from pjmedia worker thread
 		std::atomic<unsigned> tone_detected_ms{0};
-		std::vector<unsigned> tones;              // frequencies (Hz) to watch
+		/* Frequencies (Hz) to watch via pjmedia_tone_detect. Non-empty
+		 * enables detection; empty disables it. Parsed from the
+		 * detect_tone="440,480" action attribute. */
+		std::vector<unsigned> tones;
+		/* Audio source + DTMF resolved from <play> sub-tags on the action. */
+		PlayConfig play;
 		string force_contact{""};
 		std::string reason{""};
 		int connect_duration{0};
@@ -278,8 +280,6 @@ class Test {
 		string record_fn;
 		string reference_fn;
 		string rtp_stats_json;
-		string play;
-		string play_dtmf;
 		struct DtmfSequenceItem {
 			int delay_ms;
 			std::string digits;
@@ -319,17 +319,15 @@ class TestAccount : public Account {
 		bool record_early {false};
 		bool record {false};
 		bool record_tx {false};
-		bool detect_tone {false};
 		bool hangup_on_tone {true};
-		std::vector<unsigned> tones;
+		std::vector<unsigned> tones;  // non-empty = detect_tone enabled
+		PlayConfig play;
 		bool unregistering {false};
 		string force_contact;
 		bool early_media {false};
 		SipHeaderVector x_headers;
 		int call_count {-1};
 		int message_count {-1};
-		string play;
-		string play_dtmf;
 		string timer;
 		string srtp;
 		call_state_t wait_state;
@@ -367,6 +365,22 @@ class TestCall : public Call {
 		pj_pool_t *meter_sink_pool{nullptr};
 		pjsua_conf_port_id meter_sink_slot{PJSUA_INVALID_ID};
 		pjsua_player_id player_id{-1};
+		/* Synthesized tone source (pjmedia_tonegen). Mutually exclusive with
+		 * the player in practice: stream_to_call opens either a file player
+		 * or a tonegen port and connects it to the call conf slot. Pool owns
+		 * the port memory; conf slot must be removed before releasing pool. */
+		pjmedia_port *tonegen_port{nullptr};
+		pj_pool_t *tonegen_pool{nullptr};
+		pjsua_conf_port_id tonegen_slot{PJSUA_INVALID_ID};
+		/* Silent audio source. Attached when play.kind == SILENCE (or no
+		 * <play> is declared) so the conf bridge has something to pump
+		 * into the call. That keeps RTP TX ticking, which is what makes
+		 * RFC 2833 DTMF (and other things that ride on an active stream)
+		 * actually cross the wire. Null port, same pool pattern as
+		 * meter_sink / tonegen. */
+		pjmedia_port *silence_port{nullptr};
+		pj_pool_t *silence_pool{nullptr};
+		pjsua_conf_port_id silence_slot{PJSUA_INVALID_ID};
 		int role;
 		int rtt;
 		int durationBeforeEarly{0};

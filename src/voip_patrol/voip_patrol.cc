@@ -125,12 +125,239 @@ static std::vector<Test::DtmfSequenceItem> parseDtmfSequence(const std::string &
 	return seq;
 }
 
+/* Parse the value of <play type="tones" value="..."/>, format:
+ *   "freq1[+freq2][,on_ms[,off_ms]]"
+ *   "440"               single 440 Hz, on_ms left at default
+ *   "440+480"           dual-tone, on_ms left at default
+ *   "440+480,2000"      on=2000
+ *   "440+480,2000,4000" on=2000, off=4000
+ * Caller fills defaults before calling. */
+static void parse_play_tones_value(const std::string &s, PlayConfig &cfg) {
+	cfg.freqs.clear();
+	if (s.empty()) return;
+	std::stringstream ss(s);
+	std::string segment;
+	int segment_idx = 0;
+	while (std::getline(ss, segment, ',')) {
+		size_t start = segment.find_first_not_of(" \t");
+		if (start == std::string::npos) { segment_idx++; continue; }
+		std::string token = segment.substr(start);
+		if (segment_idx == 0) {
+			std::stringstream fs(token);
+			std::string f;
+			while (std::getline(fs, f, '+')) {
+				try { cfg.freqs.push_back((unsigned)std::stoul(f)); }
+				catch (...) { LOG(logERROR) << "parse_play_tones_value: bad freq '" << f << "'"; }
+			}
+		} else if (segment_idx == 1) {
+			try { cfg.tone_on_ms = std::stoi(token); }
+			catch (...) { LOG(logERROR) << "parse_play_tones_value: bad on_ms '" << token << "'"; }
+		} else if (segment_idx == 2) {
+			try { cfg.tone_off_ms = std::stoi(token); }
+			catch (...) { LOG(logERROR) << "parse_play_tones_value: bad off_ms '" << token << "'"; }
+		}
+		segment_idx++;
+	}
+}
+
+/* Walk every <play> child of an <action> element and fold the results into
+ * one PlayConfig. Precedence: if multiple audio-source tags (file/tones/
+ * silence) appear, the last one wins — with a warning. Multiple
+ * <play type="dtmf"/> tags behave the same. */
+static PlayConfig parse_play_children(ezxml_t xml_action) {
+	PlayConfig cfg;
+	bool audio_src_set = false;
+	bool dtmf_set = false;
+	for (ezxml_t xml_play = ezxml_child(xml_action, "play"); xml_play; xml_play = xml_play->next) {
+		const char *type_attr = ezxml_attr(xml_play, "type");
+		const char *value_attr = ezxml_attr(xml_play, "value");
+		std::string type = type_attr ? type_attr : "file";
+		std::string value = value_attr ? value_attr : "";
+
+		if (type == "file") {
+			if (audio_src_set) LOG(logWARNING) << "parse_play_children: overriding previous <play> audio source";
+			cfg.kind = PlayConfig::FILE;
+			if (!value.empty()) cfg.file = value;
+			audio_src_set = true;
+		} else if (type == "tones") {
+			if (audio_src_set) LOG(logWARNING) << "parse_play_children: overriding previous <play> audio source";
+			cfg.kind = PlayConfig::TONES;
+			parse_play_tones_value(value, cfg);
+			if (cfg.freqs.empty()) LOG(logERROR) << "parse_play_children: <play type=tones> value='" << value << "' has no valid frequencies";
+			audio_src_set = true;
+		} else if (type == "silence") {
+			if (audio_src_set) LOG(logWARNING) << "parse_play_children: overriding previous <play> audio source";
+			cfg.kind = PlayConfig::SILENCE;
+			audio_src_set = true;
+		} else if (type == "dtmf") {
+			if (dtmf_set) LOG(logWARNING) << "parse_play_children: overriding previous <play type=dtmf>";
+			cfg.dtmf = value;
+			dtmf_set = true;
+		} else {
+			LOG(logERROR) << "parse_play_children: unknown <play type=\"" << type << "\">";
+		}
+	}
+	return cfg;
+}
+
+/* Open a pjmedia_tonegen port seeded with the resolved <play type="tones">
+ * spec (freq1[+freq2], on_ms, off_ms) and connect it to the call conf slot.
+ * Looping is on so the pattern repeats for the call's lifetime. Cleanup
+ * happens in TestCall::hangup/onCallState via detach_tonegen below, which
+ * must run before the owning pool is released. */
+static pj_status_t tonegen_to_call(TestCall* call, pjsua_call_id call_id) {
+	if (call->tonegen_slot != PJSUA_INVALID_ID) return PJ_SUCCESS;
+	if (call->test->play.freqs.empty()) {
+		LOG(logWARNING) <<__FUNCTION__<<": <play type=tones> freq list empty, skipping";
+		return PJ_EINVAL;
+	}
+
+	pj_pool_t *pool = pjsua_pool_create("vp-tonegen", 1024, 1024);
+	if (!pool) return PJ_ENOMEM;
+
+	pjmedia_port *port = nullptr;
+	pj_status_t status = pjmedia_tonegen_create(pool, 8000, 1, 160, 16,
+	                                            PJMEDIA_TONEGEN_LOOP, &port);
+	if (status != PJ_SUCCESS) {
+		LOG(logERROR) <<__FUNCTION__<<": tonegen_create failed: "<< status;
+		pj_pool_release(pool);
+		return status;
+	}
+
+	/* One descriptor carrying freq1 and optional freq2. Covers the common
+	 * two-tone patterns (ringback 440+480, busy 480+620, dial 350+440). */
+	pjmedia_tone_desc td;
+	pj_bzero(&td, sizeof(td));
+	td.freq1 = (short) call->test->play.freqs[0];
+	td.freq2 = (call->test->play.freqs.size() > 1) ? (short) call->test->play.freqs[1] : 0;
+	td.on_msec = (short) call->test->play.tone_on_ms;
+	td.off_msec = (short) call->test->play.tone_off_ms;
+	td.volume = 0;
+	td.flags = 0;
+	status = pjmedia_tonegen_play(port, 1, &td, 0);
+	if (status != PJ_SUCCESS) {
+		LOG(logERROR) <<__FUNCTION__<<": tonegen_play failed: "<< status;
+		pj_pool_release(pool);
+		return status;
+	}
+
+	pjsua_conf_port_id slot = PJSUA_INVALID_ID;
+	status = pjsua_conf_add_port(pool, port, &slot);
+	if (status != PJ_SUCCESS) {
+		pj_pool_release(pool);
+		return status;
+	}
+
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (call_conf_port < 0) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return PJ_EINVAL;
+	}
+	status = pjsua_conf_connect(slot, call_conf_port);
+	if (status != PJ_SUCCESS) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return status;
+	}
+
+	call->tonegen_port = port;
+	call->tonegen_pool = pool;
+	call->tonegen_slot = slot;
+	LOG(logINFO) <<__FUNCTION__<<": tonegen slot="<< slot <<" freq1="<< td.freq1
+	             <<" freq2="<< td.freq2 <<" on="<< td.on_msec <<" off="<< td.off_msec;
+	return PJ_SUCCESS;
+}
+
+static void detach_tonegen(TestCall *call) {
+	if (!call || call->tonegen_slot == PJSUA_INVALID_ID) return;
+	pjsua_conf_remove_port(call->tonegen_slot);
+	call->tonegen_slot = PJSUA_INVALID_ID;
+	call->tonegen_port = nullptr;
+	if (call->tonegen_pool) {
+		pj_pool_release(call->tonegen_pool);
+		call->tonegen_pool = nullptr;
+	}
+}
+
+/* Attach a pjmedia_null_port as the call's audio source. The conf bridge
+ * reads zero-valued frames from it and pumps them into the stream, which
+ * (a) emits silent PCMU on the wire so RTP TX stays active, and
+ * (b) gives RFC 2833 DTMF and anything else that rides on an active RTP
+ *     stream a flow to ride on.
+ * Without this, a call with no <play> source sits idle and the bridge
+ * never calls put_frame on the stream — so no RTP ever leaves. */
+static pj_status_t silence_to_call(TestCall* call, pjsua_call_id call_id) {
+	if (call->silence_slot != PJSUA_INVALID_ID) return PJ_SUCCESS;
+
+	pj_pool_t *pool = pjsua_pool_create("vp-silence", 512, 512);
+	if (!pool) return PJ_ENOMEM;
+
+	pjmedia_port *port = nullptr;
+	pj_status_t status = pjmedia_null_port_create(pool, 8000, 1, 160, 16, &port);
+	if (status != PJ_SUCCESS) {
+		LOG(logERROR) <<__FUNCTION__<<": null_port_create failed: "<< status;
+		pj_pool_release(pool);
+		return status;
+	}
+
+	pjsua_conf_port_id slot = PJSUA_INVALID_ID;
+	status = pjsua_conf_add_port(pool, port, &slot);
+	if (status != PJ_SUCCESS) {
+		pj_pool_release(pool);
+		return status;
+	}
+
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (call_conf_port < 0) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return PJ_EINVAL;
+	}
+	status = pjsua_conf_connect(slot, call_conf_port);
+	if (status != PJ_SUCCESS) {
+		pjsua_conf_remove_port(slot);
+		pj_pool_release(pool);
+		return status;
+	}
+
+	call->silence_port = port;
+	call->silence_pool = pool;
+	call->silence_slot = slot;
+	LOG(logINFO) <<__FUNCTION__<<": silence slot="<< slot
+	             <<" attached so RTP flows";
+	return PJ_SUCCESS;
+}
+
+static void detach_silence(TestCall *call) {
+	if (!call || call->silence_slot == PJSUA_INVALID_ID) return;
+	pjsua_conf_remove_port(call->silence_slot);
+	call->silence_slot = PJSUA_INVALID_ID;
+	call->silence_port = nullptr;
+	if (call->silence_pool) {
+		pj_pool_release(call->silence_pool);
+		call->silence_pool = nullptr;
+	}
+}
+
 static pj_status_t stream_to_call(TestCall* call, pjsua_call_id call_id, const char *caller_contact ) {
 	pj_status_t status = PJ_SUCCESS;
-	// Create a player if none.
+	const PlayConfig &play = call->test->play;
+	// <play type="tones"> opens a pjmedia_tonegen instead of a file player.
+	if (play.kind == PlayConfig::TONES) {
+		return tonegen_to_call(call, call_id);
+	}
+	// <play type="silence"> (or no <play> at all — SILENCE is the default)
+	// attaches a silent null source so the bridge drives the stream and
+	// RTP keeps flowing. Needed for DTMF and anything else riding the
+	// RTP stream to actually reach the far end.
+	if (play.kind == PlayConfig::SILENCE) {
+		return silence_to_call(call, call_id);
+	}
+	// Default: FILE. Create a player if none.
 	if (call->player_id < 0) {
-		char * fn = new char [call->test->play.length()+1];
-		strcpy (fn, call->test->play.c_str());
+		char * fn = new char [play.file.length()+1];
+		strcpy (fn, play.file.c_str());
 		const pj_str_t file_name = pj_str(fn);
 		status = pjsua_player_create(&file_name, 0, &call->player_id);
 		delete[] fn;
@@ -226,11 +453,17 @@ static pj_status_t record_call(const char *prefix, TestCall* call, pjsua_call_id
 	return status;
 }
 
-// record_tx_call records what we send: the player feeds the call, so a second recorder
-// on the player's conf port captures our outbound audio, kept apart from the inbound file.
+// record_tx_call records what we send: the audio source (file player or
+// tonegen) feeds the call, so a second recorder on that source's conf port
+// captures our outbound audio, kept apart from the inbound file.
 static pj_status_t record_tx_call(const char *prefix, TestCall* call, const char *caller_contact) {
-	if (call->player_id < 0) {
-		LOG(logWARNING) <<__FUNCTION__<<": [tx recorder] no player (the play file could not be opened), nothing to record";
+	pjsua_conf_port_id src_slot = PJSUA_INVALID_ID;
+	if (call->player_id >= 0) {
+		src_slot = pjsua_player_get_conf_port(call->player_id);
+	} else if (call->tonegen_slot != PJSUA_INVALID_ID) {
+		src_slot = call->tonegen_slot;
+	} else {
+		LOG(logWARNING) <<__FUNCTION__<<": [tx recorder] no audio source (neither player nor tonegen), nothing to record";
 		return PJ_EINVAL;
 	}
 	pj_status_t status = PJ_SUCCESS;
@@ -246,7 +479,7 @@ static pj_status_t record_tx_call(const char *prefix, TestCall* call, const char
 		}
 		LOG(logINFO) <<__FUNCTION__<<": [tx recorder] >> created:" << call->tx_recorder_id << " fn:"<< rec_fn;
 	}
-	status = pjsua_conf_connect(pjsua_player_get_conf_port(call->player_id), pjsua_recorder_get_conf_port(call->tx_recorder_id));
+	status = pjsua_conf_connect(src_slot, pjsua_recorder_get_conf_port(call->tx_recorder_id));
 	if (status != PJ_SUCCESS) {
 		// Unconnected, it would only hold a conf slot and record silence.
 		LOG(logWARNING) <<__FUNCTION__<<": [tx recorder] connect failed: " << status;
@@ -358,6 +591,8 @@ void TestCall::hangup(const CallOpParam &prm) {
 			pjsua_recorder_destroy(tx_recorder_id);
 			tx_recorder_id = -1;
 		}
+		detach_tonegen(this);
+		detach_silence(this);
 		detach_meter_sink(this);
 
 		Call::hangup(prm);
@@ -558,7 +793,7 @@ static codec_emodel emodel_for_codec(const std::string &codec_name) {
 static void attach_meter_sink(TestCall *call, pjsua_call_id call_id) {
 	if (!call || call->meter_sink_slot != PJSUA_INVALID_ID) return;
 	if (!call->test || !call->test->energy_stats) return;
-	if (call->test->record || call->test->detect_tone) return;
+	if (call->test->record || !call->test->tones.empty()) return;
 
 	pj_pool_t *pool = pjsua_pool_create("vp-meter", 512, 512);
 	if (!pool) return;
@@ -639,21 +874,27 @@ void sample_signal_levels(TestCall *call) {
 		}
 	}
 
-	/* Also sample the player port when one is attached. The player is a
-	 * source into the bridge, so only its rx_level (port->bridge) is
-	 * meaningful; that is the outbound audio about to be mixed into the
-	 * call. Uses the raw pjsua C API because voip_patrol tracks
-	 * player_id as pjsua_player_id, not pjsua2::AudioMediaPlayer. */
+	/* Also sample whichever audio source feeds the call: the file player
+	 * (play_id) or the tonegen conf slot. Both are sources into the
+	 * bridge, so only rx_level (port->bridge) is meaningful — that's the
+	 * outbound audio about to be mixed into the call. Uses the raw pjsua
+	 * C API because voip_patrol tracks player_id as pjsua_player_id, not
+	 * pjsua2::AudioMediaPlayer. */
+	pjsua_conf_port_id src_slot = PJSUA_INVALID_ID;
 	if (call->player_id >= 0) {
-		pjsua_conf_port_id pslot = pjsua_player_get_conf_port(call->player_id);
-		if (pslot != PJSUA_INVALID_ID) {
-			unsigned level = 0;
-			if (pjsua_conf_get_signal_level(pslot, NULL, &level) == PJ_SUCCESS) {
-				if (level > test->tx_player_level_peak) test->tx_player_level_peak = level;
-				test->tx_player_level_sum += level;
-				test->tx_player_level_samples++;
-				if (level > VOICE_LEVEL_THRESHOLD) test->tx_player_voice_frames++;
-			}
+		src_slot = pjsua_player_get_conf_port(call->player_id);
+	} else if (call->tonegen_slot != PJSUA_INVALID_ID) {
+		src_slot = call->tonegen_slot;
+	} else if (call->silence_slot != PJSUA_INVALID_ID) {
+		src_slot = call->silence_slot;
+	}
+	if (src_slot != PJSUA_INVALID_ID) {
+		unsigned level = 0;
+		if (pjsua_conf_get_signal_level(src_slot, NULL, &level) == PJ_SUCCESS) {
+			if (level > test->tx_player_level_peak) test->tx_player_level_peak = level;
+			test->tx_player_level_sum += level;
+			test->tx_player_level_samples++;
+			if (level > VOICE_LEVEL_THRESHOLD) test->tx_player_voice_frames++;
 		}
 	}
 }
@@ -665,9 +906,10 @@ void TestCall::onDtmfDigit(OnDtmfDigitParam &prm) {
 
 void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	CallInfo ci = getInfo();
+	const bool detect_tone = !test->tones.empty();
 	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early
-	             <<" detect_tone:"<< test->detect_tone;
-	if (test && ci.state == PJSIP_INV_STATE_EARLY && test->detect_tone) {
+	             <<" detect_tone:"<< detect_tone;
+	if (test && ci.state == PJSIP_INV_STATE_EARLY && detect_tone) {
 		start_tone_detector(this, ci.id);
 	}
 }
@@ -936,10 +1178,10 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 	// Skip when we already initiated hangup in the block above: pjsua starts
 	// tearing media down and the call's conf_slot may already be invalid.
 	if (ci.state == PJSIP_INV_STATE_CONFIRMED && !disconnecting){
-		if (test->play_dtmf.length() > 0) {
-			test->dtmf_sequence = parseDtmfSequence(test->play_dtmf);
+		if (test->play.dtmf.length() > 0) {
+			test->dtmf_sequence = parseDtmfSequence(test->play.dtmf);
 			test->dtmf_seq_index = 0;
-			LOG(logINFO) <<__FUNCTION__<<": [dtmf] parsed " << test->dtmf_sequence.size() << " chunks from: " << test->play_dtmf;
+			LOG(logINFO) <<__FUNCTION__<<": [dtmf] parsed " << test->dtmf_sequence.size() << " chunks from: " << test->play.dtmf;
 		}
 		stream_to_call(this, ci.id, test->remote_user.c_str());
 		if (!test->is_recording_running && test->record) {
@@ -973,6 +1215,8 @@ void TestCall::onCallState(OnCallStateParam &prm) {
 			pjsua_tone_detector_destroy(tone_detector_id);
 			tone_detector_id = -1;
 		}
+		detach_tonegen(this);
+		detach_silence(this);
 	}
 }
 
@@ -1086,18 +1330,20 @@ void TestAccount::onIncomingCall(OnIncomingCallParam &iprm) {
 		call->test->record_early = record_early;
 		call->test->record = record;
 		call->test->record_tx = record_tx;
-		call->test->detect_tone = detect_tone;
 		call->test->hangup_on_tone = hangup_on_tone;
-		call->test->tones = tones.empty() ? std::vector<unsigned>{440u, 480u} : tones;
+		// Empty tones = detect_tone disabled; no silent fallback to a default pair.
+		call->test->tones = tones;
 		call->test->force_contact = force_contact;
 		call->test->code = (pjsip_status_code) code;
 		call->test->reason = reason;
 		call->test->play = play;
-		LOG(logINFO) <<__FUNCTION__<<": play file:" << play;
+		LOG(logINFO) <<__FUNCTION__<<": play kind:" << (int)play.kind
+		             <<" file:" << play.file
+		             <<" freqs:" << play.freqs.size()
+		             <<" dtmf:" << play.dtmf;
 		if (wait_state != INV_STATE_NULL)
 			call->test->state = VPT_RUN_WAIT;
 
-		call->test->play_dtmf = play_dtmf;
 		call->test->early_media = early_media;
 		call->test->response_delay = response_delay;
 	}
@@ -1457,8 +1703,7 @@ void Config::createDefaultAccount() {
 	acc_cfg.callConfig.timerUse = PJSUA_SIP_TIMER_INACTIVE;
 
 	TestAccount *acc = createAccount(acc_cfg);
-	acc->play = default_playback_file;
-	LOG(logINFO) <<__FUNCTION__<<" created:"<<default_playback_file <<" TURN:"<< acc_cfg.natConfig.turnEnabled;
+	LOG(logINFO) <<__FUNCTION__<<" created, default play:"<< acc->play.file <<" TURN:"<< acc_cfg.natConfig.turnEnabled;
 }
 
 TestAccount* Config::createAccount(AccountConfig acc_cfg) {
@@ -1483,7 +1728,6 @@ TestAccount* Config::createAccount(AccountConfig acc_cfg) {
 	account->create(acc_cfg);
 	AccountInfo acc_inf = account->getInfo();
 	LOG(logINFO) <<__FUNCTION__<< ": ["<< acc_inf.id << "]["<<acc_inf.uri<<"]";
-	account->play = default_playback_file;
 	return account;
 }
 
@@ -1620,11 +1864,12 @@ replay:
 			for (auto &param : params) {
 				action.set_param(param, ezxml_attr(xml_action, param.name.c_str()));
 			}
+			PlayConfig play_cfg = parse_play_children(xml_action);
 			if ( action_type.compare("wait") == 0 ) action.do_wait(params);
 			else if ( action_type.compare("message") == 0 ) action.do_message(params, checks, x_hdrs);
 			else if ( action_type.compare("accept_message") == 0 ) action.do_accept_message(params, checks, x_hdrs);
-			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs);
-			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs);
+			else if ( action_type.compare("call") == 0 ) action.do_call(params, checks, x_hdrs, play_cfg);
+			else if ( action_type.compare("accept") == 0 ) action.do_accept(params, checks, x_hdrs, play_cfg);
 			else if ( action_type.compare("register") == 0 ) action.do_register(params, checks, x_hdrs);
 			else if ( action_type.compare("alert") == 0 ) action.do_alert(params);
 			else if ( action_type.compare("codec") == 0 ) action.do_codec(params);

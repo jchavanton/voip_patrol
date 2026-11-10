@@ -3,6 +3,8 @@
 # VoIP Patrol
 ![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small2.jpg)
 
+> ⚠ **1.0 is a breaking release.** Scenario XML written for 0.x will not run unchanged. The old `play`, `play_dtmf`, `generate_tones`, and `detect_tone`+`tones` attributes have been replaced. See [Migration to version 1.x](#migration-to-version-1x) for the full old → new mapping.
+
 ## VoIP signaling and media test automation
 Designed to automate end2end and or integration tests.
 
@@ -158,11 +160,11 @@ Set `energy_stats="true"` on a `call` or `accept` action.
     <action type="accept"
             account="default"
             hangup="5"
-            play_dtmf="0123456789#*"
-            play="voice_ref_files/f.wav"
             code="200" reason="YES"
-            ring_duration="5"
-    />
+            ring_duration="5">
+      <play type="file" value="voice_ref_files/f.wav"/>
+      <play type="dtmf" value="0123456789#*"/>
+    </action>
     <!-- DTMF will be sent using RFC2833 -->
     <!-- note: wait for new incoming calls
                forever and generate test results -->
@@ -337,9 +339,9 @@ DISCONNECTED
         rtp_stats="true"
         late_start="false"
         force_contact="sip:+15147371787@10.10.2.5:5777"
-        play="/git/voip_patrol/voice_ref_files/reference_8000_12s.wav"
         hangup="5">
 
+    <play type="file" value="/git/voip_patrol/voice_ref_files/reference_8000_12s.wav"/>
     <x-header name="Foo" value="Bar"/>
     </action>
     <action type="wait" complete="true" />
@@ -363,7 +365,7 @@ ringback within a target PDD, without staying on the call after.
             expected_cause_code="487"
             max_duration="20"
             hangup="15"
-            detect_tone="true"/>
+            detect_tone="440,480"/>
     <action type="wait" complete="true"/>
   </actions>
 </config>
@@ -385,23 +387,23 @@ still recording the detection in the result JSON.
 <action type="call"
         ...
         hangup="20"
-        detect_tone="true"
+        detect_tone="440,480"
         hangup_on_tone="false"/>
 ```
 
 #### Detecting other call-progress tones
-The `tones` attribute takes a comma-separated list of frequencies (Hz) that
-must all be present at once. Up to 4 simultaneous frequencies are supported.
+`detect_tone` takes a comma-separated list of frequencies (Hz) that must all
+be present at once. Up to 4 simultaneous frequencies are supported.
 
 ```xml
 <!-- US dial tone (350 + 440 Hz) -->
-<action type="call" ... detect_tone="true" tones="350,440"/>
+<action type="call" ... detect_tone="350,440"/>
 
 <!-- US busy / reorder (480 + 620 Hz) -->
-<action type="call" ... detect_tone="true" tones="480,620"/>
+<action type="call" ... detect_tone="480,620"/>
 
 <!-- 1004 Hz milliwatt test tone (single frequency) -->
-<action type="call" ... detect_tone="true" tones="1004"/>
+<action type="call" ... detect_tone="1004"/>
 ```
 
 ### Example: WAIT action
@@ -513,14 +515,13 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | hangup | int | call duration in second before hangup |
 | force_contact | string | local contact header will be overwritten by the given string |
 | label | string | test description or label |
-| play | string | path to a wav file to play once the call is connected |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
-| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`: the `play` file, or the default `voice_ref_files/reference_8000.wav` when `play` is not set |
+| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
-| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
-| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
-| play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
+
+Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (see the `<play>` section below). Default when no `<play>` is given: emit nothing on the outbound audio and send no DTMF.
 
 ### call command parameters
 
@@ -545,13 +546,10 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | srtp | string | Comma-separated values of the following "sdes" - add SDES support, "dtls" - add DTLS-SRTP support, "force" - make SRTP mandatory. Note, if you don't specify "force", call would be made with plain RTP. If you specify both "sdes" and "dtls", DTLS-SRTP would be used regardless of order. |
 | late_start | bool | if "true" no SDP will be included in the INVITE and will result in a late offer in 200 OK/ACK |
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
-| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`: the `play` file, or the default `voice_ref_files/reference_8000.wav` when `play` is not set |
+| record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
-| detect_tone | bool | if "true" a tone detector is wired to the call during early media. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
-| tones | string | comma-separated frequencies (Hz) the detector must observe simultaneously (AND), max 4. Defaults to `440,480` (US ringback) when `detect_tone="true"` |
+| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
-| play | string | path to a wav file to play once the call is connected |
-| play_dtmf | string | list of DTMF symbols to be sent upon answer. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax, namely `w` for a half second pause, `W` for a one second pause |
 | force_contact | string | local contact header will be overwritten by the given string |
 | early_cancel | int | ms after early media when a CANCEL is sent |
 | hangup | int | call duration in second before hangup |
@@ -561,6 +559,28 @@ must all be present at once. Up to 4 simultaneous frequencies are supported.
 | password | string | authentication password |
 | realm | string | authentication realm, defaults to "*" |
 | label | string | test description or label |
+
+### &lt;play&gt; sub-tag (accept and call)
+
+Audio playback and DTMF for an `<action type="accept"/>` or `<action type="call"/>` are configured by zero or more `<play>` child tags. Supported `type` values:
+
+| type | value | description |
+| ---- | ----- | ----------- |
+| file | path | wav file to play once the call is connected. If `value` is omitted, defaults to `voice_ref_files/reference_8000.wav` |
+| tones | spec | synthesize tones with PJSIP's built-in generator (looped). Format: `freq1[+freq2][,on_ms[,off_ms]]`. Examples: `440+480,2000,4000` (US ringback), `480+620,500,500` (busy), `350+440` (dial tone, 1000 ms on, continuous), `1000` (single 1 kHz test tone) |
+| silence | (ignored) | emit nothing on the outbound audio stream |
+| dtmf | digits | DTMF symbols to send once connected. Supports [Asterisk](https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/SendDTMF/#arguments)-like syntax: `w` = 500 ms pause, `W` = 1 s pause |
+
+`dtmf` is independent of the audio source and may coexist with any of `file`/`tones`/`silence`. When multiple audio-source tags are present, the last one wins (a warning is logged). Example:
+
+```xml
+<action type="accept" account="default" code="200" hangup="30">
+  <play type="tones" value="440+480,2000,4000"/>
+  <play type="dtmf" value="0123456789#*"/>
+</action>
+```
+
+> ⚠ **Upgrading from voip_patrol 0.x?** The `<play>` sub-tag and the `detect_tone` consolidation are breaking XML changes introduced in 1.0. See [Migration to version 1.x](#migration-to-version-1x) at the end of this README.
 
 ### register command parameters
 
@@ -729,11 +749,47 @@ PJSUA2 : A C++ High Level Softphone API : built on top of PJSIP and PJMEDIA
 http://www.pjsip.org
 http://www.pjsip.org/docs/book-latest/PJSUA2Doc.pdf
 
-## External tool to test audio quality
+## Migration to version 1.x
 
-#### PESQ
-P.862 : Perceptual evaluation of speech quality (PESQ): An objective method for end-to-end speech quality assessment of narrow-band telephone networks and speech codecs
-http://www.itu.int/rec/T-REC-P.862
+voip_patrol 1.0 cleans up two long-standing wrinkles in the scenario XML:
+the playback/DTMF attributes that had grown mutually overlapping, and the
+`detect_tone` / `tones` pair that required both attributes to express one
+concept. These are breaking changes. Scenarios written for 0.x will not run
+unchanged on 1.x — the sections below have the full old → new mapping.
+
+### What changed in 1.0
+
+- `play`, `play_dtmf`, and `generate_tones` attributes on `<action type="accept"/>` / `<action type="call"/>` have been **removed**. Playback and DTMF are now configured via `<play>` sub-tags (see the `<play>` sub-tag section above).
+- The default when no `<play>` child is given is now **silence** instead of `voice_ref_files/reference_8000.wav`.
+- `detect_tone` is now a **string** carrying the frequency list (e.g. `detect_tone="440,480"`). The separate `tones` attribute has been removed.
+- The implicit `440,480` default that kicked in when `detect_tone="true"` was set without an explicit `tones` is gone. If you want US ringback detection you must now ask for it explicitly: `detect_tone="440,480"`.
+
+### Playback and DTMF
+
+Old `<action>` attributes map to child `<play>` tags:
+
+| 0.x attribute | 1.x replacement |
+| ------------- | --------------- |
+| `play="path.wav"` | `<play type="file" value="path.wav"/>` |
+| `play="silence"` (or absent) | nothing — silence is the default |
+| `generate_tones="440+480,2000,4000"` | `<play type="tones" value="440+480,2000,4000"/>` |
+| `play_dtmf="0123#"` | `<play type="dtmf" value="0123#"/>` |
+
+Scenarios that relied on the implicit reference-wav playback must add an
+explicit `<play>` child to keep the old behaviour:
+
+```xml
+<play type="file"/>                       <!-- uses voice_ref_files/reference_8000.wav -->
+<play type="file" value="path/to.wav"/>   <!-- uses a custom file -->
 ```
-./run_pesq +16000 voice_files/reference.wav voice_files/recording.wav
-```
+
+### Tone detection
+
+The `detect_tone` + `tones` attribute pair has been collapsed into one
+string attribute carrying the frequency list:
+
+| 0.x attributes | 1.x replacement |
+| -------------- | --------------- |
+| `detect_tone="true" tones="440,480"` | `detect_tone="440,480"` |
+| `detect_tone="true"` (no `tones`) | `detect_tone="440,480"` (explicit — no silent default) |
+| `detect_tone="false"` or absent | absent (or `detect_tone=""`) |

@@ -3,6 +3,8 @@
 # VoIP Patrol
 ![GitHub Logo](VP_Logo_1200px-11th_Airborne_Division.patch_small2.jpg)
 
+> ⚠ **1.0 is a breaking release.** Scenario XML written for 0.x will not run unchanged. The old `play`, `play_dtmf`, `generate_tones`, and `detect_tone`+`tones` attributes have been replaced. See [Migration to version 1.x](#migration-to-version-1x) for the full old → new mapping.
+
 ## VoIP signaling and media test automation
 Designed to automate end2end and or integration tests.
 

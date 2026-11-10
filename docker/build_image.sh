@@ -1,5 +1,5 @@
 #!/bin/sh
-TAG="0.11.0"
+TAG="1.0.0"
 docker build . --no-cache --network=host -t voip_patrol
 docker tag voip_patrol:latest jchavanton/voip_patrol:latest
 docker tag voip_patrol:latest jchavanton/voip_patrol:${TAG}

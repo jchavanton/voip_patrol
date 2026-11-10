@@ -376,8 +376,11 @@ Result JSON gets:
 "tone_detected_ms": 120
 ```
 where `tone_detected_ms` is the time from when audio came up (first early-media
-SDP) to detection. `expected_cause_code="487"` because the call is cancelled
-by voip_patrol once the tone fires, so the carrier returns *Request Terminated*.
+SDP) to detection — detection starts immediately with early media, **before** the
+call is answered, so `tone_detected_ms` can exceed the connected call duration
+and may fire on in-band ringback or IVR prompts heard before answer.
+`expected_cause_code="487"` because the call is cancelled by voip_patrol once
+the tone fires, so the carrier returns *Request Terminated*.
 
 #### Detect without hanging up
 Add `hangup_on_tone="false"` to keep the call running to its normal end while
@@ -518,7 +521,7 @@ be present at once. Up to 4 simultaneous frequencies are supported.
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
 | record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
-| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
+| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection starts immediately when early media comes up (before answer), so in-band ringback or pre-answer IVR tones can trigger it. Reported in the result JSON as `tone_detected` and `tone_detected_ms` (ms from early-media up to detection; can exceed the connected call duration) |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 
 Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (see the `<play>` section below). Default when no `<play>` is given: emit nothing on the outbound audio and send no DTMF.
@@ -548,7 +551,7 @@ Audio playback and DTMF are configured via `<play>` sub-tags on the `<action>` (
 | record | bool | if "true" the call will be recorded once connected, written under the directory passed via `--record-dir` (default `/voice_files/`) |
 | record_tx | bool | if "true" the audio sent to the far end is also recorded once connected, to `record_<call-id>_<contact>_tx.wav` next to the inbound `..._rec.wav`. Taps the active `<play type="file"/>` or `<play type="tones"/>` source; logs a warning and records nothing when no `<play>` audio source is set |
 | record_early | bool | if "true" the call will be recorded when early media starts, written under `--record-dir`. If call is answered after, recording will continue in the same file |
-| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection is reported in the result JSON as `tone_detected` and `tone_detected_ms` |
+| detect_tone | string | comma-separated frequencies (Hz) the tone detector must observe simultaneously (AND), max 4. Example: `detect_tone="440,480"` (US ringback). Empty or absent = detection disabled. Detection starts immediately when early media comes up (before answer), so in-band ringback or pre-answer IVR tones can trigger it. Reported in the result JSON as `tone_detected` and `tone_detected_ms` (ms from early-media up to detection; can exceed the connected call duration) |
 | hangup_on_tone | bool | if "true" (default) the call is hung up once the tone is detected; set to "false" to keep the call running and only record the detection in the result JSON |
 | force_contact | string | local contact header will be overwritten by the given string |
 | early_cancel | int | ms after early media when a CANCEL is sent |

@@ -16,6 +16,32 @@ inside Docker on that host, so the runner user only ever executes
 `docker build` + `docker run` — PR code is isolated inside the
 disposable container.
 
+## `release.yml`
+
+Triggers when a bare semver tag (e.g. `1.0.0`) is pushed. Matches
+the pattern `[0-9]+.[0-9]+.[0-9]+` — no leading `v`, consistent
+with the existing tag history. Runs on the same `ovh3` self-hosted
+runner and reuses the `tests/Dockerfile.test` pipeline: tests must
+pass before the release is published. On success, `gh release
+create` posts a GitHub Release with auto-generated notes from the
+commits since the previous tag. Needs `permissions: contents:
+write` so the default `GITHUB_TOKEN` can publish.
+
+Releases are cut with [`bumpversion`](https://github.com/c4urself/bump2version),
+configured in `.bumpversion.cfg` at the repo root. It bumps the
+version string in `include/version.h`, `docker/Dockerfile`, and
+`docker/build_image.sh`, makes a `release: bump VERSION to …`
+commit, and tags it with the bare `{new_version}` — exactly the
+shape this workflow filters on.
+
+```sh
+bumpversion patch   # or minor / major
+git push --follow-tags
+```
+
+The tag push triggers `release.yml`; tests run on ovh3, and on
+success the Release lands in GitHub with auto-generated notes.
+
 ## Threat model (public repo + self-hosted runner)
 
 Three mitigations layered:

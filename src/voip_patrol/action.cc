@@ -1428,8 +1428,20 @@ void Action::do_wait(vector<ActionParam> &params) {
 							call->test->dtmf_seq_index += 1;
 						}
 					}
+					// check tone-triggered hangup (call already connected)
+					if (call->test->tone_detected && call->test->hangup_on_tone) {
+						CallOpParam prm(true);
+						LOG(logINFO) <<__FUNCTION__<<": tone detected hangup in PJSIP_INV_STATE_CONFIRMED";
+						try {
+							pj_gettimeofday(&call->test->sip_latency.byeSentTs);
+							call->hangup(prm);
+						} catch (pj::Error &e) {
+							if (e.status != 171140) LOG(logERROR) <<__FUNCTION__<<" error :"<< e.status;
+						}
+						call->test->update_result();
+					}
 					// check hangup
-					if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
+					else if (call->test->hangup_duration && ci.connectDuration.sec >= call->test->hangup_duration){
 						if (ci.state == PJSIP_INV_STATE_CONFIRMED) {
 							CallOpParam prm(true);
 							LOG(logINFO) <<__FUNCTION__<<": hangup call in PJSIP_INV_STATE_CONFIRMED" ;

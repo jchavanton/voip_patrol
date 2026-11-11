@@ -70,3 +70,12 @@ jobs:
           docker rmi "voip_patrol-tests:${{ github.sha }}" || true
           docker rmi "jchavanton/voip_patrol:${GITHUB_REF_NAME}" || true
           docker rmi "jchavanton/voip_patrol:latest" || true
+
+      # Clear the persisted Docker Hub credentials from the runner's
+      # ~/.docker/config.json. Without this, a later credential
+      # rotation (new DOCKERHUB_TOKEN) silently breaks unauthenticated
+      # public image pulls on this host: docker tries to use the stale
+      # auth entry and gets 401s from auth.docker.io.
+      - name: Docker logout
+        if: always()
+        run: docker logout || true

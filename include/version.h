@@ -1,5 +1,9 @@
 #ifndef __VERSION_H__
 #define __VERSION_H__
 
-const std::string VERSION = "1.0.0";
+#ifndef VP_VERSION
+#define VP_VERSION "dev"
+#endif
+
+const std::string VERSION = VP_VERSION;
 #endif

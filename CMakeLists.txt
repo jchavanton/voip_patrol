@@ -3,6 +3,25 @@ project(voip_patrol VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# Version string baked into the binary. Priority:
+#   1. -DVP_VERSION=... from the caller (CI passes the pushed tag).
+#   2. `git describe --tags --always --dirty` when building from a repo.
+#   3. "dev" as the final fallback.
+if(NOT DEFINED VP_VERSION OR VP_VERSION STREQUAL "")
+	execute_process(
+		COMMAND git describe --tags --always --dirty
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		OUTPUT_VARIABLE VP_VERSION
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		ERROR_QUIET
+	)
+endif()
+if(NOT VP_VERSION OR VP_VERSION STREQUAL "")
+	set(VP_VERSION "dev")
+endif()
+message(STATUS "voip_patrol version: ${VP_VERSION}")
+add_compile_definitions(VP_VERSION="${VP_VERSION}")
+
 message("CMAKE_SYSTEM_PROCESSOR:${CMAKE_SYSTEM_PROCESSOR} CMAKE_SYSTEM:${CMAKE_SYSTEM}  CMAKE_BUILD_TYPE:${CMAKE_BUILD_TYPE} OV:${OV}")
 
 set(ROOT_DIR ".")

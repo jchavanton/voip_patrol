@@ -1,0 +1,72 @@
+name: release
+
+# Triggered when a bare semver tag is pushed (e.g. 1.2.3). The tag
+# name is the source of truth for the release version: it is baked
+# into the binary (via -DVP_VERSION), stamped onto the Docker image
+# tags, and used as the GitHub Release name. No in-repo version
+# files need to be bumped before tagging.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: build, test, publish release
+    runs-on: [self-hosted, linux, ovh3]
+    timeout-minutes: 45
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build test image
+        run: docker build -f tests/Dockerfile.test -t voip_patrol-tests:${{ github.sha }} .
+
+      - name: Run tests
+        run: docker run --rm voip_patrol-tests:${{ github.sha }}
+
+      - name: Build production image
+        run: |
+          docker build \
+            -f docker/Dockerfile \
+            --build-arg VP_VERSION="${GITHUB_REF_NAME}" \
+            -t "jchavanton/voip_patrol:${GITHUB_REF_NAME}" \
+            -t "jchavanton/voip_patrol:latest" \
+            .
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push production image
+        run: |
+          docker push "jchavanton/voip_patrol:${GITHUB_REF_NAME}"
+          docker push "jchavanton/voip_patrol:latest"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
+
+      - name: Clean up images
+        if: always()
+        run: |
+          docker rmi "voip_patrol-tests:${{ github.sha }}" || true
+          docker rmi "jchavanton/voip_patrol:${GITHUB_REF_NAME}" || true
+          docker rmi "jchavanton/voip_patrol:latest" || true

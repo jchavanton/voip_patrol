@@ -16,6 +16,55 @@ inside Docker on that host, so the runner user only ever executes
 `docker build` + `docker run` — PR code is isolated inside the
 disposable container.
 
+## `release.yml`
+
+Triggers when a bare semver tag (e.g. `1.2.3`) is pushed. Matches
+the pattern `[0-9]+.[0-9]+.[0-9]+` — no leading `v`, consistent
+with the existing tag history. Runs on the same `ovh3`
+self-hosted runner.
+
+The tag is the single source of truth for the release version.
+No in-repo version files need to be bumped before tagging — the
+pipeline threads `${GITHUB_REF_NAME}` into both the binary and
+the Docker image tags.
+
+Steps:
+
+1. Run the test suite (`tests/Dockerfile.test`).
+2. Build `docker/Dockerfile` with
+   `--build-arg VP_VERSION=${tag}` so the binary reports the
+   right version. Tag the image as both
+   `jchavanton/voip_patrol:${tag}` and `jchavanton/voip_patrol:latest`.
+3. Push both tags to Docker Hub. Uses repo secrets
+   `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (access token from
+   <https://hub.docker.com/settings/security>, scoped to
+   Read/Write/Delete on the `jchavanton/voip_patrol` repo).
+4. Create the GitHub Release with auto-generated notes. Needs
+   `permissions: contents: write` on the job so the default
+   `GITHUB_TOKEN` can publish.
+
+### Cutting a release
+
+```sh
+git tag 1.2.3
+git push --follow-tags
+```
+
+That's it — the pipeline does the rest.
+
+### How the binary learns its version
+
+`CMakeLists.txt` resolves the version in priority order:
+
+1. `-DVP_VERSION=...` passed on the configure line (CI passes
+   the tag).
+2. `git describe --tags --always --dirty` when building from a
+   repo checkout (local dev builds).
+3. `"dev"` as the final fallback.
+
+Whatever gets resolved is injected as a `VP_VERSION` compile
+definition, consumed by `include/version.h`.
+
 ## Threat model (public repo + self-hosted runner)
 
 Three mitigations layered:

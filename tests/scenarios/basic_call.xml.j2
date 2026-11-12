@@ -14,7 +14,7 @@ All play/dtmf behaviour is driven by the test-supplied blocks.
             account="default"
             code="{{ accept_code | default(200) }}"
             reason="{{ accept_reason | default('OK') }}"
-            ring_duration="1"
+            ring_duration="{{ ring_duration | default(1) }}"
             hangup="{{ hangup_s | default(3) }}"
             rtp_stats="true"
             {% if detect_tone_freqs is defined %}

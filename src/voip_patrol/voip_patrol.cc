@@ -408,6 +408,17 @@ static pj_status_t start_tone_detector(TestCall* call, pjsua_call_id call_id) {
 		return PJ_EINVAL;
 	}
 
+	/* Check port before creating the detector: when onCallMediaState fires
+	 * on INCOMING (UAS, no early media) the call's conf port is not yet
+	 * provisioned. Creating the detector here would leak it — the next
+	 * fire would early-return on tone_detector_id >= 0 without ever
+	 * wiring to the bridge. */
+	int call_conf_port = pjsua_call_get_conf_port(call_id);
+	if (call_conf_port == PJSUA_INVALID_ID) {
+		LOG(logINFO) <<__FUNCTION__<<": [tone_detector] no conf port for call yet";
+		return PJ_EBUSY;
+	}
+
 	pj_status_t status = pjsua_tone_detector_create(&tone_detected, call,
 	                                                tones.data(),
 	                                                (unsigned)tones.size(),
@@ -419,11 +430,6 @@ static pj_status_t start_tone_detector(TestCall* call, pjsua_call_id call_id) {
 	LOG(logINFO) <<__FUNCTION__<<": [tone_detector] created id:"<< call->tone_detector_id
 	             <<" watching "<< tones.size() <<" freq(s)";
 
-	int call_conf_port = pjsua_call_get_conf_port(call_id);
-	if (call_conf_port == PJSUA_INVALID_ID) {
-		LOG(logINFO) <<__FUNCTION__<<": [tone_detector] no conf port for call yet";
-		return PJ_EBUSY;
-	}
 	return pjsua_conf_connect(call_conf_port,
 	                          pjsua_recorder_get_conf_port(call->tone_detector_id));
 }
@@ -909,16 +915,12 @@ void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	const bool detect_tone = !test->tones.empty();
 	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early
 	             <<" detect_tone:"<< detect_tone;
-	// Also wire on CONNECTING/CONFIRMED: when the callee answers without
-	// early media (SDP arrives in the 200 OK), onCallMediaState fires once
-	// during CONNECTING and may not fire again in CONFIRMED, so limiting
-	// to EARLY/CONFIRMED would skip the detector entirely.
-	// start_tone_detector is idempotent, so the EARLY→CONFIRMED path still
-	// attaches exactly once.
-	if (test && detect_tone &&
-	    (ci.state == PJSIP_INV_STATE_EARLY ||
-	     ci.state == PJSIP_INV_STATE_CONNECTING ||
-	     ci.state == PJSIP_INV_STATE_CONFIRMED)) {
+	// Attach on any non-terminal state: without early media the UAC leg
+	// fires in CONNECTING and the UAS leg fires in INCOMING, while a
+	// standard 180/183-with-SDP path fires in EARLY. start_tone_detector
+	// is idempotent and guards against a missing conf port, so wiring on
+	// any of these states is safe and covers all answer paths.
+	if (test && detect_tone && ci.state != PJSIP_INV_STATE_DISCONNECTED) {
 		start_tone_detector(this, ci.id);
 	}
 }

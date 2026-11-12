@@ -909,12 +909,16 @@ void TestCall::onCallMediaState(OnCallMediaStateParam &prm) {
 	const bool detect_tone = !test->tones.empty();
 	LOG(logINFO) <<__FUNCTION__<<" id:"<<ci.id <<" record_early:"<< test->record_early
 	             <<" detect_tone:"<< detect_tone;
-	// Also wire on CONFIRMED: calls that skip early media (no 183/180 with
-	// SDP) reach onCallMediaState for the first time in CONFIRMED, and
-	// without this the tone detector would never start. start_tone_detector
-	// is idempotent, so the usual EARLY→CONFIRMED path still attaches once.
+	// Also wire on CONNECTING/CONFIRMED: when the callee answers without
+	// early media (SDP arrives in the 200 OK), onCallMediaState fires once
+	// during CONNECTING and may not fire again in CONFIRMED, so limiting
+	// to EARLY/CONFIRMED would skip the detector entirely.
+	// start_tone_detector is idempotent, so the EARLY→CONFIRMED path still
+	// attaches exactly once.
 	if (test && detect_tone &&
-	    (ci.state == PJSIP_INV_STATE_EARLY || ci.state == PJSIP_INV_STATE_CONFIRMED)) {
+	    (ci.state == PJSIP_INV_STATE_EARLY ||
+	     ci.state == PJSIP_INV_STATE_CONNECTING ||
+	     ci.state == PJSIP_INV_STATE_CONFIRMED)) {
 		start_tone_detector(this, ci.id);
 	}
 }

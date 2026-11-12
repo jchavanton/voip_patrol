@@ -72,6 +72,36 @@ def test_tones_detected(run_scenario):
     )
 
 
+def test_tones_detected_without_early_media(run_scenario):
+    """Same as test_tones_detected, but the UAS answers 200 OK directly —
+    no 180 Ringing, no early media. onCallMediaState fires once during
+    PJSIP_INV_STATE_CONNECTING and may not fire again in CONFIRMED, so
+    the detector must attach from CONNECTING. Regression guard for the
+    production trace where tone_detected stayed 0 because the guard in
+    onCallMediaState only covered EARLY and CONFIRMED.
+    """
+    r = run_scenario(
+        "tones_detect.xml.j2",
+        tones_value="440+480,2000,4000",
+        detect_tone_freqs="440,480",
+        ring_duration=0,  # UAS answers 200 immediately, skipping 180
+        hangup_s=5,
+    )
+    assert r.exit_code == 0, f"voip_patrol exited {r.exit_code}"
+
+    accept = _entries(r.results, "accept")
+    assert accept, "no 'accept' entry in results"
+    a = accept[0]
+    assert a.get("tone_detected") == 1, (
+        f"tone was not detected on no-early-media path: {a}\n"
+        "If the detector never attaches, onCallMediaState's state guard "
+        "is probably missing PJSIP_INV_STATE_CONNECTING."
+    )
+    assert a["tone_detected_ms"] < 2000, (
+        f"tone_detected_ms={a['tone_detected_ms']}ms is too high"
+    )
+
+
 def test_tonegen_emits_audio(run_scenario):
     """UAC plays 440+480 tones; assert the tonegen is actually pumping
     audio samples into the call's outbound conf slot.

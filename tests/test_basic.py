@@ -142,6 +142,59 @@ def test_tonegen_emits_audio(run_scenario):
     )
 
 
+def test_concurrent_tone_hangup_clean_shutdown(run_scenario):
+    """Launch several concurrent calls, each detects a tone and hangs up
+    immediately. Regression guard for pjproject#5394: the tone detector
+    port was allocated from the caller's pool and pjsua_tone_detector_destroy
+    released that pool while the conference bridge was still reading the
+    port, producing a heap-use-after-free in the clock thread on hangup.
+
+    A healthy build finishes all legs and exits 0. Without the fix the
+    race is intermittent — most ASan-free runs still exit cleanly because
+    the freed memory stays mapped — so this test is a weak check (it will
+    catch outright crashes but not silent corruption). Run under ASan for
+    a stronger signal.
+    """
+    n = 10
+    r = run_scenario(
+        "tones_detect_concurrent.xml.j2",
+        repeat=n - 1,            # launches n total calls
+        repeat_interval_ms=50,   # overlap: next INVITE before prior tone fires
+        hangup_s=10,             # safety ceiling; tone should trigger hangup first
+        timeout_s=60.0,
+    )
+    assert r.exit_code == 0, (
+        f"voip_patrol exited {r.exit_code} — possible pjproject tone "
+        f"detector UAF on concurrent hangup\nstderr tail:\n{r.stderr[-2000:]}"
+    )
+
+    call = _entries(r.results, "call")
+    assert len(call) == n, (
+        f"expected {n} call results, got {len(call)}; a crash or hang "
+        f"would truncate the result stream"
+    )
+    for i, c in enumerate(call):
+        assert c.get("cause_code") == 200, (
+            f"call #{i} did not complete cleanly: {c}"
+        )
+
+    # The accept side owns the tone detector and emits one result per
+    # incoming call. Every leg must hit the hangup_on_tone path (that's
+    # what exercises pjsua_tone_detector_destroy under concurrency); if
+    # any detector never fired, the race was not exercised and the test
+    # is not a meaningful guard.
+    accept = _entries(r.results, "accept")
+    assert len(accept) == n, (
+        f"expected {n} accept results, got {len(accept)}; missing entries "
+        f"may indicate a crash in the conference thread"
+    )
+    detected = sum(1 for a in accept if a.get("tone_detected") == 1)
+    assert detected == n, (
+        f"only {detected}/{n} legs reached hangup_on_tone — the "
+        f"pjsua_tone_detector_destroy race was only partially exercised"
+    )
+
+
 def test_dtmf_roundtrip(run_scenario):
     """UAC sends '123*', UAS reports dtmf_recv on the accept result.
 
